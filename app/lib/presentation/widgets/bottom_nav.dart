@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:sinait/core/constants/app_routes.dart';
 import 'package:sinait/core/theme/app_theme.dart';
 
@@ -29,31 +28,31 @@ class BottomNav extends StatelessWidget {
                   icon: Icons.home_rounded,
                   label: 'Inicio',
                   isActive: currentIndex == 0,
-                  onTap: () => context.go(AppRoutes.home),
+                  onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.home),
                 ),
                 _NavItem(
                   icon: Icons.map_rounded,
                   label: 'Mapa',
                   isActive: currentIndex == 1,
-                  onTap: () => context.go(AppRoutes.map),
+                  onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.map),
                 ),
                 _NavItem(
                   icon: Icons.qr_code_scanner_rounded,
                   label: 'Escanear',
                   isActive: currentIndex == 2,
-                  onTap: () => context.go(AppRoutes.scanner),
+                  onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.scanner),
                 ),
                 _NavItem(
                   icon: Icons.badge_rounded,
                   label: 'Credencial',
                   isActive: currentIndex == 3,
-                  onTap: () => context.go(AppRoutes.credential),
+                  onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.credential),
                 ),
                 _NavItem(
                   icon: Icons.person_rounded,
                   label: 'Perfil',
                   isActive: currentIndex == 4,
-                  onTap: () => context.go(AppRoutes.profile),
+                  onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.profile),
                 ),
               ],
             ),

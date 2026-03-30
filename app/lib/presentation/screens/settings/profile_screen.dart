@@ -1,51 +1,154 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sinait/core/constants/app_routes.dart'; // Importante para la navegación
 import 'package:sinait/core/theme/app_theme.dart';
+import 'package:sinait/services/auth/auth_service.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
+
+  // Manejo del inicio de sesión con validación de errores
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      await _authService.signInWithGoogle();
+    } catch (e) {
+      // Si el dominio no es institucional, AuthService lanzará una excepción
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: AppTheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleSignOut() async {
+    setState(() => _isLoading = true);
+    await _authService.signOut();
+    setState(() => _isLoading = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Perfil estudiantil')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            _AvatarSection(),
-            const SizedBox(height: 32),
-            const _InfoCard(
-              title: 'Datos académicos',
-              items: [
-                (Icons.badge_rounded, 'Matrícula', '22460290'),
-                (Icons.school_rounded, 'Carrera', 'Ing. Sistemas Computacionales'),
-                (Icons.location_city_rounded, 'Campus', 'TecNM Colima'),
-                (Icons.calendar_today_rounded, 'Semestre', '8vo — 2025-A'),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const _InfoCard(
-              title: 'Accesibilidad configurada',
-              items: [
-                (Icons.mic_rounded, 'Voz', 'Activada'),
-                (Icons.translate_rounded, 'Idioma', 'Español (México)'),
-                (Icons.speed_rounded, 'Velocidad de voz', '1.0x'),
-              ],
-            ),
-            const SizedBox(height: 28),
-            ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.edit_rounded, size: 20),
-              label: const Text('Editar perfil'),
-            ),
+    final User? user = _authService.currentUser;
+
+    // PopScope detecta cuando el usuario intenta ir "atrás" con los gestos del cel
+    return PopScope(
+      canPop: false, // Bloqueamos la salida directa
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        // En lugar de cerrar la app, lo mandamos al Home de forma segura
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Perfil estudiantil'),
+          // Botón de regreso manual en el AppBar
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+            onPressed: () => Navigator.pushReplacementNamed(context, AppRoutes.home),
+          ),
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppTheme.accent))
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: user == null
+                    ? _buildLoginState()
+                    : _buildProfileState(user),
+              ),
+      ),
+    );
+  }
+
+  // --- WIDGETS DE ESTADO ---
+
+  Widget _buildLoginState() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const SizedBox(height: 40),
+        Icon(Icons.account_circle_rounded, 
+             size: 100, 
+             color: AppTheme.textSecondary.withValues(alpha: 0.5)),
+        const SizedBox(height: 24),
+        const Text(
+          'Inicia sesión con tu cuenta institucional para sincronizar tus datos.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
+        ),
+        const SizedBox(height: 32),
+        ElevatedButton.icon(
+          onPressed: _handleGoogleSignIn,
+          icon: const Icon(Icons.g_mobiledata_rounded, size: 32),
+          label: const Text('Ingresar con Google'),
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size(double.infinity, 56),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfileState(User user) {
+    final matricula = _authService.getMatricula(user.email);
+
+    return Column(
+      children: [
+        _AvatarSection(user: user),
+        const SizedBox(height: 32),
+        _InfoCard(
+          title: 'Datos académicos',
+          items: [
+            (Icons.badge_rounded, 'Matrícula', matricula),
+            (Icons.school_rounded, 'Carrera', 'Ing. Sistemas Computacionales'),
+            (Icons.location_city_rounded, 'Campus', 'TecNM Colima'),
+            (Icons.email_rounded, 'Correo', user.email ?? 'Sin correo'),
           ],
         ),
-      ),
+        const SizedBox(height: 16),
+        const _InfoCard(
+          title: 'Accesibilidad configurada',
+          items: [
+            (Icons.mic_rounded, 'Voz', 'Activada'),
+            (Icons.translate_rounded, 'Idioma', 'Español (México)'),
+            (Icons.speed_rounded, 'Velocidad de voz', '1.0x'),
+          ],
+        ),
+        const SizedBox(height: 28),
+        OutlinedButton.icon(
+          onPressed: _handleSignOut,
+          icon: const Icon(Icons.logout_rounded, size: 20, color: AppTheme.error),
+          label: const Text('Cerrar sesión', style: TextStyle(color: AppTheme.error)),
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: AppTheme.error),
+          ),
+        ),
+      ],
     );
   }
 }
 
+// --- SUB-WIDGETS ---
+
 class _AvatarSection extends StatelessWidget {
+  final User user;
+  const _AvatarSection({required this.user});
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -56,32 +159,29 @@ class _AvatarSection extends StatelessWidget {
             CircleAvatar(
               radius: 52,
               backgroundColor: AppTheme.accent.withValues(alpha: 0.15),
-              child: const Icon(Icons.person_rounded,
-                  size: 64, color: AppTheme.accent),
+              backgroundImage: user.photoURL != null ? NetworkImage(user.photoURL!) : null,
+              child: user.photoURL == null
+                  ? const Icon(Icons.person_rounded, size: 64, color: AppTheme.accent)
+                  : null,
             ),
             Container(
               padding: const EdgeInsets.all(6),
               decoration: const BoxDecoration(
-                color: AppTheme.accent,
+                color: AppTheme.success,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.camera_alt_rounded,
-                  size: 16, color: Colors.black),
+              child: const Icon(Icons.verified_rounded, size: 16, color: Colors.white),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        const Text(
-          'Juanpablo E. Gómez Domínguez',
-          style: TextStyle(
+        Text(
+          user.displayName ?? 'Estudiante TecNM',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 20,
               fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'juanpablo.gomez@colima.tecnm.mx',
-          style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
         ),
       ],
     );
@@ -127,11 +227,17 @@ class _InfoCard extends StatelessWidget {
                             color: AppTheme.textSecondary,
                             fontSize: 14)),
                     const Spacer(),
-                    Text(item.$3,
+                    Expanded(
+                      child: Text(
+                        item.$3,
+                        textAlign: TextAlign.right,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             color: AppTheme.textPrimary,
                             fontSize: 14,
-                            fontWeight: FontWeight.w600)),
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ),
                   ],
                 ),
               )),

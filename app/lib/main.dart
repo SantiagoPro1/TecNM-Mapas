@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Configuración y Tema
 import 'package:sinait/core/constants/app_routes.dart';
@@ -18,22 +19,32 @@ import 'package:sinait/presentation/screens/settings/settings_screen.dart';
 import 'package:sinait/presentation/screens/settings/profile_screen.dart';
 
 void main() async {
-  // Asegura que los bindings de Flutter estén listos antes de inicializar Firebase
+  // 1. Asegura que los bindings de Flutter estén listos
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Inicialización de Firebase
+  // 2. Inicialización de Firebase (Esencial para Google Sign-In)
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
-  // Bloquear la orientación del teléfono en vertical (Portrait)
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  // 3. Bloquear la orientación del teléfono en vertical (Portrait)
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+  // 4. Revisar si debemos mostrar el Onboarding (Términos y Condiciones)
+  final prefs = await SharedPreferences.getInstance();
+  final bool showOnboarding = prefs.getBool('showOnboarding') ?? true;
   
-  runApp(const SinaitApp());
+  // Lanzamos la App pasando el estado del Onboarding
+  runApp(SinaitApp(showOnboarding: showOnboarding));
 }
 
 class SinaitApp extends StatelessWidget {
-  const SinaitApp({super.key});
+  final bool showOnboarding;
+
+  const SinaitApp({
+    super.key, 
+    required this.showOnboarding
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -42,10 +53,10 @@ class SinaitApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       
-      // Define la pantalla inicial al abrir la app
-      initialRoute: AppRoutes.onboarding,
+      // Lógica de inicio: Si es nuevo va a onboarding, si no, al home
+      initialRoute: showOnboarding ? AppRoutes.onboarding : AppRoutes.home,
       
-      // Mapa de rutas tradicionales (reemplaza a go_router)
+      // Mapa de rutas nativo (Navigator 1.0)
       routes: {
         AppRoutes.onboarding: (context) => const OnboardingScreen(),
         AppRoutes.home: (context) => const HomeScreen(),

@@ -1,0 +1,47 @@
+[
+  {
+    "id": "tec_edificio_p",
+    "name": "Edificio P (Académico)",
+    "latitude": 19.2438,
+    "longitude": -103.7037,
+    "type": "Edificio",
+    "accessibilityLevel": "alto",
+    "description": "Edificio P. Cuenta con rampas de acceso y pasillos amplios."
+  },
+  {
+    "id": "tec_cafeteria",
+    "name": "Cafetería Norte",
+    "latitude": 19.2443,
+    "longitude": -103.7042,
+    "type": "Cafetería",
+    "accessibilityLevel": "medio",
+    "description": "Cafetería Norte. El acceso principal tiene un pequeño escalón, se recomienda usar la entrada lateral."
+  },
+  {
+    "id": "tec_mecatronica",
+    "name": "Laboratorio de Mecatrónica",
+    "latitude": 19.2440,
+    "longitude": -103.7032,
+    "type": "Edificio",
+    "accessibilityLevel": "alto",
+    "description": "Laboratorio de Mecatrónica. Entrada totalmente accesible con puertas automáticas."
+  },
+  {
+    "id": "tec_canchas",
+    "name": "Canchas Techadas",
+    "latitude": 19.2446,
+    "longitude": -103.7040,
+    "type": "Parque",
+    "accessibilityLevel": "alto",
+    "description": "Área deportiva de canchas techadas. Superficie plana y accesible."
+  },
+  {
+    "id": "tec_explanada",
+    "name": "Explanada Principal",
+    "latitude": 19.2435,
+    "longitude": -103.7040,
+    "type": "Servicios",
+    "accessibilityLevel": "alto",
+    "description": "Explanada principal del campus. Punto de reunión accesible."
+  }
+]

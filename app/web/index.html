@@ -31,6 +31,27 @@
 
   <title>sinait</title>
   <link rel="manifest" href="manifest.json">
+  <!-- Cargamos la configuración de entorno para Web (Ignorado en Git) -->
+  <script src="config.js"></script>
+
+  <script>
+    (function() {
+      // Cargamos Google Maps dinámicamente usando la llave del config.js
+      var mapsKey = window.ENV ? window.ENV.GOOGLE_MAPS_API_KEY : "";
+      var script = document.createElement('script');
+      script.src = "https://maps.googleapis.com/maps/api/js?key=" + mapsKey + "&loading=async&libraries=marker";
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+
+      // Inyectamos el Client ID de Google Sign In
+      var clientId = window.ENV ? window.ENV.GOOGLE_SIGN_IN_CLIENT_ID : "";
+      var meta = document.createElement('meta');
+      meta.name = "google-signin-client_id";
+      meta.content = clientId;
+      document.head.appendChild(meta);
+    })();
+  </script>
 </head>
 <body>
   <!--

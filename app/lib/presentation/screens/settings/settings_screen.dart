@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sinait/core/constants/app_routes.dart';
 import 'package:sinait/core/theme/app_theme.dart';
+import 'package:sinait/data/providers/auth_provider.dart';
+import 'package:sinait/data/providers/voice_provider.dart';
 import 'package:sinait/presentation/widgets/bottom_nav.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _voiceEnabled = true;
   bool _highContrast = false;
   bool _vibrationEnabled = true;
@@ -55,7 +58,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             max: 2.0,
             divisions: 6,
             display: '${_speechRate.toStringAsFixed(1)}x',
-            onChanged: (v) => setState(() => _speechRate = v),
+            onChanged: (v) {
+              setState(() => _speechRate = v);
+              ref.read(voiceProvider.notifier).setSpeechRate(v);
+            },
           ),
           const SizedBox(height: 16),
           const _SectionHeader('Cuenta'),
@@ -84,7 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 24),
           OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: () => ref.read(authProvider.notifier).signOut(),
             icon: const Icon(Icons.logout_rounded,
                 color: AppTheme.error, size: 20),
             label: const Text('Cerrar sesión',

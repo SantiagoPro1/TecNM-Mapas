@@ -1,13 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sinait/core/constants/app_routes.dart';
 import 'package:sinait/core/theme/app_theme.dart';
+import 'package:sinait/data/providers/auth_provider.dart';
+import 'package:sinait/data/providers/navigation_provider.dart';
+import 'package:sinait/data/providers/voice_provider.dart';
+import 'package:sinait/data/providers/feed_provider.dart';
+import 'package:sinait/services/voice/voice_service.dart';
 import 'package:sinait/presentation/widgets/bottom_nav.dart';
+import 'package:sinait/presentation/widgets/announcement_card.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Inicializar voz y cargar feed general al entrar
+    Future.microtask(() {
+      ref.read(voiceProvider.notifier).initialize();
+      ref.read(feedProvider.notifier).loadAll();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final navState = ref.watch(navigationProvider);
+    final voiceState = ref.watch(voiceProvider);
+    final feedState = ref.watch(feedProvider);
+
     return Scaffold(
       bottomNavigationBar: const BottomNav(currentIndex: 0),
       body: SafeArea(
@@ -20,10 +47,46 @@ class HomeScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _header(),
+                    _header(context, authState),
+                    const SizedBox(height: 20),
+
+                    // Indicador de posición actual
+                    if (navState.currentNode != null)
+                      _positionBanner(navState),
+
+                    const SizedBox(height: 12),
+
+                    // Botón de voz principal
+                    _voiceButton(context, voiceState),
+
+                    // Navegación activa
+                    if (navState.hasActiveRoute) ...[
+                      const SizedBox(height: 16),
+                      _activeNavBanner(navState),
+                    ],
+
                     const SizedBox(height: 28),
-                    _voiceButton(context),
-                    const SizedBox(height: 28),
+
+                    // Feed contextual
+                    if (feedState.announcements.isNotEmpty) ...[
+                      Text(
+                        'Avisos del campus',
+                        style: Theme.of(context)
+                            .textTheme
+                            .displayMedium
+                            ?.copyWith(fontSize: 18),
+                      ),
+                      const SizedBox(height: 12),
+                      ...feedState.announcements.map((a) =>
+                        AnnouncementCard(
+                          announcement: a,
+                          onDismiss: () =>
+                            ref.read(feedProvider.notifier).dismiss(a.id),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
                     Text(
                       'Accesos rápidos',
                       style: Theme.of(context)
@@ -53,78 +116,250 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _header() {
-    return Builder(builder: (context) {
-      return Row(
+  Widget _header(BuildContext context, AuthState authState) {
+    final name = authState.isAuthenticated
+        ? authState.displayName.split(' ').first
+        : '';
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                authState.isAuthenticated ? 'Hola, $name 👋' : 'Hola 👋',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '¿A dónde vas hoy?',
+                style: Theme.of(context).textTheme.displayLarge,
+              ),
+            ],
+          ),
+        ),
+        GestureDetector(
+          onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
+          child: CircleAvatar(
+            radius: 24,
+            backgroundColor: AppTheme.accent.withValues(alpha: 0.15),
+            backgroundImage: authState.photoUrl != null
+                ? NetworkImage(authState.photoUrl!)
+                : null,
+            child: authState.photoUrl == null
+                ? const Icon(Icons.person_rounded, color: AppTheme.accent)
+                : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _positionBanner(NavigationState navState) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.success.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
+      ),
+      child: Row(
         children: [
+          const Icon(Icons.location_on_rounded,
+              color: AppTheme.success, size: 20),
+          const SizedBox(width: 8),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Hola 👋',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '¿A dónde vas hoy?',
-                  style: Theme.of(context).textTheme.displayLarge,
-                ),
-              ],
+            child: Text(
+              'Posición: ${navState.currentNode!.name}',
+              style: const TextStyle(
+                  color: AppTheme.success,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600),
             ),
           ),
           GestureDetector(
-            onTap: () =>
-                Navigator.pushNamed(context, AppRoutes.profile),
-            child: CircleAvatar(
-              radius: 24,
-              backgroundColor: AppTheme.accent.withValues(alpha: 0.15),
-              child: const Icon(Icons.person_rounded, color: AppTheme.accent),
-            ),
+            onTap: () => Navigator.pushNamed(context, AppRoutes.scanner),
+            child: const Text('Actualizar',
+                style: TextStyle(
+                    color: AppTheme.success,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    decoration: TextDecoration.underline)),
           ),
         ],
-      );
-    });
+      ),
+    );
   }
 
-  Widget _voiceButton(BuildContext context) {
+  Widget _voiceButton(BuildContext context, VoiceControlState voiceState) {
+    final isListening = voiceState.voiceState == VoiceState.listening;
+
     return GestureDetector(
-      onTap: () {},
-      child: Container(
+      onTap: () {
+        ref.read(voiceProvider.notifier).listenAndExecute();
+      },
+      onDoubleTap: () {
+        ref.read(voiceProvider.notifier).listenAndExecute();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: AppTheme.accent,
+          color: isListening ? Colors.white : AppTheme.accent,
           borderRadius: BorderRadius.circular(20),
+          boxShadow: isListening
+              ? [
+                  BoxShadow(
+                    color: AppTheme.accent.withValues(alpha: 0.4),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                  )
+                ]
+              : null,
         ),
-        child: const Row(
+        child: Row(
           children: [
-            Icon(Icons.mic_rounded, size: 40, color: Colors.black),
-            SizedBox(width: 16),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                isListening ? Icons.hearing_rounded : Icons.mic_rounded,
+                key: ValueKey(isListening),
+                size: 40,
+                color: isListening ? AppTheme.accent : Colors.black,
+              ),
+            ),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Doble toque o di',
+                    isListening ? 'Escuchando...' : 'Toca o di',
                     style: TextStyle(
-                        color: Colors.black,
+                        color: isListening
+                            ? AppTheme.textSecondary
+                            : Colors.black,
                         fontSize: 14,
                         fontWeight: FontWeight.w500),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
-                    '"Llévame a..."',
+                    isListening
+                        ? (voiceState.recognizedText.isEmpty
+                            ? '...'
+                            : voiceState.recognizedText)
+                        : '"Llévame a..."',
                     style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 22,
+                        color: isListening
+                            ? Colors.black87
+                            : Colors.black,
+                        fontSize: isListening ? 18 : 22,
                         fontWeight: FontWeight.bold),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _activeNavBanner(NavigationState navState) {
+    final route = navState.activeRoute!;
+    final step = route.steps[navState.currentStepIndex];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.accent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.accent.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.navigation_rounded,
+                  color: AppTheme.accent, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Navegando a ${route.destination.name}',
+                  style: const TextStyle(
+                      color: AppTheme.accent,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+              GestureDetector(
+                onTap: () => ref.read(navigationProvider.notifier).cancelNavigation(),
+                child: const Icon(Icons.close_rounded,
+                    color: AppTheme.textSecondary, size: 20),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            step.voiceInstruction,
+            style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 12),
+          // Progress + controls
+          Row(
+            children: [
+              Expanded(
+                child: LinearProgressIndicator(
+                  value: navState.progress,
+                  backgroundColor: const Color(0xFF333333),
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(AppTheme.accent),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '${route.totalDistance.round()}m · ~${route.estimatedMinutes.round()} min',
+                style: const TextStyle(
+                    color: AppTheme.textSecondary, fontSize: 12),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () =>
+                      ref.read(voiceProvider.notifier).speakCurrentStep(),
+                  icon: const Icon(Icons.volume_up_rounded, size: 18),
+                  label: const Text('Repetir'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.accent,
+                    side: const BorderSide(color: AppTheme.accent),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () =>
+                      ref.read(voiceProvider.notifier).nextStepAndSpeak(),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                  label: const Text('Siguiente'),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

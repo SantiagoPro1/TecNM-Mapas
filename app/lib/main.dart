@@ -1,12 +1,17 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // Configuración y Tema
 import 'package:sinait/core/constants/app_routes.dart';
 import 'package:sinait/core/theme/app_theme.dart';
 import 'package:sinait/firebase_options.dart';
+
+// Providers
+import 'package:sinait/data/providers/navigation_provider.dart';
 
 // Pantallas
 import 'package:sinait/presentation/screens/onboarding/onboarding_screen.dart';
@@ -22,7 +27,8 @@ void main() async {
   // 1. Asegura que los bindings de Flutter estén listos
   WidgetsFlutterBinding.ensureInitialized();
   
-  // 2. Inicialización de Firebase (Esencial para Google Sign-In)
+  // 2. Inicialización de Firebase y DotEnv
+  await dotenv.load(fileName: ".env");
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -34,17 +40,35 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   final bool showOnboarding = prefs.getBool('showOnboarding') ?? true;
   
-  // Lanzamos la App pasando el estado del Onboarding
-  runApp(SinaitApp(showOnboarding: showOnboarding));
+  // 5. Lanzamos la App envuelta en ProviderScope (Riverpod)
+  runApp(
+    ProviderScope(
+      child: SinaitApp(showOnboarding: showOnboarding),
+    ),
+  );
 }
 
-class SinaitApp extends StatelessWidget {
+class SinaitApp extends ConsumerStatefulWidget {
   final bool showOnboarding;
 
   const SinaitApp({
     super.key, 
-    required this.showOnboarding
+    required this.showOnboarding,
   });
+
+  @override
+  ConsumerState<SinaitApp> createState() => _SinaitAppState();
+}
+
+class _SinaitAppState extends ConsumerState<SinaitApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Inicializar el grafo de navegación en background
+    Future.microtask(() {
+      ref.read(navigationProvider.notifier).initialize();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +78,7 @@ class SinaitApp extends StatelessWidget {
       theme: AppTheme.darkTheme,
       
       // Lógica de inicio: Si es nuevo va a onboarding, si no, al home
-      initialRoute: showOnboarding ? AppRoutes.onboarding : AppRoutes.home,
+      initialRoute: widget.showOnboarding ? AppRoutes.onboarding : AppRoutes.home,
       
       // Mapa de rutas nativo (Navigator 1.0)
       routes: {

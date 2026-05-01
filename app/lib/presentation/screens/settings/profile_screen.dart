@@ -1,50 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:sinait/core/constants/app_routes.dart'; // Importante para la navegación
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sinait/core/constants/app_routes.dart';
 import 'package:sinait/core/theme/app_theme.dart';
-import 'package:sinait/services/auth/auth_service.dart';
+import 'package:sinait/data/providers/auth_provider.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends State<ProfileScreen> {
-  final AuthService _authService = AuthService();
-  bool _isLoading = false;
-
-  // Manejo del inicio de sesión con validación de errores
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => _isLoading = true);
-    try {
-      await _authService.signInWithGoogle();
-    } catch (e) {
-      // Si el dominio no es institucional, AuthService lanzará una excepción
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: AppTheme.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _handleSignOut() async {
-    setState(() => _isLoading = true);
-    await _authService.signOut();
-    setState(() => _isLoading = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final User? user = _authService.currentUser;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
 
     // PopScope detecta cuando el usuario intenta ir "atrás" con los gestos del cel
     return PopScope(
@@ -63,13 +28,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () => Navigator.pushReplacementNamed(context, AppRoutes.home),
           ),
         ),
-        body: _isLoading
+        body: authState.isLoading
             ? const Center(child: CircularProgressIndicator(color: AppTheme.accent))
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
-                child: user == null
-                    ? _buildLoginState()
-                    : _buildProfileState(user),
+                child: authState.isAuthenticated
+                    ? _buildProfileState(context, ref, authState)
+                    : _buildLoginState(context, ref, authState),
               ),
       ),
     );
@@ -77,7 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // --- WIDGETS DE ESTADO ---
 
-  Widget _buildLoginState() {
+  Widget _buildLoginState(BuildContext context, WidgetRef ref, AuthState authState) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -91,9 +56,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
           textAlign: TextAlign.center,
           style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
         ),
+        // Mostrar error si lo hay
+        if (authState.errorMessage != null) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: AppTheme.error, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    authState.errorMessage!,
+                    style: const TextStyle(color: AppTheme.error, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 32),
         ElevatedButton.icon(
-          onPressed: _handleGoogleSignIn,
+          onPressed: () => ref.read(authProvider.notifier).signInWithGoogle(),
           icon: const Icon(Icons.g_mobiledata_rounded, size: 32),
           label: const Text('Ingresar con Google'),
           style: ElevatedButton.styleFrom(
@@ -104,20 +93,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileState(User user) {
-    final matricula = _authService.getMatricula(user.email);
-
+  Widget _buildProfileState(BuildContext context, WidgetRef ref, AuthState authState) {
     return Column(
       children: [
-        _AvatarSection(user: user),
+        _AvatarSection(authState: authState),
         const SizedBox(height: 32),
         _InfoCard(
           title: 'Datos académicos',
           items: [
-            (Icons.badge_rounded, 'Matrícula', matricula),
+            (Icons.badge_rounded, 'Matrícula', authState.matricula),
             (Icons.school_rounded, 'Carrera', 'Ing. Sistemas Computacionales'),
             (Icons.location_city_rounded, 'Campus', 'TecNM Colima'),
-            (Icons.email_rounded, 'Correo', user.email ?? 'Sin correo'),
+            (Icons.email_rounded, 'Correo', authState.user?.email ?? 'Sin correo'),
           ],
         ),
         const SizedBox(height: 16),
@@ -131,7 +118,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 28),
         OutlinedButton.icon(
-          onPressed: _handleSignOut,
+          onPressed: () => ref.read(authProvider.notifier).signOut(),
           icon: const Icon(Icons.logout_rounded, size: 20, color: AppTheme.error),
           label: const Text('Cerrar sesión', style: TextStyle(color: AppTheme.error)),
           style: OutlinedButton.styleFrom(
@@ -146,8 +133,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 // --- SUB-WIDGETS ---
 
 class _AvatarSection extends StatelessWidget {
-  final User user;
-  const _AvatarSection({required this.user});
+  final AuthState authState;
+  const _AvatarSection({required this.authState});
 
   @override
   Widget build(BuildContext context) {
@@ -159,8 +146,10 @@ class _AvatarSection extends StatelessWidget {
             CircleAvatar(
               radius: 52,
               backgroundColor: AppTheme.accent.withValues(alpha: 0.15),
-              backgroundImage: user.photoURL != null ? NetworkImage(user.photoURL!) : null,
-              child: user.photoURL == null
+              backgroundImage: authState.photoUrl != null
+                  ? NetworkImage(authState.photoUrl!)
+                  : null,
+              child: authState.photoUrl == null
                   ? const Icon(Icons.person_rounded, size: 64, color: AppTheme.accent)
                   : null,
             ),
@@ -176,7 +165,7 @@ class _AvatarSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          user.displayName ?? 'Estudiante TecNM',
+          authState.displayName,
           textAlign: TextAlign.center,
           style: const TextStyle(
               color: AppTheme.textPrimary,

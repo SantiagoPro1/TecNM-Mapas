@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color background = Color(0xFF000000);
-  static const Color surface = Color(0xFF1A1A1A);
+  // Colores Premium SINAIT
+  static const Color background = Color(0xFF0D1B2A);
+  static const Color surface = Color(0xFF1A2E45);
   static const Color primary = Color(0xFFFFFFFF);
-  static const Color accent = Color(0xFFFFD600);
+  static const Color accent = Color(0xFF00E5FF); // Cian SINAIT
   static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFFB3B3B3);
-  static const Color success = Color(0xFF4CAF50);
+  static const Color textSecondary = Color(0xFF90CAF9); // Azul claro para sutileza
+  static const Color success = Color(0xFF00E676);
   static const Color error = Color(0xFFFF5252);
-  static const Color cardBackground = Color(0xFF212121);
+  static const Color cardBackground = Color(0xFF1A2E45);
+  static const Color navBackground = Color(0xFF0D1B2A);
 
   static ThemeData get darkTheme {
     return ThemeData(
@@ -20,8 +22,8 @@ class AppTheme {
         primary: accent,
         secondary: accent,
         surface: surface,
-        onPrimary: Colors.black,
-        onSecondary: Colors.black,
+        onPrimary: Color(0xFF0D1B2A), // Contraste oscuro sobre cian
+        onSecondary: Color(0xFF0D1B2A),
         onSurface: textPrimary,
         error: error,
       ),
@@ -29,24 +31,28 @@ class AppTheme {
         backgroundColor: background,
         foregroundColor: textPrimary,
         elevation: 0,
-        centerTitle: true,
+        centerTitle: false,
         titleTextStyle: TextStyle(
           color: textPrimary,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
+          fontSize: 22,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.5,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: accent,
-          foregroundColor: Colors.black,
-          minimumSize: const Size(double.infinity, 64),
+          foregroundColor: const Color(0xFF0D1B2A),
+          minimumSize: const Size(double.infinity, 56),
+          elevation: 4,
+          shadowColor: accent.withOpacity(0.3),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
           textStyle: const TextStyle(
             fontSize: 18,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
           ),
         ),
       ),
@@ -55,47 +61,50 @@ class AppTheme {
           foregroundColor: accent,
           textStyle: const TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
       cardTheme: CardThemeData(
         color: cardBackground,
-        elevation: 0,
+        elevation: 8,
+        shadowColor: Colors.black38,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFF333333), width: 1),
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: accent.withOpacity(0.1), width: 1),
         ),
       ),
       iconTheme: const IconThemeData(
-        color: textPrimary,
-        size: 32,
+        color: accent,
+        size: 28,
       ),
       textTheme: const TextTheme(
         displayLarge: TextStyle(
           color: textPrimary,
-          fontSize: 32,
-          fontWeight: FontWeight.bold,
+          fontSize: 34,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -1.0,
         ),
         displayMedium: TextStyle(
           color: textPrimary,
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
+          fontSize: 26,
+          fontWeight: FontWeight.w800,
         ),
         bodyLarge: TextStyle(
           color: textPrimary,
           fontSize: 18,
-          height: 1.5,
+          height: 1.4,
+          fontWeight: FontWeight.w500,
         ),
         bodyMedium: TextStyle(
           color: textSecondary,
-          fontSize: 16,
-          height: 1.5,
+          fontSize: 15,
+          height: 1.4,
         ),
         labelLarge: TextStyle(
-          color: Colors.black,
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
+          color: Color(0xFF0D1B2A),
+          fontSize: 16,
+          fontWeight: FontWeight.w800,
         ),
       ),
       useMaterial3: true,

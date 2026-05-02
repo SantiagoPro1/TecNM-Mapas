@@ -39,27 +39,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
   ];
 
-  // Pedir permisos al sistema de forma segura
   Future<void> _requestPermissions() async {
     await [
       Permission.camera,
       Permission.microphone,
     ].request();
-    // Quitamos el print para evitar el aviso 'avoid_print'
   }
 
   Future<void> _completeOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('showOnboarding', false);
-    if (!mounted) return; // Verificación de seguridad
+    if (!mounted) return;
     Navigator.pushReplacementNamed(context, AppRoutes.home);
   }
 
   void _handleNext() async {
-    // Si estamos en la página de permisos, los solicitamos
     if (_currentPage == 2) {
       await _requestPermissions();
-      // Después de un 'await', siempre checamos si la pantalla sigue ahí
       if (!mounted) return; 
     }
 
@@ -72,12 +68,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (_termsAccepted) {
         _completeOnboarding();
       } else {
-        // Validación de seguridad antes de usar el context
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Debes aceptar los términos para continuar'),
+          SnackBar(
+            content: const Text('Debes aceptar los términos para continuar', style: TextStyle(fontWeight: FontWeight.bold)),
             backgroundColor: AppTheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -95,14 +92,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final isLastPage = _currentPage == _pages.length - 1;
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       body: SafeArea(
         child: Column(
           children: [
             Align(
               alignment: Alignment.topRight,
-              child: TextButton(
-                onPressed: _completeOnboarding,
-                child: const Text('Omitir'),
+              child: Padding(
+                padding: const EdgeInsets.only(right: 16, top: 8),
+                child: TextButton(
+                  onPressed: _completeOnboarding,
+                  child: const Text('Omitir', style: TextStyle(letterSpacing: 1.0)),
+                ),
               ),
             ),
             Expanded(
@@ -122,23 +123,36 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
             _DotsIndicator(count: _pages.length, current: _currentPage),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ElevatedButton(
-                onPressed: (isLastPage && !_termsAccepted) ? null : _handleNext,
-                child: Text(isLastPage ? 'Comenzar' : 'Siguiente'),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isLastPage && !_termsAccepted) ? Colors.transparent : AppTheme.accent.withOpacity(0.2),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    )
+                  ],
+                ),
+                child: ElevatedButton(
+                  onPressed: (isLastPage && !_termsAccepted) ? null : _handleNext,
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 60),
+                  ),
+                  child: Text(isLastPage ? 'COMENZAR' : 'SIGUIENTE'),
+                ),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 }
-
-// --- SUB-WIDGETS Y CLASES DE APOYO ---
 
 class _OnboardingPageData {
   final IconData icon;
@@ -159,41 +173,44 @@ class _PageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
+      padding: const EdgeInsets.symmetric(horizontal: 40),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 120,
-            height: 120,
+            width: 140,
+            height: 140,
             decoration: BoxDecoration(
-              color: AppTheme.accent.withValues(alpha: 0.12),
+              color: AppTheme.accent.withOpacity(0.08),
               shape: BoxShape.circle,
+              border: Border.all(color: AppTheme.accent.withOpacity(0.2), width: 2),
             ),
-            child: Icon(page.icon, size: 60, color: AppTheme.accent),
+            child: Icon(page.icon, size: 70, color: AppTheme.accent),
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 48),
           Text(
             page.title,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
             page.description,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 15,
+              fontSize: 16,
               color: AppTheme.textSecondary,
-              height: 1.4,
+              height: 1.5,
+              fontWeight: FontWeight.w500,
             ),
           ),
           if (extraContent != null) ...[
-            const SizedBox(height: 30),
+            const SizedBox(height: 40),
             extraContent!,
           ],
         ],
@@ -209,12 +226,13 @@ class _TermsCheckbox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
+        color: value ? AppTheme.accent.withOpacity(0.05) : AppTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: value ? AppTheme.accent.withOpacity(0.3) : Colors.white.withOpacity(0.05)),
       ),
       child: Row(
         children: [
@@ -222,12 +240,13 @@ class _TermsCheckbox extends StatelessWidget {
             value: value,
             onChanged: onChanged,
             activeColor: AppTheme.accent,
-            checkColor: Colors.black,
+            checkColor: const Color(0xFF0D1B2A),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
           ),
           const Expanded(
             child: Text(
               'Acepto los términos, condiciones y reglamentos internos del TecNM Campus Colima.',
-              style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -249,12 +268,12 @@ class _DotsIndicator extends StatelessWidget {
         final active = i == current;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 250),
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          width: active ? 24 : 8,
-          height: 8,
+          margin: const EdgeInsets.symmetric(horizontal: 5),
+          width: active ? 32 : 10,
+          height: 10,
           decoration: BoxDecoration(
-            color: active ? AppTheme.accent : AppTheme.textSecondary.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(4),
+            color: active ? AppTheme.accent : AppTheme.accent.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(5),
           ),
         );
       }),

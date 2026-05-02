@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:sinait/core/constants/campus_locations.dart';
 import 'package:sinait/core/theme/app_theme.dart';
 import 'package:sinait/data/providers/navigation_provider.dart';
@@ -19,8 +21,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   late AnimationController _animController;
   late Animation<double> _scanAnimation;
   bool _scanned = false;
+  bool _isCameraActive = false;
   String? _result;
   String? _scannedNodeId;
+  final MobileScannerController _scannerController = MobileScannerController();
 
   @override
   void initState() {
@@ -36,18 +40,39 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   @override
   void dispose() {
     _animController.dispose();
+    _scannerController.dispose();
     super.dispose();
   }
 
-  /// Simula el escaneo de un QR del campus (demo).
-  /// En producción, se reemplazará con mobile_scanner real.
+  void _onDetect(BarcodeCapture capture) {
+    if (_scanned) return;
+    
+    final List<Barcode> barcodes = capture.barcodes;
+    if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+      final String code = barcodes.first.rawValue!;
+      String? nodeId;
+
+      // Intentar parsear como SINAIT:ID o JSON {"node_id": "ID"}
+      if (code.startsWith('SINAIT:')) {
+        nodeId = CampusLocations.parseQrCode(code);
+      } else {
+        try {
+          final data = jsonDecode(code);
+          nodeId = data['node_id'];
+        } catch (_) {}
+      }
+
+      if (nodeId != null) {
+        setState(() => _isCameraActive = false);
+        _simulateScan(nodeId);
+      }
+    }
+  }
+
   void _simulateScan(String nodeId) {
     final parsedId = CampusLocations.parseQrCode('SINAIT:$nodeId') ?? nodeId;
-
-    // Establecer posición en el grafo
     final navNotifier = ref.read(navigationProvider.notifier);
     navNotifier.setPosition(parsedId);
-
     final navState = ref.read(navigationProvider);
 
     if (navState.currentNode != null) {
@@ -57,10 +82,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
         _result = '${navState.currentNode!.name}\n${navState.currentNode!.description}';
       });
 
-      // Cargar feed contextual para la nueva zona
       ref.read(feedProvider.notifier).loadForZone(parsedId);
-
-      // Anunciar posición por voz
       ref.read(voiceProvider.notifier).speakAnnouncement(
         'Posición confirmada: ${navState.currentNode!.name}.',
       );
@@ -85,25 +107,37 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     final navState = ref.watch(navigationProvider);
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       bottomNavigationBar: const BottomNav(currentIndex: 2),
-      appBar: AppBar(title: const Text('Escanear QR')),
+      appBar: AppBar(
+        title: const Text('POSICIONAMIENTO'),
+        backgroundColor: Colors.transparent,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           child: Column(
             children: [
               Text(
-                'Apunta la cámara al código QR del pasillo para confirmar tu posición',
+                'Confirma tu posición escaneando el código QR más cercano',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14, fontWeight: FontWeight.w500),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
               _ScanViewport(
                 animation: _scanAnimation,
                 scanned: _scanned,
-                onTap: () => _showDemoSelector(context),
+                isCameraActive: _isCameraActive,
+                controller: _scannerController,
+                onDetect: _onDetect,
+                onTap: () => setState(() => _isCameraActive = !_isCameraActive),
               ),
               const SizedBox(height: 32),
+              if (!_scanned && !_isCameraActive)
+                _PremiumScanButton(
+                  onTap: () => setState(() => _isCameraActive = true),
+                ),
+              const SizedBox(height: 16),
               if (_scanned && _result != null) ...[
                 _ResultCard(
                   result: _result!,
@@ -112,50 +146,65 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                       ? () => _showNavigateDialog(context)
                       : null,
                 ),
-                const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  onPressed: _resetScan,
-                  icon: const Icon(Icons.qr_code_scanner_rounded),
-                  label: const Text('Escanear otro'),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _resetScan,
+                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+                    label: const Text('ESCANEAR DE NUEVO'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.accent,
+                      side: BorderSide(color: AppTheme.accent.withOpacity(0.5)),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                  ),
                 ),
               ] else
                 TextButton.icon(
                   onPressed: () => _showDemoSelector(context),
-                  icon: const Icon(Icons.touch_app_rounded),
-                  label: const Text('Simular escaneo (demo)'),
+                  icon: const Icon(Icons.touch_app_rounded, color: AppTheme.accent),
+                  label: const Text('Simular escaneo (demo)', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w800)),
                 ),
 
-              // Mostrar posición actual
               if (navState.currentNode != null && !_scanned) ...[
-                const SizedBox(height: 24),
+                const SizedBox(height: 40),
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: AppTheme.success.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                        color: AppTheme.success.withValues(alpha: 0.3)),
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: AppTheme.success.withOpacity(0.1)),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.location_on_rounded,
-                          color: AppTheme.success, size: 22),
-                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.success.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.location_on_rounded, color: AppTheme.success, size: 24),
+                      ),
+                      const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Posición actual',
+                            const Text('UBICACIÓN ACTUAL',
                                 style: TextStyle(
                                     color: AppTheme.success,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold)),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.0)),
                             const SizedBox(height: 4),
                             Text(navState.currentNode!.name,
                                 style: const TextStyle(
-                                    color: AppTheme.textPrimary,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600)),
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800)),
                           ],
                         ),
                       ),
@@ -170,63 +219,57 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     );
   }
 
-  /// Muestra un selector de ubicaciones demo para simular escaneo.
   void _showDemoSelector(BuildContext context) {
     final demoLocations = [
-      ('entrada_principal', 'Entrada Principal', Icons.door_front_door_rounded),
-      ('biblioteca', 'Biblioteca', Icons.local_library_rounded),
-      ('centro_computo', 'Centro de Cómputo', Icons.computer_rounded),
-      ('cafeteria', 'Cafetería', Icons.restaurant_rounded),
-      ('edificio_a', 'Edificio A', Icons.school_rounded),
-      ('edificio_b', 'Edificio B', Icons.school_rounded),
-      ('direccion', 'Dirección General', Icons.business_rounded),
-      ('auditorio', 'Auditorio', Icons.event_rounded),
-      ('cancha', 'Cancha Deportiva', Icons.sports_soccer_rounded),
-      ('lab_electronica', 'Lab. Electrónica', Icons.memory_rounded),
+      ('tec_entrada', 'Acceso Principal', Icons.door_front_door_rounded),
+      ('tec_edificio_b', 'Centro de Información', Icons.local_library_rounded),
+      ('tec_sistemas', 'Sistemas y Computación', Icons.computer_rounded),
+      ('tec_cafeteria', 'Cafetería Norte', Icons.restaurant_rounded),
+      ('tec_edificio_a', 'Administrativo', Icons.business_rounded),
+      ('tec_edificio_p', 'Edificio P', Icons.school_rounded),
+      ('tec_cecum', 'CECUM', Icons.event_rounded),
+      ('tec_canchas', 'Canchas Techadas', Icons.sports_soccer_rounded),
+      ('tec_mecatronica', 'Lab. Mecatrónica', Icons.memory_rounded),
+      ('tec_explanada', 'Explanada Principal', Icons.park_rounded),
     ];
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.cardBackground,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
+      backgroundColor: AppTheme.background,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+      builder: (_) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Simular escaneo QR',
-              style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
+              ),
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Selecciona una ubicación del campus:',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-            ),
+            const SizedBox(height: 24),
+            const Text('SIMULAR ESCANEO',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
             const SizedBox(height: 16),
             Flexible(
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: demoLocations.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (_, i) {
                   final loc = demoLocations[i];
                   return ListTile(
-                    leading: Icon(loc.$3, color: AppTheme.accent),
-                    title: Text(loc.$2,
-                        style: const TextStyle(color: AppTheme.textPrimary)),
-                    subtitle: Text('QR: SINAIT:${loc.$1}',
-                        style: const TextStyle(
-                            color: AppTheme.textSecondary, fontSize: 11)),
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: AppTheme.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                      child: Icon(loc.$3, color: AppTheme.accent, size: 22),
+                    ),
+                    title: Text(loc.$2, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                    subtitle: Text('ZONA: ${loc.$1.toUpperCase()}', style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 10, fontWeight: FontWeight.w800)),
                     tileColor: AppTheme.surface,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(0.05))),
                     onTap: () {
                       Navigator.pop(context);
                       _simulateScan(loc.$1);
@@ -241,7 +284,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     );
   }
 
-  /// Diálogo para seleccionar destino de navegación.
   void _showNavigateDialog(BuildContext context) {
     final navNotifier = ref.read(navigationProvider.notifier);
     final destinations = navNotifier.allDestinations
@@ -250,63 +292,54 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.cardBackground,
+      backgroundColor: AppTheme.background,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
       builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
+        initialChildSize: 0.7,
         maxChildSize: 0.9,
-        minChildSize: 0.3,
+        minChildSize: 0.4,
         expand: false,
-        builder: (_, controller) => Padding(
-          padding: const EdgeInsets.all(20),
+        builder: (_, controller) => Container(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                '¿A dónde quieres ir?',
-                style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+              const Text('SELECCIONA DESTINO',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+              const SizedBox(height: 20),
               Expanded(
                 child: ListView.separated(
                   controller: controller,
                   itemCount: destinations.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (_, i) {
                     final dest = destinations[i];
                     return ListTile(
-                      leading: const Icon(Icons.place_rounded,
-                          color: AppTheme.accent),
-                      title: Text(dest.name,
-                          style:
-                              const TextStyle(color: AppTheme.textPrimary)),
-                      subtitle: Text(dest.description,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: AppTheme.textSecondary, fontSize: 12)),
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: AppTheme.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                        child: const Icon(Icons.place_rounded, color: AppTheme.accent, size: 22),
+                      ),
+                      title: Text(dest.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                      subtitle: Text(dest.description, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12)),
                       tileColor: AppTheme.surface,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(0.05))),
                       onTap: () {
                         Navigator.pop(context);
                         navNotifier.navigateTo(dest.name);
-
-                        // Anunciar ruta por voz
                         final navState = ref.read(navigationProvider);
                         if (navState.activeRoute != null) {
-                          ref.read(voiceProvider.notifier).speakAnnouncement(
-                            navState.activeRoute!.voiceSummary,
-                          );
+                          ref.read(voiceProvider.notifier).speakAnnouncement(navState.activeRoute!.voiceSummary);
                         }
-
-                        // Ir al Home para ver la navegación
                         Navigator.pushReplacementNamed(context, '/home');
                       },
                     );
@@ -324,11 +357,17 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 class _ScanViewport extends StatelessWidget {
   final Animation<double> animation;
   final bool scanned;
+  final bool isCameraActive;
+  final MobileScannerController controller;
+  final Function(BarcodeCapture) onDetect;
   final VoidCallback onTap;
 
   const _ScanViewport({
     required this.animation,
     required this.scanned,
+    required this.isCameraActive,
+    required this.controller,
+    required this.onDetect,
     required this.onTap,
   });
 
@@ -337,53 +376,146 @@ class _ScanViewport extends StatelessWidget {
     return GestureDetector(
       onTap: scanned ? null : onTap,
       child: Container(
-        width: 260,
-        height: 260,
+        width: 280,
+        height: 280,
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: scanned
-              ? AppTheme.success.withValues(alpha: 0.1)
-              : AppTheme.cardBackground,
-          borderRadius: BorderRadius.circular(20),
+          color: scanned ? AppTheme.success.withOpacity(0.05) : AppTheme.surface,
+          borderRadius: BorderRadius.circular(32),
           border: Border.all(
-            color: scanned ? AppTheme.success : AppTheme.accent,
+            color: scanned ? AppTheme.success : AppTheme.accent.withOpacity(0.3),
             width: 2,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: (scanned ? AppTheme.success : AppTheme.accent).withOpacity(0.1),
+              blurRadius: 20,
+              spreadRadius: 2,
+            )
+          ],
         ),
         child: scanned
-            ? const Column(
+            ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.check_circle_rounded,
-                      color: AppTheme.success, size: 64),
-                  SizedBox(height: 12),
-                  Text('¡Posición confirmada!',
-                      style: TextStyle(
-                          color: AppTheme.success,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold)),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: AppTheme.success.withOpacity(0.1), shape: BoxShape.circle),
+                    child: const Icon(Icons.check_circle_rounded, color: AppTheme.success, size: 64),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text('CONFIRMADO',
+                      style: TextStyle(color: AppTheme.success, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
                 ],
               )
-            : Stack(
-                children: [
-                  Center(
-                    child: Icon(Icons.qr_code_rounded,
-                        size: 80,
-                        color: AppTheme.accent.withValues(alpha: 0.3)),
-                  ),
-                  AnimatedBuilder(
-                    animation: animation,
-                    builder: (_, __) => Positioned(
-                      top: animation.value * 220 + 20,
-                      left: 20,
-                      right: 20,
-                      child: Container(
-                        height: 2,
-                        color: AppTheme.accent,
+            : isCameraActive
+                ? MobileScanner(
+                    controller: controller,
+                    onDetect: onDetect,
+                  )
+                : Stack(
+                    children: [
+                      Center(
+                        child: Icon(Icons.qr_code_2_rounded, size: 100, color: AppTheme.accent.withOpacity(0.1)),
                       ),
-                    ),
+                      // Animated laser
+                      AnimatedBuilder(
+                        animation: animation,
+                        builder: (_, __) => Positioned(
+                          top: animation.value * 230 + 25,
+                          left: 25,
+                          right: 25,
+                          child: Column(
+                            children: [
+                              Container(
+                                height: 3,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.accent,
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [BoxShadow(color: AppTheme.accent.withOpacity(0.8), blurRadius: 10, spreadRadius: 2)],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Corner markers
+                      const _ScannerCorners(),
+                    ],
                   ),
-                ],
+      ),
+    );
+  }
+}
+
+class _PremiumScanButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _PremiumScanButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 120,
+        height: 120,
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppTheme.accent.withOpacity(0.3)),
+          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.qr_code_scanner_rounded, color: AppTheme.accent, size: 40),
+            const SizedBox(height: 12),
+            const Text(
+              'Escanear',
+              style: TextStyle(
+                color: AppTheme.accent,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScannerCorners extends StatelessWidget {
+  const _ScannerCorners();
+  @override
+  Widget build(BuildContext context) {
+    return const Stack(
+      children: [
+        Positioned(top: 20, left: 20, child: _Corner(quarterTurns: 0)),
+        Positioned(top: 20, right: 20, child: _Corner(quarterTurns: 1)),
+        Positioned(bottom: 20, left: 20, child: _Corner(quarterTurns: 3)),
+        Positioned(bottom: 20, right: 20, child: _Corner(quarterTurns: 2)),
+      ],
+    );
+  }
+}
+
+class _Corner extends StatelessWidget {
+  final int quarterTurns;
+  const _Corner({required this.quarterTurns});
+  @override
+  Widget build(BuildContext context) {
+    return RotatedBox(
+      quarterTurns: quarterTurns,
+      child: Container(
+        width: 30, height: 30,
+        decoration: const BoxDecoration(
+          border: Border(
+            top: BorderSide(color: AppTheme.accent, width: 4),
+            left: BorderSide(color: AppTheme.accent, width: 4),
+          ),
+        ),
       ),
     );
   }
@@ -399,43 +531,46 @@ class _ResultCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.success, width: 1.5),
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.success.withOpacity(0.3), width: 1.5),
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, 5))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.location_on_rounded,
-                  color: AppTheme.success, size: 22),
-              SizedBox(width: 8),
-              Text('Tu ubicación actual',
-                  style: TextStyle(
-                      color: AppTheme.success,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold)),
+              const Icon(Icons.location_on_rounded, color: AppTheme.success, size: 20),
+              const SizedBox(width: 8),
+              Text('ESTÁS EN:', style: TextStyle(color: AppTheme.success.withOpacity(0.8), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             result,
-            style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 16,
-                height: 1.5),
+            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800, height: 1.4),
           ),
           if (onNavigate != null) ...[
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: onNavigate,
-              icon: const Icon(Icons.navigation_rounded, size: 18),
-              label: const Text('Navegar desde aquí'),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 48),
+            const SizedBox(height: 24),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(colors: [Color(0xFF00E5FF), Color(0xFF0091EA)]),
+                boxShadow: [BoxShadow(color: AppTheme.accent.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
+              ),
+              child: ElevatedButton.icon(
+                onPressed: onNavigate,
+                icon: const Icon(Icons.directions_walk_rounded, size: 22, color: Color(0xFF0D1B2A)),
+                label: const Text('TRAZAR RUTA AQUÍ', style: TextStyle(color: Color(0xFF0D1B2A), fontWeight: FontWeight.w900, fontSize: 14)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  minimumSize: const Size(double.infinity, 56),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
               ),
             ),
           ],

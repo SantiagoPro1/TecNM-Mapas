@@ -11,18 +11,17 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
 
-    // PopScope detecta cuando el usuario intenta ir "atrás" con los gestos del cel
     return PopScope(
-      canPop: false, // Bloqueamos la salida directa
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        // En lugar de cerrar la app, lo mandamos al Home de forma segura
         Navigator.pushReplacementNamed(context, AppRoutes.home);
       },
       child: Scaffold(
+        backgroundColor: AppTheme.background,
         appBar: AppBar(
-          title: const Text('Perfil estudiantil'),
-          // Botón de regreso manual en el AppBar
+          title: const Text('PERFIL ESTUDIANTIL'),
+          backgroundColor: Colors.transparent,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded),
             onPressed: () => Navigator.pushReplacementNamed(context, AppRoutes.home),
@@ -31,7 +30,7 @@ class ProfileScreen extends ConsumerWidget {
         body: authState.isLoading
             ? const Center(child: CircularProgressIndicator(color: AppTheme.accent))
             : SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 child: authState.isAuthenticated
                     ? _buildProfileState(context, ref, authState)
                     : _buildLoginState(context, ref, authState),
@@ -40,53 +39,63 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  // --- WIDGETS DE ESTADO ---
-
   Widget _buildLoginState(BuildContext context, WidgetRef ref, AuthState authState) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const SizedBox(height: 40),
-        Icon(Icons.account_circle_rounded, 
-             size: 100, 
-             color: AppTheme.textSecondary.withValues(alpha: 0.5)),
-        const SizedBox(height: 24),
-        const Text(
-          'Inicia sesión con tu cuenta institucional para sincronizar tus datos.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
+        const SizedBox(height: 60),
+        Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(color: Colors.white.withOpacity(0.02), shape: BoxShape.circle),
+          child: Icon(Icons.account_circle_rounded, size: 100, color: Colors.white.withOpacity(0.1)),
         ),
-        // Mostrar error si lo hay
+        const SizedBox(height: 32),
+        Text(
+          'IDENTIDAD INSTITUCIONAL',
+          style: TextStyle(color: AppTheme.accent, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2.0),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Inicia sesión para acceder a tu credencial y sincronizar tu progreso en el campus.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 15, height: 1.5),
+        ),
         if (authState.errorMessage != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.error.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+              color: AppTheme.error.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.error.withOpacity(0.2)),
             ),
             child: Row(
               children: [
                 const Icon(Icons.error_outline_rounded, color: AppTheme.error, size: 20),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    authState.errorMessage!,
-                    style: const TextStyle(color: AppTheme.error, fontSize: 13),
-                  ),
+                  child: Text(authState.errorMessage!, style: const TextStyle(color: AppTheme.error, fontSize: 13, fontWeight: FontWeight.w500)),
                 ),
               ],
             ),
           ),
         ],
-        const SizedBox(height: 32),
-        ElevatedButton.icon(
-          onPressed: () => ref.read(authProvider.notifier).signInWithGoogle(),
-          icon: const Icon(Icons.g_mobiledata_rounded, size: 32),
-          label: const Text('Ingresar con Google'),
-          style: ElevatedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 56),
+        const SizedBox(height: 48),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(colors: [Color(0xFF00E5FF), Color(0xFF0091EA)]),
+          ),
+          child: ElevatedButton.icon(
+            onPressed: () => ref.read(authProvider.notifier).signInWithGoogle(),
+            icon: const Icon(Icons.g_mobiledata_rounded, size: 36, color: Color(0xFF0D1B2A)),
+            label: const Text('INGRESAR CON GOOGLE', style: TextStyle(color: Color(0xFF0D1B2A), fontWeight: FontWeight.w900)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              minimumSize: const Size(double.infinity, 64),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
           ),
         ),
       ],
@@ -97,40 +106,46 @@ class ProfileScreen extends ConsumerWidget {
     return Column(
       children: [
         _AvatarSection(authState: authState),
-        const SizedBox(height: 32),
+        const SizedBox(height: 40),
         _InfoCard(
-          title: 'Datos académicos',
+          title: 'DATOS ACADÉMICOS',
           items: [
-            (Icons.badge_rounded, 'Matrícula', authState.matricula),
-            (Icons.school_rounded, 'Carrera', 'Ing. Sistemas Computacionales'),
-            (Icons.location_city_rounded, 'Campus', 'TecNM Colima'),
-            (Icons.email_rounded, 'Correo', authState.user?.email ?? 'Sin correo'),
+            (Icons.badge_rounded, 'MATRÍCULA', authState.matricula),
+            (Icons.school_rounded, 'CARRERA', 'ING. EN SISTEMAS'),
+            (Icons.location_city_rounded, 'CAMPUS', 'TECNM COLIMA'),
+            (Icons.email_rounded, 'CORREO', authState.user?.email ?? '---'),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         const _InfoCard(
-          title: 'Accesibilidad configurada',
+          title: 'CONFIGURACIÓN DE ACCESIBILIDAD',
           items: [
-            (Icons.mic_rounded, 'Voz', 'Activada'),
-            (Icons.translate_rounded, 'Idioma', 'Español (México)'),
-            (Icons.speed_rounded, 'Velocidad de voz', '1.0x'),
+            (Icons.record_voice_over_rounded, 'GUÍA POR VOZ', 'ACTIVA'),
+            (Icons.translate_rounded, 'LENGUAJE', 'ESPAÑOL (MX)'),
+            (Icons.speed_rounded, 'RITMO DE VOZ', '1.0X'),
           ],
         ),
-        const SizedBox(height: 28),
-        OutlinedButton.icon(
-          onPressed: () => ref.read(authProvider.notifier).signOut(),
-          icon: const Icon(Icons.logout_rounded, size: 20, color: AppTheme.error),
-          label: const Text('Cerrar sesión', style: TextStyle(color: AppTheme.error)),
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: AppTheme.error),
+        const SizedBox(height: 40),
+        SizedBox(
+          width: double.infinity,
+          child: TextButton.icon(
+            onPressed: () => ref.read(authProvider.notifier).signOut(),
+            icon: const Icon(Icons.logout_rounded, color: AppTheme.error, size: 20),
+            label: const Text('CERRAR SESIÓN', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              backgroundColor: AppTheme.error.withOpacity(0.05),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: AppTheme.error.withOpacity(0.2)),
+              ),
+            ),
           ),
         ),
       ],
     );
   }
 }
-
-// --- SUB-WIDGETS ---
 
 class _AvatarSection extends StatelessWidget {
   final AuthState authState;
@@ -143,34 +158,32 @@ class _AvatarSection extends StatelessWidget {
         Stack(
           alignment: Alignment.bottomRight,
           children: [
-            CircleAvatar(
-              radius: 52,
-              backgroundColor: AppTheme.accent.withValues(alpha: 0.15),
-              backgroundImage: authState.photoUrl != null
-                  ? NetworkImage(authState.photoUrl!)
-                  : null,
-              child: authState.photoUrl == null
-                  ? const Icon(Icons.person_rounded, size: 64, color: AppTheme.accent)
-                  : null,
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(colors: [Color(0xFF00E5FF), Color(0xFF0091EA)]),
+                boxShadow: [BoxShadow(color: AppTheme.accent.withOpacity(0.2), blurRadius: 20, spreadRadius: 5)],
+              ),
+              child: CircleAvatar(
+                radius: 56,
+                backgroundColor: AppTheme.surface,
+                backgroundImage: authState.photoUrl != null ? NetworkImage(authState.photoUrl!) : null,
+                child: authState.photoUrl == null ? const Icon(Icons.person_rounded, size: 64, color: Colors.white24) : null,
+              ),
             ),
             Container(
               padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(
-                color: AppTheme.success,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.verified_rounded, size: 16, color: Colors.white),
+              decoration: const BoxDecoration(color: AppTheme.success, shape: BoxShape.circle),
+              child: const Icon(Icons.verified_rounded, size: 18, color: Colors.white),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 24),
         Text(
-          authState.displayName,
+          authState.displayName.toUpperCase(),
           textAlign: TextAlign.center,
-          style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 20,
-              fontWeight: FontWeight.bold),
+          style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 0.5),
         ),
       ],
     );
@@ -187,46 +200,29 @@ class _InfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF333333)),
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
-                color: AppTheme.accent,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.1),
+            style: const TextStyle(color: AppTheme.accent, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2.0),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           ...items.map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.only(bottom: 18),
                 child: Row(
                   children: [
-                    Icon(item.$1, color: AppTheme.accent, size: 22),
-                    const SizedBox(width: 12),
-                    Text(item.$2,
-                        style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 14)),
+                    Icon(item.$1, color: Colors.white.withOpacity(0.3), size: 20),
+                    const SizedBox(width: 14),
+                    Text(item.$2, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12, fontWeight: FontWeight.w700)),
                     const Spacer(),
-                    Expanded(
-                      child: Text(
-                        item.$3,
-                        textAlign: TextAlign.right,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ),
+                    Text(item.$3, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
                   ],
                 ),
               )),

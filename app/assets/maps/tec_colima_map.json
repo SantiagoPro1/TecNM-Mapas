@@ -1,1195 +1,498 @@
 {
   "meta": {
-    "version": "2.0.0",
+    "version": "5.0.0",
     "campus": "TecNM Campus Colima",
-    "center": { "lat": 19.2619, "lng": -103.7237 },
-    "lastUpdated": "2026-04-30",
+    "center": {
+      "lat": 19.2628,
+      "lng": -103.7233
+    },
+    "lastUpdated": "2026-05-01",
     "units": "meters"
   },
   "nodes": [
     {
-      "id": "entrada_principal",
+      "id": "tec_entrada",
       "name": "Acceso Principal",
-      "aliases": ["entrada", "acceso principal", "puerta principal", "entrada del tec", "la entrada", "acceso", "portón"],
       "type": "entrance",
-      "lat": 19.2590,
-      "lng": -103.7243,
+      "lat": 19.261862,
+      "lng": -103.723683,
       "floor": 0,
       "accessible": true,
-      "description": "Entrada principal del campus por Avenida Tecnológico"
+      "aliases": ["acceso principal", "entrada"],
+      "description": "Acceso Principal del TecNM Colima sobre Av. Tecnológico"
     },
     {
-      "id": "estacionamiento_principal",
-      "name": "Estacionamiento Principal",
-      "aliases": ["estacionamiento", "parking", "parqueo", "donde estaciono", "estacionamiento principal"],
-      "type": "area",
-      "lat": 19.2602,
-      "lng": -103.7261,
+      "id": "edificio_a",
+      "name": "Edificio A - Administrativo (Dirección)",
+      "type": "building",
+      "lat": 19.262373,
+      "lng": -103.723879,
       "floor": 0,
       "accessible": true,
-      "description": "Estacionamiento principal al oeste del campus"
+      "aliases": ["edificio a", "administrativo", "dirección"],
+      "description": "Edificio A. Oficinas administrativas y Dirección."
     },
     {
-      "id": "estacionamiento_norte",
-      "name": "Estacionamiento Norte",
-      "aliases": ["estacionamiento norte", "parking norte", "parking del norte"],
-      "type": "area",
-      "lat": 19.2650,
-      "lng": -103.7240,
+      "id": "edificio_b",
+      "name": "Edificio B - Centro de Información",
+      "type": "building",
+      "lat": 19.262804,
+      "lng": -103.723855,
       "floor": 0,
       "accessible": true,
-      "description": "Estacionamiento norte del campus"
+      "aliases": ["edificio b", "centro de información", "biblioteca"],
+      "description": "Edificio B. Centro de Información (Biblioteca)."
     },
     {
-      "id": "patio_civico",
-      "name": "Patio Cívico",
-      "aliases": ["patio", "patio cívico", "explanada", "área cívica", "la explanada"],
-      "type": "area",
-      "lat": 19.2616,
-      "lng": -103.7247,
+      "id": "edificio_c",
+      "name": "Edificio C - Cafetería Norte",
+      "type": "building",
+      "lat": 19.263295,
+      "lng": -103.723817,
       "floor": 0,
       "accessible": true,
-      "description": "Patio cívico principal del campus"
+      "aliases": ["edificio c", "cafetería norte", "cafetería"],
+      "description": "Edificio C. Cafetería Norte."
+    },
+    {
+      "id": "edificio_c1",
+      "name": "Edificio C1 - Cafetería Sur",
+      "type": "building",
+      "lat": 19.262074,
+      "lng": -103.722602,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio c1", "cafetería sur"],
+      "description": "Edificio C1. Cafetería Sur."
+    },
+    {
+      "id": "edificio_d",
+      "name": "Edificio D - Aulas",
+      "type": "building",
+      "lat": 19.261998,
+      "lng": -103.723391,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio d", "aulas d"],
+      "description": "Edificio D. Aulas."
+    },
+    {
+      "id": "edificio_e",
+      "name": "Edificio E - Aulas / Lab. Microbiología",
+      "type": "building",
+      "lat": 19.262209,
+      "lng": -103.723383,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio e", "microbiología"],
+      "description": "Edificio E. Aulas y Laboratorio de Microbiología."
+    },
+    {
+      "id": "edificio_f",
+      "name": "Edificio F - Ciencias Básicas",
+      "type": "building",
+      "lat": 19.262411,
+      "lng": -103.723391,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio f", "ciencias básicas"],
+      "description": "Edificio F. Ciencias Básicas."
+    },
+    {
+      "id": "edificio_g",
+      "name": "Edificio G - Aulas / Lab. Química",
+      "type": "building",
+      "lat": 19.262644,
+      "lng": -103.723337,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio g", "laboratorio de química", "química"],
+      "description": "Edificio G. Aulas y Laboratorio de Química."
+    },
+    {
+      "id": "edificio_h",
+      "name": "Edificio H - Centro de Cómputo",
+      "type": "building",
+      "lat": 19.262639,
+      "lng": -103.722876,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio h", "centro de cómputo", "cómputo"],
+      "description": "Edificio H. Centro de Cómputo."
+    },
+    {
+      "id": "edificio_i",
+      "name": "Edificio I - Aulas de Arquitectura",
+      "type": "building",
+      "lat": 19.263090,
+      "lng": -103.723327,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio i", "taller de arquitectura", "arquitectura"],
+      "description": "Edificio I. Taller de Arquitectura."
+    },
+    {
+      "id": "edificio_j",
+      "name": "Edificio J - Lab. Bioquímica",
+      "type": "building",
+      "lat": 19.262353,
+      "lng": -103.722914,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio j", "bioquímica", "laboratorio de bioquímica"],
+      "description": "Edificio J. Laboratorio de Bioquímica."
+    },
+    {
+      "id": "edificio_k",
+      "name": "Edificio K - Aulas",
+      "type": "building",
+      "lat": 19.262859,
+      "lng": -103.723372,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio k", "aulas k"],
+      "description": "Edificio K. Aulas."
+    },
+    {
+      "id": "edificio_l",
+      "name": "Edificio L - Lab. Química Orgánica",
+      "type": "building",
+      "lat": 19.262854,
+      "lng": -103.722857,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio l", "química orgánica"],
+      "description": "Edificio L. Laboratorio de Química Orgánica."
+    },
+    {
+      "id": "edificio_m",
+      "name": "Edificio M - Lab. Operaciones Unitarias",
+      "type": "building",
+      "lat": 19.263064,
+      "lng": -103.722887,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio m", "operaciones unitarias"],
+      "description": "Edificio M. Laboratorio de Operaciones Unitarias."
+    },
+    {
+      "id": "edificio_n",
+      "name": "Edificio N - Ciencias de la Tierra",
+      "type": "building",
+      "lat": 19.263313,
+      "lng": -103.722916,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio n", "ciencias de la tierra"],
+      "description": "Edificio N. Ciencias de la Tierra."
+    },
+    {
+      "id": "edificio_o",
+      "name": "Edificio O - Cubículos Docentes",
+      "type": "building",
+      "lat": 19.263305,
+      "lng": -103.723412,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio o", "cubículos docentes"],
+      "description": "Edificio O. Cubículos Docentes."
+    },
+    {
+      "id": "edificio_p",
+      "name": "Edificio P - Taller de Manufactura",
+      "type": "building",
+      "lat": 19.263340,
+      "lng": -103.724550,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio p", "taller de manufactura", "manufactura"],
+      "description": "Edificio P. Taller de Manufactura."
+    },
+    {
+      "id": "edificio_q",
+      "name": "Edificio Q - Recursos Materiales",
+      "type": "building",
+      "lat": 19.263059,
+      "lng": -103.722576,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio q", "recursos materiales"],
+      "description": "Edificio Q. Recursos Materiales y Mantenimiento."
+    },
+    {
+      "id": "edificio_r",
+      "name": "Edificio R - Sistemas y Computación",
+      "type": "building",
+      "lat": 19.261912,
+      "lng": -103.722833,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio r", "sistemas", "computación"],
+      "description": "Edificio R. Sistemas y Computación."
+    },
+    {
+      "id": "edificio_s",
+      "name": "Edificio S - Salón de la Paz",
+      "type": "building",
+      "lat": 19.263609,
+      "lng": -103.724239,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio s", "salón de la paz"],
+      "description": "Edificio S. Salón de la Paz."
+    },
+    {
+      "id": "edificio_t",
+      "name": "Edificio T - Ciencias Económico Administrativas",
+      "type": "building",
+      "lat": 19.263667,
+      "lng": -103.723254,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio t", "ciencias económico administrativas", "económicas"],
+      "description": "Edificio T. Ciencias Económico Administrativas."
+    },
+    {
+      "id": "edificio_u",
+      "name": "Edificio U - Lab. Arquitectura",
+      "type": "building",
+      "lat": 19.263644,
+      "lng": -103.722694,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio u", "laboratorio de arquitectura"],
+      "description": "Edificio U. Laboratorio de Arquitectura."
+    },
+    {
+      "id": "edificio_v",
+      "name": "Edificio V - Div. Estudios Posgrado e Investigación",
+      "type": "building",
+      "lat": 19.261289,
+      "lng": -103.722766,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio v", "posgrado", "investigación"],
+      "description": "Edificio V. División de Estudios de Posgrado e Investigación."
+    },
+    {
+      "id": "edificio_w",
+      "name": "Edificio W - Ingeniería Industrial",
+      "type": "building",
+      "lat": 19.261712,
+      "lng": -103.723364,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio w", "ingeniería industrial", "industrial"],
+      "description": "Edificio W. Ingeniería Industrial."
+    },
+    {
+      "id": "edificio_x",
+      "name": "Edificio X - Lab. Ambiental",
+      "type": "building",
+      "lat": 19.263310,
+      "lng": -103.722560,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio x", "laboratorio ambiental", "ambiental"],
+      "description": "Edificio X. Laboratorio de Ambiental."
+    },
+    {
+      "id": "edificio_y",
+      "name": "Edificio Y - Lab. Mecatrónica",
+      "type": "building",
+      "lat": 19.263659,
+      "lng": -103.722345,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio y", "mecatrónica", "laboratorio de mecatrónica"],
+      "description": "Edificio Y. Laboratorio de Mecatrónica."
+    },
+    {
+      "id": "edificio_z",
+      "name": "Edificio Z - Banco de Reactivos",
+      "type": "building",
+      "lat": 19.262733,
+      "lng": -103.722651,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["edificio z", "banco de reactivos", "reactivos"],
+      "description": "Edificio Z. Banco de Reactivos."
+    },
+    {
+      "id": "cecum",
+      "name": "CECUM - Centro Cultural y de Usos Múltiples",
+      "type": "building",
+      "lat": 19.263685,
+      "lng": -103.723772,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["cecum", "centro cultural", "usos múltiples"],
+      "description": "CECUM. Centro Cultural y de Usos Múltiples."
     },
     {
       "id": "plaza_cultural",
       "name": "Plaza Cultural",
-      "aliases": ["plaza", "plaza cultural", "área cultural", "la plaza"],
       "type": "area",
-      "lat": 19.2620,
-      "lng": -103.7219,
+      "lat": 19.262748,
+      "lng": -103.722903,
       "floor": 0,
       "accessible": true,
-      "description": "Plaza Cultural del campus, junto al Edificio L"
+      "aliases": ["plaza cultural", "explanada cultural"],
+      "description": "Plaza Cultural / Explanada Cultural."
     },
     {
-      "id": "edificio_a",
-      "name": "Edificio A — Administrativo",
-      "aliases": ["edificio a", "dirección", "administración", "dirección general", "rectoría", "oficinas administrativas", "admin", "a"],
-      "type": "building",
-      "lat": 19.2603,
-      "lng": -103.7254,
+      "id": "patio_civico",
+      "name": "Patio Cívico",
+      "type": "area",
+      "lat": 19.262571,
+      "lng": -103.723874,
       "floor": 0,
       "accessible": true,
-      "description": "Edificio A — Dirección General y Administración del campus"
+      "aliases": ["patio cívico", "patio"],
+      "description": "Patio Cívico del campus."
     },
     {
-      "id": "edificio_b",
-      "name": "Edificio B — Centro de Información",
-      "aliases": ["edificio b", "biblioteca", "biblio", "centro de información", "libros", "la biblioteca", "b"],
-      "type": "building",
-      "lat": 19.2616,
-      "lng": -103.7254,
+      "id": "estacionamiento_principal",
+      "name": "Estacionamiento Principal",
+      "type": "area",
+      "lat": 19.262695,
+      "lng": -103.724311,
       "floor": 0,
       "accessible": true,
-      "description": "Edificio B — Centro de Información / Biblioteca"
+      "aliases": ["estacionamiento principal", "estacionamiento"],
+      "description": "Estacionamiento Principal."
     },
     {
-      "id": "edificio_c",
-      "name": "Edificio C — Cafetería Norte",
-      "aliases": ["edificio c", "cafetería norte", "cafeteria norte", "c", "café del norte", "comida norte"],
-      "type": "building",
-      "lat": 19.2629,
-      "lng": -103.7247,
+      "id": "estacionamiento_sur",
+      "name": "Estacionamiento Sur",
+      "type": "area",
+      "lat": 19.261596,
+      "lng": -103.722774,
       "floor": 0,
       "accessible": true,
-      "description": "Edificio C — Cafetería Norte"
+      "aliases": ["estacionamiento sur"],
+      "description": "Estacionamiento Sur junto a Calle Amado Nervo."
     },
     {
-      "id": "edificio_c1",
-      "name": "Edificio C1 — Cafetería Sur",
-      "aliases": ["edificio c1", "cafetería sur", "cafeteria sur", "c1", "café del sur", "comida sur", "cafetería chica"],
-      "type": "building",
-      "lat": 19.2603,
-      "lng": -103.7212,
+      "id": "campo_futbol",
+      "name": "Campo de Fútbol",
+      "type": "area",
+      "lat": 19.264536,
+      "lng": -103.723104,
       "floor": 0,
       "accessible": true,
-      "description": "Edificio C1 — Cafetería Sur"
+      "aliases": ["campo de fútbol", "cancha de fútbol"],
+      "description": "Campo de Fútbol al norte del campus."
     },
     {
-      "id": "edificio_d",
-      "name": "Edificio D — Aulas",
-      "aliases": ["edificio d", "aulas d", "d", "salones d", "aulas generales d"],
-      "type": "building",
-      "lat": 19.2597,
-      "lng": -103.7237,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio D — Aulas generales"
-    },
-    {
-      "id": "edificio_e",
-      "name": "Edificio E — Aulas y Lab de Microbiología",
-      "aliases": ["edificio e", "microbiología", "lab de microbiología", "laboratorio de microbiología", "e"],
-      "type": "building",
-      "lat": 19.2603,
-      "lng": -103.7240,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio E — Aulas y Laboratorio de Microbiología"
-    },
-    {
-      "id": "edificio_f",
-      "name": "Edificio F — Ciencias Básicas",
-      "aliases": ["edificio f", "ciencias básicas", "ciencias basicas", "f", "básicas"],
-      "type": "building",
-      "lat": 19.2609,
-      "lng": -103.7240,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio F — Ciencias Básicas"
-    },
-    {
-      "id": "edificio_g",
-      "name": "Edificio G — Aulas y Lab de Química",
-      "aliases": ["edificio g", "química", "lab de química", "laboratorio de química", "g", "quimica"],
-      "type": "building",
-      "lat": 19.2616,
-      "lng": -103.7240,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio G — Aulas y Laboratorio de Química"
-    },
-    {
-      "id": "edificio_h",
-      "name": "Edificio H — Centro de Cómputo",
-      "aliases": ["edificio h", "centro de cómputo", "computo", "cómputo", "lab de computación", "laboratorio de cómputo", "sistemas", "lab de sistemas", "h", "computadoras"],
-      "type": "building",
-      "lat": 19.2616,
-      "lng": -103.7226,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio H — Centro de Cómputo"
-    },
-    {
-      "id": "edificio_i",
-      "name": "Edificio I — Aulas de Arquitectura",
-      "aliases": ["edificio i", "arquitectura", "aulas de arquitectura", "arq", "i"],
-      "type": "building",
-      "lat": 19.2629,
-      "lng": -103.7240,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio I — Aulas de Arquitectura"
-    },
-    {
-      "id": "edificio_j",
-      "name": "Edificio J — Laboratorio de Bioquímica",
-      "aliases": ["edificio j", "bioquímica", "lab de bioquímica", "laboratorio de bioquímica", "j", "bioquimica"],
-      "type": "building",
-      "lat": 19.2609,
-      "lng": -103.7226,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio J — Laboratorio de Bioquímica"
-    },
-    {
-      "id": "edificio_k",
-      "name": "Edificio K — Aulas",
-      "aliases": ["edificio k", "aulas k", "k", "salones k"],
-      "type": "building",
-      "lat": 19.2622,
-      "lng": -103.7240,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio K — Aulas generales"
-    },
-    {
-      "id": "edificio_l",
-      "name": "Edificio L — Lab de Química Orgánica",
-      "aliases": ["edificio l", "química orgánica", "lab de química orgánica", "laboratorio de química orgánica", "l", "quimica organica"],
-      "type": "building",
-      "lat": 19.2622,
-      "lng": -103.7226,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio L — Laboratorio de Química Orgánica"
-    },
-    {
-      "id": "edificio_m",
-      "name": "Edificio M — Lab de Operaciones Unitarias",
-      "aliases": ["edificio m", "operaciones unitarias", "lab de operaciones", "laboratorio de operaciones unitarias", "m"],
-      "type": "building",
-      "lat": 19.2629,
-      "lng": -103.7226,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio M — Laboratorio de Operaciones Unitarias"
-    },
-    {
-      "id": "edificio_n",
-      "name": "Edificio N — Ciencias de la Tierra",
-      "aliases": ["edificio n", "ciencias de la tierra", "geología", "geologia", "tierra", "n"],
-      "type": "building",
-      "lat": 19.2629,
-      "lng": -103.7229,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio N — Ciencias de la Tierra"
-    },
-    {
-      "id": "edificio_n_tilde",
-      "name": "Edificio Ñ — Actividades Extraescolares",
-      "aliases": ["edificio ñ", "actividades extraescolares", "extraescolares", "actividades", "deportes", "ñ"],
-      "type": "building",
-      "lat": 19.2642,
-      "lng": -103.7247,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio Ñ — Actividades Extraescolares"
-    },
-    {
-      "id": "edificio_o",
-      "name": "Edificio O — Cubículos Docentes",
-      "aliases": ["edificio o", "cubículos", "cubículos de maestros", "cubículos docentes", "maestros", "profesores", "o"],
-      "type": "building",
-      "lat": 19.2635,
-      "lng": -103.7240,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio O — Cubículos Docentes"
-    },
-    {
-      "id": "edificio_p",
-      "name": "Edificio P — Taller de Manufactura",
-      "aliases": ["edificio p", "taller de manufactura", "manufactura", "taller", "p"],
-      "type": "building",
-      "lat": 19.2629,
-      "lng": -103.7261,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio P — Taller de Manufactura"
-    },
-    {
-      "id": "edificio_q",
-      "name": "Edificio Q — Recursos Materiales y Mantenimiento",
-      "aliases": ["edificio q", "recursos materiales", "mantenimiento", "recursos y mantenimiento", "q"],
-      "type": "building",
-      "lat": 19.2629,
-      "lng": -103.7219,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio Q — Recursos Materiales y Mantenimiento"
-    },
-    {
-      "id": "edificio_r",
-      "name": "Edificio R — Sistemas y Computación",
-      "aliases": ["edificio r", "sistemas y computación", "computación", "tics", "ing sistemas", "ingeniería en sistemas", "r"],
-      "type": "building",
-      "lat": 19.2597,
-      "lng": -103.7219,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio R — Sistemas y Computación"
-    },
-    {
-      "id": "edificio_s",
-      "name": "Edificio S — Salón de la Paz",
-      "aliases": ["edificio s", "salón de la paz", "salon de la paz", "auditorio chico", "s", "salon paz"],
-      "type": "building",
-      "lat": 19.2642,
-      "lng": -103.7261,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio S — Salón de la Paz"
-    },
-    {
-      "id": "edificio_t",
-      "name": "Edificio T — Ciencias Económico Administrativas",
-      "aliases": ["edificio t", "ciencias económico administrativas", "cea", "economía", "administración de empresas", "contabilidad", "t"],
-      "type": "building",
-      "lat": 19.2642,
-      "lng": -103.7230,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio T — Ciencias Económico Administrativas"
-    },
-    {
-      "id": "edificio_u",
-      "name": "Edificio U — Laboratorio de Arquitectura",
-      "aliases": ["edificio u", "lab de arquitectura", "laboratorio de arquitectura", "taller de arq", "u"],
-      "type": "building",
-      "lat": 19.2642,
-      "lng": -103.7222,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio U — Laboratorio de Arquitectura"
-    },
-    {
-      "id": "edificio_v",
-      "name": "Edificio V — División de Posgrado",
-      "aliases": ["edificio v", "posgrado", "maestría", "doctorado", "división de posgrado", "v", "posgrado e investigación"],
-      "type": "building",
-      "lat": 19.2590,
-      "lng": -103.7212,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio V — División de Estudios de Posgrado e Investigación"
-    },
-    {
-      "id": "edificio_w",
-      "name": "Edificio W — Ingeniería Industrial",
-      "aliases": ["edificio w", "ingeniería industrial", "industrial", "ing industrial", "w"],
-      "type": "building",
-      "lat": 19.2594,
-      "lng": -103.7240,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio W — Ingeniería Industrial"
-    },
-    {
-      "id": "edificio_x",
-      "name": "Edificio X — Laboratorio de Ambiental",
-      "aliases": ["edificio x", "laboratorio ambiental", "lab ambiental", "medio ambiente", "ambiental", "x"],
-      "type": "building",
-      "lat": 19.2635,
-      "lng": -103.7219,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio X — Laboratorio Ambiental"
-    },
-    {
-      "id": "edificio_y",
-      "name": "Edificio Y — Laboratorio de Mecatrónica",
-      "aliases": ["edificio y", "mecatrónica", "mecatronica", "lab de mecatrónica", "laboratorio de mecatrónica", "y"],
-      "type": "building",
-      "lat": 19.2642,
-      "lng": -103.7212,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio Y — Laboratorio de Mecatrónica"
-    },
-    {
-      "id": "edificio_z",
-      "name": "Edificio Z — Banco de Reactivos",
-      "aliases": ["edificio z", "banco de reactivos", "reactivos", "banco reactivos", "z"],
-      "type": "building",
-      "lat": 19.2616,
-      "lng": -103.7219,
-      "floor": 0,
-      "accessible": true,
-      "description": "Edificio Z — Banco de Reactivos"
-    },
-    {
-      "id": "cecum",
-      "name": "CECUM",
-      "aliases": ["cecum", "centro cultural", "centro cultural y de usos múltiples", "auditorio", "auditorio del tec", "salón de eventos", "auditorio grande"],
-      "type": "building",
-      "lat": 19.2642,
-      "lng": -103.7237,
-      "floor": 0,
-      "accessible": true,
-      "description": "CECUM — Centro Cultural y de Usos Múltiples"
-    },
-    {
-      "id": "cr_s_w",
-      "name": "Cruce Suroeste",
-      "aliases": [],
+      "id": "path_entrada_a",
+      "name": "Andador",
       "type": "corridor",
-      "lat": 19.2590,
-      "lng": -103.7254,
+      "lat": 19.2619,
+      "lng": -103.7239,
       "floor": 0,
       "accessible": true,
-      "description": "Intersección suroeste del campus"
+      "aliases": ["path_entrada_a"],
+      "description": "Andador de entrada hacia Edificio A"
     },
     {
-      "id": "cr_s_cw",
-      "name": "Cruce Sur Centro",
-      "aliases": [],
+      "id": "path_central",
+      "name": "Andador Central",
       "type": "corridor",
-      "lat": 19.2590,
-      "lng": -103.7240,
+      "lat": 19.2625,
+      "lng": -103.7234,
       "floor": 0,
       "accessible": true,
-      "description": "Intersección sur central del campus"
+      "aliases": ["path_central"],
+      "description": "Andador central del campus"
     },
     {
-      "id": "cr_s_ce",
-      "name": "Cruce Sur Este",
-      "aliases": [],
+      "id": "path_norte",
+      "name": "Andador Norte",
       "type": "corridor",
-      "lat": 19.2590,
-      "lng": -103.7226,
+      "lat": 19.2633,
+      "lng": -103.7234,
       "floor": 0,
       "accessible": true,
-      "description": "Intersección sur este del campus"
+      "aliases": ["path_norte"],
+      "description": "Andador norte del campus"
     },
     {
-      "id": "cr_s_e",
-      "name": "Cruce Sureste",
-      "aliases": [],
+      "id": "path_este",
+      "name": "Andador Este",
       "type": "corridor",
-      "lat": 19.2590,
-      "lng": -103.7212,
+      "lat": 19.2625,
+      "lng": -103.7228,
       "floor": 0,
       "accessible": true,
-      "description": "Intersección sureste del campus"
-    },
-    {
-      "id": "cr_1_w",
-      "name": "Cruce 1 Oeste",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2603,
-      "lng": -103.7254,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección 1 oeste del campus"
-    },
-    {
-      "id": "cr_1_cw",
-      "name": "Cruce 1 Centro",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2603,
-      "lng": -103.7240,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección 1 central del campus"
-    },
-    {
-      "id": "cr_1_ce",
-      "name": "Cruce 1 Centro Este",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2603,
-      "lng": -103.7226,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección 1 centro este del campus"
-    },
-    {
-      "id": "cr_1_e",
-      "name": "Cruce 1 Este",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2603,
-      "lng": -103.7212,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección 1 este del campus"
-    },
-    {
-      "id": "cr_2_w",
-      "name": "Cruce 2 Oeste",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2616,
-      "lng": -103.7254,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección 2 oeste del campus"
-    },
-    {
-      "id": "cr_2_cw",
-      "name": "Cruce 2 Centro",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2616,
-      "lng": -103.7240,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección 2 central del campus"
-    },
-    {
-      "id": "cr_2_ce",
-      "name": "Cruce 2 Centro Este",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2616,
-      "lng": -103.7226,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección 2 centro este del campus"
-    },
-    {
-      "id": "cr_2_e",
-      "name": "Cruce 2 Este",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2616,
-      "lng": -103.7212,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección 2 este del campus"
-    },
-    {
-      "id": "cr_3_w",
-      "name": "Cruce 3 Oeste",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2629,
-      "lng": -103.7254,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección 3 oeste del campus"
-    },
-    {
-      "id": "cr_3_cw",
-      "name": "Cruce 3 Centro",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2629,
-      "lng": -103.7240,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección 3 central del campus"
-    },
-    {
-      "id": "cr_3_ce",
-      "name": "Cruce 3 Centro Este",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2629,
-      "lng": -103.7226,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección 3 centro este del campus"
-    },
-    {
-      "id": "cr_3_e",
-      "name": "Cruce 3 Este",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2629,
-      "lng": -103.7212,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección 3 este del campus"
-    },
-    {
-      "id": "cr_n_w",
-      "name": "Cruce Norte Oeste",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2642,
-      "lng": -103.7254,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección norte oeste del campus"
-    },
-    {
-      "id": "cr_n_cw",
-      "name": "Cruce Norte Centro",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2642,
-      "lng": -103.7240,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección norte central del campus"
-    },
-    {
-      "id": "cr_n_ce",
-      "name": "Cruce Norte Centro Este",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2642,
-      "lng": -103.7226,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección norte centro este del campus"
-    },
-    {
-      "id": "cr_n_e",
-      "name": "Cruce Norte Este",
-      "aliases": [],
-      "type": "corridor",
-      "lat": 19.2642,
-      "lng": -103.7212,
-      "floor": 0,
-      "accessible": true,
-      "description": "Intersección norte este del campus"
+      "aliases": ["path_este"],
+      "description": "Andador este del campRus"
     }
   ],
   "edges": [
-    {
-      "from": "entrada_principal",
-      "to": "cr_s_cw",
-      "distance": 32,
-      "accessible": true,
-      "direction": "Entra al campus y avanza hacia el norte por el pasillo principal"
-    },
-    {
-      "from": "entrada_principal",
-      "to": "cr_s_w",
-      "distance": 90,
-      "accessible": true,
-      "direction": "Desde la entrada avanza hacia el oeste"
-    },
-    {
-      "from": "estacionamiento_principal",
-      "to": "cr_1_w",
-      "distance": 76,
-      "accessible": true,
-      "direction": "Sal del estacionamiento hacia el este"
-    },
-    {
-      "from": "estacionamiento_norte",
-      "to": "cr_n_cw",
-      "distance": 89,
-      "accessible": true,
-      "direction": "Desciende hacia el sur al cruce norte"
-    },
-    {
-      "from": "patio_civico",
-      "to": "cr_2_w",
-      "distance": 73,
-      "accessible": true,
-      "direction": "El Patio Cívico está entre el pasillo oeste y el central"
-    },
-    {
-      "from": "patio_civico",
-      "to": "cr_2_cw",
-      "distance": 73,
-      "accessible": true,
-      "direction": "El Patio Cívico queda al oeste del pasillo central"
-    },
-    {
-      "from": "plaza_cultural",
-      "to": "cr_2_ce",
-      "distance": 80,
-      "accessible": true,
-      "direction": "La Plaza Cultural queda al este, junto al Edificio L"
-    },
-    {
-      "from": "plaza_cultural",
-      "to": "cr_3_ce",
-      "distance": 100,
-      "accessible": true,
-      "direction": "Continúa al norte hacia el pasillo centro-este"
-    },
-    {
-      "from": "edificio_a",
-      "to": "cr_1_w",
-      "distance": 5,
-      "accessible": true,
-      "direction": "El Edificio A — Dirección está justo al este"
-    },
-    {
-      "from": "edificio_a",
-      "to": "cr_s_w",
-      "distance": 145,
-      "accessible": true,
-      "direction": "Baja hacia el sur por el pasillo oeste"
-    },
-    {
-      "from": "edificio_b",
-      "to": "cr_2_w",
-      "distance": 5,
-      "accessible": true,
-      "direction": "El Edificio B — Biblioteca está justo al este"
-    },
-    {
-      "from": "edificio_c",
-      "to": "cr_3_w",
-      "distance": 73,
-      "accessible": true,
-      "direction": "La Cafetería Norte está al oeste del pasillo"
-    },
-    {
-      "from": "edificio_c",
-      "to": "cr_3_cw",
-      "distance": 73,
-      "accessible": true,
-      "direction": "La Cafetería Norte está entre el pasillo oeste y el central"
-    },
-    {
-      "from": "edificio_c1",
-      "to": "cr_1_e",
-      "distance": 5,
-      "accessible": true,
-      "direction": "La Cafetería Sur está justo aquí"
-    },
-    {
-      "from": "edificio_d",
-      "to": "cr_s_cw",
-      "distance": 77,
-      "accessible": true,
-      "direction": "El Edificio D — Aulas está al norte de la entrada"
-    },
-    {
-      "from": "edificio_d",
-      "to": "cr_1_cw",
-      "distance": 66,
-      "accessible": true,
-      "direction": "Avanza al norte hacia el Edificio D"
-    },
-    {
-      "from": "edificio_e",
-      "to": "cr_1_cw",
-      "distance": 5,
-      "accessible": true,
-      "direction": "El Edificio E — Lab de Microbiología está aquí"
-    },
-    {
-      "from": "edificio_f",
-      "to": "cr_1_cw",
-      "distance": 67,
-      "accessible": true,
-      "direction": "El Edificio F — Ciencias Básicas está al norte"
-    },
-    {
-      "from": "edificio_f",
-      "to": "cr_2_cw",
-      "distance": 77,
-      "accessible": true,
-      "direction": "El Edificio F — Ciencias Básicas está al sur del cruce"
-    },
-    {
-      "from": "edificio_g",
-      "to": "cr_2_cw",
-      "distance": 5,
-      "accessible": true,
-      "direction": "El Edificio G — Lab de Química está aquí"
-    },
-    {
-      "from": "edificio_h",
-      "to": "cr_2_ce",
-      "distance": 5,
-      "accessible": true,
-      "direction": "El Centro de Cómputo está aquí"
-    },
-    {
-      "from": "edificio_i",
-      "to": "cr_3_cw",
-      "distance": 5,
-      "accessible": true,
-      "direction": "Las Aulas de Arquitectura están aquí"
-    },
-    {
-      "from": "edificio_j",
-      "to": "cr_1_ce",
-      "distance": 67,
-      "accessible": true,
-      "direction": "El Lab de Bioquímica está al norte"
-    },
-    {
-      "from": "edificio_j",
-      "to": "cr_2_ce",
-      "distance": 77,
-      "accessible": true,
-      "direction": "El Lab de Bioquímica está al sur del cruce"
-    },
-    {
-      "from": "edificio_k",
-      "to": "cr_2_cw",
-      "distance": 67,
-      "accessible": true,
-      "direction": "El Edificio K — Aulas está al norte"
-    },
-    {
-      "from": "edificio_k",
-      "to": "cr_3_cw",
-      "distance": 77,
-      "accessible": true,
-      "direction": "El Edificio K — Aulas está al sur"
-    },
-    {
-      "from": "edificio_l",
-      "to": "cr_2_ce",
-      "distance": 67,
-      "accessible": true,
-      "direction": "El Lab de Química Orgánica está al norte"
-    },
-    {
-      "from": "edificio_l",
-      "to": "cr_3_ce",
-      "distance": 77,
-      "accessible": true,
-      "direction": "El Lab de Química Orgánica está al sur"
-    },
-    {
-      "from": "edificio_m",
-      "to": "cr_3_ce",
-      "distance": 5,
-      "accessible": true,
-      "direction": "El Lab de Operaciones Unitarias está aquí"
-    },
-    {
-      "from": "edificio_n",
-      "to": "cr_3_ce",
-      "distance": 31,
-      "accessible": true,
-      "direction": "El Edificio N — Ciencias de la Tierra está cerca"
-    },
-    {
-      "from": "edificio_n",
-      "to": "cr_3_cw",
-      "distance": 116,
-      "accessible": true,
-      "direction": "Avanza al este para llegar al Edificio N"
-    },
-    {
-      "from": "edificio_n_tilde",
-      "to": "cr_n_w",
-      "distance": 73,
-      "accessible": true,
-      "direction": "El Edificio Ñ — Actividades Extraescolares está al este"
-    },
-    {
-      "from": "edificio_n_tilde",
-      "to": "cr_n_cw",
-      "distance": 73,
-      "accessible": true,
-      "direction": "Avanza al oeste al Edificio Ñ"
-    },
-    {
-      "from": "edificio_o",
-      "to": "cr_3_cw",
-      "distance": 67,
-      "accessible": true,
-      "direction": "Los Cubículos Docentes están al norte"
-    },
-    {
-      "from": "edificio_o",
-      "to": "cr_n_cw",
-      "distance": 77,
-      "accessible": true,
-      "direction": "Los Cubículos Docentes están al sur"
-    },
-    {
-      "from": "edificio_p",
-      "to": "cr_3_w",
-      "distance": 73,
-      "accessible": true,
-      "direction": "El Taller de Manufactura está al oeste"
-    },
-    {
-      "from": "edificio_q",
-      "to": "cr_3_ce",
-      "distance": 73,
-      "accessible": true,
-      "direction": "El Edificio Q — Recursos está al este del pasillo"
-    },
-    {
-      "from": "edificio_q",
-      "to": "cr_3_e",
-      "distance": 73,
-      "accessible": true,
-      "direction": "El Edificio Q — Recursos está al oeste"
-    },
-    {
-      "from": "edificio_r",
-      "to": "cr_s_ce",
-      "distance": 73,
-      "accessible": true,
-      "direction": "El Edificio R — Sistemas está al este"
-    },
-    {
-      "from": "edificio_r",
-      "to": "cr_1_ce",
-      "distance": 67,
-      "accessible": true,
-      "direction": "El Edificio R — Sistemas está al sur"
-    },
-    {
-      "from": "edificio_s",
-      "to": "cr_n_w",
-      "distance": 73,
-      "accessible": true,
-      "direction": "El Salón de la Paz está al oeste"
-    },
-    {
-      "from": "edificio_t",
-      "to": "cr_n_cw",
-      "distance": 105,
-      "accessible": true,
-      "direction": "El Edificio T — Ciencias Económico Administrativas está al este"
-    },
-    {
-      "from": "edificio_t",
-      "to": "cr_n_ce",
-      "distance": 42,
-      "accessible": true,
-      "direction": "El Edificio T está al oeste del pasillo norte este"
-    },
-    {
-      "from": "edificio_u",
-      "to": "cr_n_ce",
-      "distance": 42,
-      "accessible": true,
-      "direction": "El Lab de Arquitectura está al este"
-    },
-    {
-      "from": "edificio_v",
-      "to": "cr_s_e",
-      "distance": 5,
-      "accessible": true,
-      "direction": "La División de Posgrado está aquí, al sur del campus"
-    },
-    {
-      "from": "edificio_w",
-      "to": "cr_s_cw",
-      "distance": 44,
-      "accessible": true,
-      "direction": "El Edificio W — Ingeniería Industrial está al norte de la entrada"
-    },
-    {
-      "from": "edificio_x",
-      "to": "cr_3_ce",
-      "distance": 91,
-      "accessible": true,
-      "direction": "El Lab Ambiental está al este y norte"
-    },
-    {
-      "from": "edificio_x",
-      "to": "cr_3_e",
-      "distance": 91,
-      "accessible": true,
-      "direction": "El Lab Ambiental está al oeste"
-    },
-    {
-      "from": "edificio_y",
-      "to": "cr_n_e",
-      "distance": 5,
-      "accessible": true,
-      "direction": "El Lab de Mecatrónica está aquí"
-    },
-    {
-      "from": "edificio_z",
-      "to": "cr_2_ce",
-      "distance": 73,
-      "accessible": true,
-      "direction": "El Banco de Reactivos está al este"
-    },
-    {
-      "from": "edificio_z",
-      "to": "cr_2_e",
-      "distance": 73,
-      "accessible": true,
-      "direction": "El Banco de Reactivos está al oeste"
-    },
-    {
-      "from": "cecum",
-      "to": "cr_n_cw",
-      "distance": 31,
-      "accessible": true,
-      "direction": "El CECUM está al este del pasillo norte"
-    },
-    {
-      "from": "cecum",
-      "to": "cr_n_ce",
-      "distance": 116,
-      "accessible": true,
-      "direction": "El CECUM está al oeste"
-    },
-    {
-      "from": "cr_s_w",
-      "to": "cr_s_cw",
-      "distance": 147,
-      "accessible": true,
-      "direction": "Avanza al este por el pasillo sur"
-    },
-    {
-      "from": "cr_s_cw",
-      "to": "cr_s_ce",
-      "distance": 147,
-      "accessible": true,
-      "direction": "Avanza al este por el pasillo sur"
-    },
-    {
-      "from": "cr_s_ce",
-      "to": "cr_s_e",
-      "distance": 147,
-      "accessible": true,
-      "direction": "Avanza al este hacia Calle Amado Nervo"
-    },
-    {
-      "from": "cr_1_w",
-      "to": "cr_1_cw",
-      "distance": 147,
-      "accessible": true,
-      "direction": "Avanza al este por el pasillo 1"
-    },
-    {
-      "from": "cr_1_cw",
-      "to": "cr_1_ce",
-      "distance": 147,
-      "accessible": true,
-      "direction": "Avanza al este por el pasillo 1"
-    },
-    {
-      "from": "cr_1_ce",
-      "to": "cr_1_e",
-      "distance": 147,
-      "accessible": true,
-      "direction": "Avanza al este por el pasillo 1"
-    },
-    {
-      "from": "cr_2_w",
-      "to": "cr_2_cw",
-      "distance": 147,
-      "accessible": true,
-      "direction": "Avanza al este por el pasillo 2"
-    },
-    {
-      "from": "cr_2_cw",
-      "to": "cr_2_ce",
-      "distance": 147,
-      "accessible": true,
-      "direction": "Avanza al este por el pasillo 2"
-    },
-    {
-      "from": "cr_2_ce",
-      "to": "cr_2_e",
-      "distance": 147,
-      "accessible": true,
-      "direction": "Avanza al este por el pasillo 2"
-    },
-    {
-      "from": "cr_3_w",
-      "to": "cr_3_cw",
-      "distance": 147,
-      "accessible": true,
-      "direction": "Avanza al este por el pasillo 3"
-    },
-    {
-      "from": "cr_3_cw",
-      "to": "cr_3_ce",
-      "distance": 147,
-      "accessible": true,
-      "direction": "Avanza al este por el pasillo 3"
-    },
-    {
-      "from": "cr_3_ce",
-      "to": "cr_3_e",
-      "distance": 147,
-      "accessible": true,
-      "direction": "Avanza al este por el pasillo 3"
-    },
-    {
-      "from": "cr_n_w",
-      "to": "cr_n_cw",
-      "distance": 147,
-      "accessible": true,
-      "direction": "Avanza al este por el pasillo norte"
-    },
-    {
-      "from": "cr_n_cw",
-      "to": "cr_n_ce",
-      "distance": 147,
-      "accessible": true,
-      "direction": "Avanza al este por el pasillo norte"
-    },
-    {
-      "from": "cr_n_ce",
-      "to": "cr_n_e",
-      "distance": 147,
-      "accessible": true,
-      "direction": "Avanza al este por el pasillo norte"
-    },
-    {
-      "from": "cr_s_w",
-      "to": "cr_1_w",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo oeste"
-    },
-    {
-      "from": "cr_1_w",
-      "to": "cr_2_w",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo oeste"
-    },
-    {
-      "from": "cr_2_w",
-      "to": "cr_3_w",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo oeste"
-    },
-    {
-      "from": "cr_3_w",
-      "to": "cr_n_w",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo oeste"
-    },
-    {
-      "from": "cr_s_cw",
-      "to": "cr_1_cw",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo central"
-    },
-    {
-      "from": "cr_1_cw",
-      "to": "cr_2_cw",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo central"
-    },
-    {
-      "from": "cr_2_cw",
-      "to": "cr_3_cw",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo central"
-    },
-    {
-      "from": "cr_3_cw",
-      "to": "cr_n_cw",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo central"
-    },
-    {
-      "from": "cr_s_ce",
-      "to": "cr_1_ce",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo centro-este"
-    },
-    {
-      "from": "cr_1_ce",
-      "to": "cr_2_ce",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo centro-este"
-    },
-    {
-      "from": "cr_2_ce",
-      "to": "cr_3_ce",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo centro-este"
-    },
-    {
-      "from": "cr_3_ce",
-      "to": "cr_n_ce",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo centro-este"
-    },
-    {
-      "from": "cr_s_e",
-      "to": "cr_1_e",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo este"
-    },
-    {
-      "from": "cr_1_e",
-      "to": "cr_2_e",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo este"
-    },
-    {
-      "from": "cr_2_e",
-      "to": "cr_3_e",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo este"
-    },
-    {
-      "from": "cr_3_e",
-      "to": "cr_n_e",
-      "distance": 144,
-      "accessible": true,
-      "direction": "Avanza al norte por el pasillo este"
-    }
+    { "from": "tec_entrada", "to": "path_entrada_a", "distance": 45, "accessible": true, "direction": "Entra al campus y avanza derecho" },
+    { "from": "path_entrada_a", "to": "tec_entrada", "distance": 45, "accessible": true, "direction": "Camina hacia la salida principal" },
+    { "from": "path_entrada_a", "to": "edificio_a", "distance": 30, "accessible": true, "direction": "Gira a la izquierda para el Edificio A (Administrativo)" },
+    { "from": "edificio_a", "to": "path_entrada_a", "distance": 30, "accessible": true, "direction": "Sal del Edificio A hacia el andador" },
+    { "from": "path_entrada_a", "to": "edificio_d", "distance": 20, "accessible": true, "direction": "Continúa derecho hacia el Edificio D" },
+    { "from": "edificio_d", "to": "path_entrada_a", "distance": 20, "accessible": true, "direction": "Regresa al andador de entrada" },
+    { "from": "path_entrada_a", "to": "edificio_w", "distance": 25, "accessible": true, "direction": "Gira a la derecha hacia el Edificio W (Ingeniería Industrial)" },
+    { "from": "edificio_w", "to": "path_entrada_a", "distance": 25, "accessible": true, "direction": "Regresa al andador de entrada" },
+    { "from": "path_entrada_a", "to": "path_central", "distance": 65, "accessible": true, "direction": "Avanza hacia el centro del campus" },
+    { "from": "path_central", "to": "path_entrada_a", "distance": 65, "accessible": true, "direction": "Camina hacia la entrada principal" },
+    { "from": "path_central", "to": "edificio_b", "distance": 15, "accessible": true, "direction": "El Edificio B (Biblioteca) está a tu izquierda" },
+    { "from": "edificio_b", "to": "path_central", "distance": 15, "accessible": true, "direction": "Sal del Centro de Información" },
+    { "from": "path_central", "to": "edificio_e", "distance": 20, "accessible": true, "direction": "Camina hacia el Edificio E" },
+    { "from": "edificio_e", "to": "path_central", "distance": 20, "accessible": true, "direction": "Regresa al andador central" },
+    { "from": "path_central", "to": "edificio_f", "distance": 15, "accessible": true, "direction": "Avanza al Edificio F (Ciencias Básicas)" },
+    { "from": "edificio_f", "to": "path_central", "distance": 15, "accessible": true, "direction": "Regresa al andador central" },
+    { "from": "path_central", "to": "patio_civico", "distance": 10, "accessible": true, "direction": "El Patio Cívico está aquí" },
+    { "from": "patio_civico", "to": "path_central", "distance": 10, "accessible": true, "direction": "Regresa al andador" },
+    { "from": "path_central", "to": "path_este", "distance": 60, "accessible": true, "direction": "Camina hacia la zona este" },
+    { "from": "path_este", "to": "path_central", "distance": 60, "accessible": true, "direction": "Regresa al centro del campus" },
+    { "from": "path_central", "to": "path_norte", "distance": 90, "accessible": true, "direction": "Avanza hacia el norte del campus" },
+    { "from": "path_norte", "to": "path_central", "distance": 90, "accessible": true, "direction": "Regresa al centro del campus" },
+    { "from": "path_este", "to": "edificio_g", "distance": 15, "accessible": true, "direction": "El Edificio G (Química) está aquí" },
+    { "from": "edificio_g", "to": "path_este", "distance": 15, "accessible": true, "direction": "Regresa al andador este" },
+    { "from": "path_este", "to": "edificio_j", "distance": 20, "accessible": true, "direction": "Camina al Edificio J (Bioquímica)" },
+    { "from": "edificio_j", "to": "path_este", "distance": 20, "accessible": true, "direction": "Regresa al andador este" },
+    { "from": "path_este", "to": "edificio_r", "distance": 60, "accessible": true, "direction": "Baja hacia el Edificio R (Sistemas)" },
+    { "from": "edificio_r", "to": "path_este", "distance": 60, "accessible": true, "direction": "Sube al andador este" },
+    { "from": "path_este", "to": "edificio_c1", "distance": 25, "accessible": true, "direction": "Camina a la Cafetería Sur (C1)" },
+    { "from": "edificio_c1", "to": "path_este", "distance": 25, "accessible": true, "direction": "Regresa al andador este" },
+    { "from": "path_este", "to": "edificio_v", "distance": 130, "accessible": true, "direction": "Baja hacia el Edificio V (Posgrado)" },
+    { "from": "edificio_v", "to": "path_este", "distance": 130, "accessible": true, "direction": "Sube hacia el campus" },
+    { "from": "path_este", "to": "edificio_h", "distance": 40, "accessible": true, "direction": "Sube al Edificio H (Cómputo)" },
+    { "from": "edificio_h", "to": "path_este", "distance": 40, "accessible": true, "direction": "Baja del Edificio H" },
+    { "from": "path_norte", "to": "edificio_c", "distance": 30, "accessible": true, "direction": "Gira a la izquierda para la Cafetería Norte" },
+    { "from": "edificio_c", "to": "path_norte", "distance": 30, "accessible": true, "direction": "Sal de la Cafetería Norte" },
+    { "from": "path_norte", "to": "edificio_k", "distance": 15, "accessible": true, "direction": "El Edificio K está a tu derecha" },
+    { "from": "edificio_k", "to": "path_norte", "distance": 15, "accessible": true, "direction": "Regresa al andador norte" },
+    { "from": "path_norte", "to": "edificio_l", "distance": 10, "accessible": true, "direction": "Avanza al Edificio L (Química Orgánica)" },
+    { "from": "edificio_l", "to": "path_norte", "distance": 10, "accessible": true, "direction": "Regresa al andador norte" },
+    { "from": "path_norte", "to": "edificio_m", "distance": 30, "accessible": true, "direction": "Camina al Edificio M" },
+    { "from": "edificio_m", "to": "path_norte", "distance": 30, "accessible": true, "direction": "Regresa al andador norte" },
+    { "from": "path_norte", "to": "edificio_n", "distance": 45, "accessible": true, "direction": "Avanza al Edificio N (Ciencias de la Tierra)" },
+    { "from": "edificio_n", "to": "path_norte", "distance": 45, "accessible": true, "direction": "Regresa al andador norte" },
+    { "from": "path_norte", "to": "edificio_o", "distance": 10, "accessible": true, "direction": "Los Cubículos Docentes están aquí" },
+    { "from": "edificio_o", "to": "path_norte", "distance": 10, "accessible": true, "direction": "Sal de los cubículos" },
+    { "from": "path_norte", "to": "edificio_s", "distance": 70, "accessible": true, "direction": "Camina al Edificio S (Salón de la Paz)" },
+    { "from": "edificio_s", "to": "path_norte", "distance": 70, "accessible": true, "direction": "Regresa del Salón de la Paz" },
+    { "from": "path_norte", "to": "edificio_t", "distance": 35, "accessible": true, "direction": "Avanza al Edificio T" },
+    { "from": "edificio_t", "to": "path_norte", "distance": 35, "accessible": true, "direction": "Regresa al andador" },
+    { "from": "path_norte", "to": "edificio_i", "distance": 50, "accessible": true, "direction": "Camina al Edificio I (Arquitectura)" },
+    { "from": "edificio_i", "to": "path_norte", "distance": 50, "accessible": true, "direction": "Regresa del Edificio I" },
+    { "from": "path_norte", "to": "edificio_y", "distance": 80, "accessible": true, "direction": "Camina al Edificio Y (Mecatrónica)" },
+    { "from": "edificio_y", "to": "path_norte", "distance": 80, "accessible": true, "direction": "Regresa del Edificio Y" },
+    { "from": "path_norte", "to": "cecum", "distance": 40, "accessible": true, "direction": "Gira hacia el CECUM" },
+    { "from": "cecum", "to": "path_norte", "distance": 40, "accessible": true, "direction": "Sal del CECUM" },
+    { "from": "path_norte", "to": "edificio_p", "distance": 100, "accessible": true, "direction": "Camina al Edificio P (Manufactura) al oeste" },
+    { "from": "edificio_p", "to": "path_norte", "distance": 100, "accessible": true, "direction": "Regresa del Edificio P" },
+    { "from": "tec_entrada", "to": "estacionamiento_principal", "distance": 40, "accessible": true, "direction": "Camina al estacionamiento principal" },
+    { "from": "estacionamiento_principal", "to": "tec_entrada", "distance": 40, "accessible": true, "direction": "Regresa a la entrada principal" },
+    { "from": "edificio_v", "to": "estacionamiento_sur", "distance": 20, "accessible": true, "direction": "Camina al estacionamiento sur" },
+    { "from": "estacionamiento_sur", "to": "edificio_v", "distance": 20, "accessible": true, "direction": "Regresa al Edificio V" },
+    { "from": "path_norte", "to": "campo_futbol", "distance": 120, "accessible": true, "direction": "Camina al campo de fútbol" },
+    { "from": "campo_futbol", "to": "path_norte", "distance": 120, "accessible": true, "direction": "Regresa del campo de fútbol" }
   ]
 }

@@ -15,18 +15,11 @@ class PlaceRepository {
     final localPlaces = await _loadLocalPlaces();
     yield localPlaces;
 
-    await for (final snapshot
-        in _firestore.collection('places').snapshots()) {
-      final remote = snapshot.docs
-          .map((doc) => PlaceNode.fromFirestore(doc))
-          .toList();
-      yield remote.isNotEmpty ? remote : localPlaces;
-    }
   }
 
   Future<List<PlaceNode>> _loadLocalPlaces() async {
     final jsonStr =
-        await rootBundle.loadString('assets/maps/tec_colima_map.json');
+        await rootBundle.loadString('assets/maps/tec_colima_map.json', cache: false);
     final data = json.decode(jsonStr) as Map<String, dynamic>;
     final nodes = data['nodes'] as List<dynamic>;
     return nodes

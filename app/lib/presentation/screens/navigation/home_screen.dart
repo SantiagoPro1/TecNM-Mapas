@@ -196,68 +196,68 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isListening = voiceState.voiceState == VoiceState.listening;
 
     return GestureDetector(
-      onTap: () {
-        ref.read(voiceProvider.notifier).listenAndExecute();
-      },
-      onDoubleTap: () {
-        ref.read(voiceProvider.notifier).listenAndExecute();
-      },
+      onTap: () => ref.read(voiceProvider.notifier).listenAndExecute(),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: isListening ? Colors.white : AppTheme.accent,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: isListening
-              ? [
-                  BoxShadow(
-                    color: AppTheme.accent.withValues(alpha: 0.4),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  )
-                ]
-              : null,
+          gradient: isListening
+              ? const LinearGradient(colors: [Color(0xFFFF5252), Color(0xFFFF1744)])
+              : const LinearGradient(
+                  colors: [Color(0xFF00E5FF), Color(0xFF0091EA)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: (isListening ? const Color(0xFFFF5252) : const Color(0xFF00E5FF)).withOpacity(0.4),
+              blurRadius: isListening ? 30 : 15,
+              spreadRadius: isListening ? 5 : 0,
+            )
+          ],
         ),
         child: Row(
           children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
               child: Icon(
                 isListening ? Icons.hearing_rounded : Icons.mic_rounded,
-                key: ValueKey(isListening),
-                size: 40,
-                color: isListening ? AppTheme.accent : Colors.black,
+                size: 38,
+                color: Colors.white,
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 20),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isListening ? 'Escuchando...' : 'Toca o di',
+                    isListening ? 'ESCUCHANDO...' : 'SISTEMA DE VOZ',
                     style: TextStyle(
-                        color: isListening
-                            ? AppTheme.textSecondary
-                            : Colors.black,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500),
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     isListening
                         ? (voiceState.recognizedText.isEmpty
-                            ? '...'
+                            ? 'Esperando...'
                             : voiceState.recognizedText)
-                        : '"Llévame a..."',
-                    style: TextStyle(
-                        color: isListening
-                            ? Colors.black87
-                            : Colors.black,
-                        fontSize: isListening ? 18 : 22,
-                        fontWeight: FontWeight.bold),
-                    maxLines: 2,
+                        : '¿A dónde quieres ir?',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5),
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -413,22 +413,33 @@ class _QuickCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.cardBackground,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF333333)),
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppTheme.accent.withOpacity(0.15), width: 1.5),
+          boxShadow: const [
+            BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))
+          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: AppTheme.accent, size: 32),
-            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.accent.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: AppTheme.accent, size: 28),
+            ),
+            const SizedBox(height: 12),
             Text(
               label,
               style: const TextStyle(
-                  color: AppTheme.textPrimary,
+                  color: Colors.white,
                   fontSize: 15,
-                  fontWeight: FontWeight.w600),
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.3),
             ),
           ],
         ),
@@ -448,27 +459,34 @@ class _RecentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF333333)),
+        color: AppTheme.surface.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Row(
         children: [
-          Icon(icon, color: AppTheme.accent, size: 28),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.accent.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: AppTheme.accent.withOpacity(0.7), size: 22),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Text(label,
                 style: const TextStyle(
-                    color: AppTheme.textPrimary, fontSize: 16)),
+                    color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
           ),
           Text('~$time',
               style: const TextStyle(
-                  color: AppTheme.textSecondary, fontSize: 14)),
-          const SizedBox(width: 8),
-          const Icon(Icons.arrow_forward_ios_rounded,
-              size: 14, color: AppTheme.textSecondary),
+                  color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+          const SizedBox(width: 12),
+          Icon(Icons.arrow_forward_ios_rounded,
+              size: 14, color: AppTheme.accent.withOpacity(0.5)),
         ],
       ),
     );

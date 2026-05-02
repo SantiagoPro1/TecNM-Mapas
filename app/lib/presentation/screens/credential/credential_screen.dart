@@ -21,7 +21,6 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
-  // JWT dinámico
   String? _currentToken;
   int _remainingSeconds = 0;
   Timer? _refreshTimer;
@@ -34,7 +33,7 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
-    _pulseAnimation = Tween<double>(begin: 0.98, end: 1.02).animate(
+    _pulseAnimation = Tween<double>(begin: 0.96, end: 1.04).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
@@ -47,7 +46,6 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
     super.dispose();
   }
 
-  /// Genera un token JWT nuevo y programa la renovación automática.
   void _generateToken(AuthState authState) {
     if (!authState.isAuthenticated) return;
 
@@ -57,14 +55,12 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
     );
     _remainingSeconds = CredentialService.tokenTtlSeconds;
 
-    // Programar renovación automática antes de que expire
     _refreshTimer?.cancel();
     _refreshTimer = Timer(
       const Duration(seconds: CredentialService.tokenTtlSeconds - 3),
       () => _generateToken(authState),
     );
 
-    // Countdown visual cada segundo
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
@@ -83,15 +79,16 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
 
-    // Generar token al tener usuario autenticado
     if (authState.isAuthenticated && _currentToken == null) {
       Future.microtask(() => _generateToken(authState));
     }
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Credencial Digital'),
-        centerTitle: true,
+        title: const Text('IDENTIDAD DIGITAL'),
+        centerTitle: false,
+        backgroundColor: Colors.transparent,
       ),
       bottomNavigationBar: const BottomNav(currentIndex: 3),
       body: SafeArea(
@@ -107,11 +104,17 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.lock_outline_rounded, size: 80,
-              color: AppTheme.textSecondary.withValues(alpha: 0.5)),
-          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppTheme.accent.withOpacity(0.05),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.lock_outline_rounded, size: 80, color: AppTheme.accent.withOpacity(0.5)),
+          ),
+          const SizedBox(height: 24),
           const Text('Inicia sesión para generar tu credencial',
-              style: TextStyle(color: AppTheme.textSecondary)),
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 16, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -119,12 +122,26 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
 
   Widget _buildCredentialView(AuthState authState) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: Column(
         children: [
-          const Text('Toca la tarjeta para ver el reverso',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.accent.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.touch_app_rounded, size: 14, color: AppTheme.accent),
+                SizedBox(width: 8),
+                Text('TOCA PARA VOLTEAR',
+                    style: TextStyle(color: AppTheme.accent, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
           
           FlipCard(
             direction: FlipDirection.HORIZONTAL,
@@ -138,16 +155,15 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 32),
 
-          // Indicador de token dinámico
           if (_currentToken != null)
             _TokenTimer(
               remainingSeconds: _remainingSeconds,
               onRefresh: () => _generateToken(authState),
             ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           _buildStatusList(),
         ],
       ),
@@ -156,34 +172,45 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
 
   Widget _buildStatusList() {
     final items = [
-      (Icons.calendar_today_rounded, 'Vigencia', '2024 - 2027'),
-      (Icons.verified_user_rounded, 'Estado', 'Alumno Regular'),
-      (Icons.local_hospital_rounded, 'Servicio Médico', 'Vigente IMSS'),
+      (Icons.calendar_today_rounded, 'VIGENCIA', '2024 - 2027', Colors.blueAccent),
+      (Icons.verified_user_rounded, 'ESTADO', 'ALUMNO REGULAR', Colors.greenAccent),
+      (Icons.local_hospital_rounded, 'SEGURO', 'VIGENTE IMSS', Colors.redAccent),
     ];
     return Column(
       children: items.map((item) => Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppTheme.cardBackground,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF333333)),
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
         ),
         child: Row(
           children: [
-            Icon(item.$1, color: AppTheme.accent, size: 22),
-            const SizedBox(width: 12),
-            Text(item.$2, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
-            const Spacer(),
-            Text(item.$3, style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: item.$4.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(item.$1, color: item.$4, size: 20),
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.$2, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                const SizedBox(height: 2),
+                Text(item.$3, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+              ],
+            ),
           ],
         ),
       )).toList(),
     );
   }
 }
-
-// ─── Timer del token ──────────────────────────────────────────
 
 class _TokenTimer extends StatelessWidget {
   final int remainingSeconds;
@@ -194,45 +221,30 @@ class _TokenTimer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLow = remainingSeconds <= 10;
+    final color = isLow ? AppTheme.error : AppTheme.accent;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: isLow
-            ? AppTheme.error.withValues(alpha: 0.1)
-            : AppTheme.accent.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isLow
-              ? AppTheme.error.withValues(alpha: 0.3)
-              : AppTheme.accent.withValues(alpha: 0.3),
-        ),
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            isLow ? Icons.timer_off_rounded : Icons.timer_rounded,
-            color: isLow ? AppTheme.error : AppTheme.accent,
-            size: 18,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'QR dinámico: ${remainingSeconds}s',
-            style: TextStyle(
-              color: isLow ? AppTheme.error : AppTheme.accent,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Icon(isLow ? Icons.timer_off_rounded : Icons.timer_rounded, color: color, size: 20),
           const SizedBox(width: 12),
-          GestureDetector(
-            onTap: onRefresh,
-            child: Icon(
-              Icons.refresh_rounded,
-              color: isLow ? AppTheme.error : AppTheme.accent,
-              size: 18,
-            ),
+          Text(
+            'QR DINÁMICO: ${remainingSeconds}S',
+            style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+          ),
+          const Spacer(),
+          IconButton(
+            onPressed: onRefresh,
+            icon: Icon(Icons.refresh_rounded, color: color, size: 22),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
         ],
       ),
@@ -240,7 +252,6 @@ class _TokenTimer extends StatelessWidget {
   }
 }
 
-// --- VISTA FRONTAL ---
 class _CredentialFront extends StatelessWidget {
   final AuthState authState;
   const _CredentialFront({required this.authState});
@@ -249,82 +260,97 @@ class _CredentialFront extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      height: 230,
+      height: 240,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 15)],
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(color: AppTheme.accent.withOpacity(0.15), blurRadius: 20, spreadRadius: 2)
+        ],
+        border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5),
       ),
-      child: Stack(
-        children: [
-          // Banda azul inferior
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 40,
-              decoration: const BoxDecoration(
-                color: Color(0xFF005696),
-                borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(16),
-                    bottomRight: Radius.circular(16)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          children: [
+            // Decorative background
+            Positioned(
+              top: -50, right: -50,
+              child: Container(
+                width: 150, height: 150,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF005696).withOpacity(0.05),
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
-          ),
-          
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                // FOTO
-                Container(
-                  width: 110,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    border: Border.all(color: Colors.grey[300]!, width: 1.5),
-                  ),
-                  child: authState.photoUrl != null 
-                    ? Image.network(authState.photoUrl!, fit: BoxFit.cover)
-                    : const Icon(Icons.person, size: 50, color: Colors.grey),
+            
+            Positioned(
+              bottom: 0, left: 0, right: 0,
+              child: Container(
+                height: 48,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(colors: [Color(0xFF005696), Color(0xFF004070)]),
                 ),
-                const SizedBox(width: 16),
-                
-                // DATOS
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('ESTUDIANTE', 
-                        style: TextStyle(color: Color(0xFF005696), fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5)),
-                      const SizedBox(height: 8),
-                      // Logo TecNM
-                      Image.asset('assets/images/logo_tecnm.png', height: 45, fit: BoxFit.contain),
-                      const SizedBox(height: 12),
-                      _labelValue('Nombre:', authState.displayName.toUpperCase()),
-                      _labelValue('Carrera:', 'INGENIERIA EN SISTEMAS COMPUTACIONALES'),
-                      _labelValue('Control:', authState.matricula),
-                    ],
-                  ),
-                )
-              ],
+                child: const Center(
+                  child: Text('INSTITUTO TECNOLÓGICO DE COLIMA', 
+                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+                ),
+              ),
             ),
-          ),
-        ],
+            
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Row(
+                children: [
+                  Container(
+                    width: 110, height: 140,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[200]!, width: 2),
+                      boxShadow: [const BoxShadow(color: Colors.black12, blurRadius: 8)],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: authState.photoUrl != null 
+                        ? Image.network(authState.photoUrl!, fit: BoxFit.cover)
+                        : Icon(Icons.person, size: 60, color: Colors.grey[300]),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('ESTUDIANTE', 
+                          style: TextStyle(color: Color(0xFF005696), fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.5)),
+                        const SizedBox(height: 12),
+                        _labelValue('NOMBRE:', authState.displayName.toUpperCase()),
+                        _labelValue('CARRERA:', 'ING. SISTEMAS COMPUTACIONALES'),
+                        _labelValue('CONTROL:', authState.matricula),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _labelValue(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Colors.black54, fontSize: 9, fontWeight: FontWeight.bold)),
+          Text(label, style: const TextStyle(color: Colors.black38, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+          const SizedBox(height: 1),
           Text(value, 
-            style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.w900, height: 1.1),
+            style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.w800, height: 1.1),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -334,7 +360,6 @@ class _CredentialFront extends StatelessWidget {
   }
 }
 
-// --- VISTA TRASERA (con QR dinámico JWT) ---
 class _CredentialBack extends StatelessWidget {
   final AuthState authState;
   final Animation<double> pulse;
@@ -352,98 +377,50 @@ class _CredentialBack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // El QR muestra el JWT dinámico (si existe), o la matrícula estática
     final qrData = token ?? authState.matricula;
 
     return Container(
       width: double.infinity,
-      height: 230,
+      height: 240,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 15)],
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(color: AppTheme.accent.withOpacity(0.15), blurRadius: 20, spreadRadius: 2)
+        ],
+        border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
           children: [
-            // PARTE IZQUIERDA: LOGOS, QR Y BARRAS
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Fila de logos superior
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: Image.asset('assets/images/logo_educacion.png', fit: BoxFit.contain, height: 25),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 1,
-                        child: Row(
-                          children: [
-                            Image.asset('assets/images/logo_itcolima.png', height: 22),
-                            const SizedBox(width: 4),
-                            const Expanded(
-                              child: Text('INSTITUTO TECNOLÓGICO DE COLIMA', 
-                                style: TextStyle(color: Colors.black, fontSize: 5, fontWeight: FontWeight.bold)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  // Firma centrada
-                  Center(
-                    child: Column(
-                      children: [
-                        Text(authState.displayName.split(' ').first, 
-                          style: const TextStyle(fontFamily: 'cursive', fontSize: 18, color: Colors.black)),
-                        Container(width: 80, height: 0.5, color: Colors.black),
-                        const Text('FIRMA', style: TextStyle(fontSize: 6, color: Colors.black)),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  // QR dinámico y Código de barras
-                  Center(
-                    child: Column(
-                      children: [
-                        ScaleTransition(
-                          scale: pulse,
-                          child: QrImageView(data: qrData, size: 75, padding: EdgeInsets.zero),
-                        ),
-                        const SizedBox(height: 8),
-                        BarcodeWidget(
-                          barcode: Barcode.code128(),
-                          data: authState.matricula,
-                          width: 140,
-                          height: 35,
-                          drawText: true,
-                          style: const TextStyle(color: Colors.black, fontSize: 8, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Image.asset('assets/images/logo_tecnm.png', height: 35, fit: BoxFit.contain),
+                Image.asset('assets/images/logo_itcolima.png', height: 35),
+              ],
+            ),
+            const Spacer(),
+            ScaleTransition(
+              scale: pulse,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [const BoxShadow(color: Colors.black12, blurRadius: 10)],
+                ),
+                child: QrImageView(data: qrData, size: 100, padding: EdgeInsets.zero),
               ),
             ),
-            
-            // PARTE DERECHA: TEXTO VERTICAL (DIRECCIÓN)
-            Container(
-              width: 35,
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: const RotatedBox(
-                quarterTurns: 3,
-                child: Text(
-                  "Av. Tecnológico No. 1, Villa de Álvarez, Col., C.P. 2976, Tel(312) 312-9920, 312-6393, 314-0933, 314-0683",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.black54, fontSize: 6.5, fontWeight: FontWeight.w500),
-                ),
-              ),
+            const Spacer(),
+            BarcodeWidget(
+              barcode: Barcode.code128(),
+              data: authState.matricula,
+              width: 180, height: 40,
+              drawText: true,
+              style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.w800),
             ),
           ],
         ),

@@ -1,47 +1,128 @@
 [
   {
-    "id": "tec_edificio_p",
-    "name": "Edificio P (Académico)",
-    "latitude": 19.2438,
-    "longitude": -103.7037,
-    "type": "Edificio",
+    "id": "tec_entrada",
+    "name": "Acceso Principal",
+    "latitude": 19.261945000000004,
+    "longitude": -103.72347199999997,
+    "type": "Entrada",
     "accessibilityLevel": "alto",
-    "description": "Edificio P. Cuenta con rampas de acceso y pasillos amplios."
-  },
-  {
-    "id": "tec_cafeteria",
-    "name": "Cafetería Norte",
-    "latitude": 19.2443,
-    "longitude": -103.7042,
-    "type": "Cafetería",
-    "accessibilityLevel": "medio",
-    "description": "Cafetería Norte. El acceso principal tiene un pequeño escalón, se recomienda usar la entrada lateral."
-  },
-  {
-    "id": "tec_mecatronica",
-    "name": "Laboratorio de Mecatrónica",
-    "latitude": 19.2440,
-    "longitude": -103.7032,
-    "type": "Edificio",
-    "accessibilityLevel": "alto",
-    "description": "Laboratorio de Mecatrónica. Entrada totalmente accesible con puertas automáticas."
-  },
-  {
-    "id": "tec_canchas",
-    "name": "Canchas Techadas",
-    "latitude": 19.2446,
-    "longitude": -103.7040,
-    "type": "Parque",
-    "accessibilityLevel": "alto",
-    "description": "Área deportiva de canchas techadas. Superficie plana y accesible."
+    "description": "Acceso Principal del TecNM Colima."
   },
   {
     "id": "tec_explanada",
     "name": "Explanada Principal",
-    "latitude": 19.2435,
-    "longitude": -103.7040,
-    "type": "Servicios",
+    "latitude": 19.262345000000003,
+    "longitude": -103.72327199999998,
+    "type": "Area",
     "accessibilityLevel": "alto",
-    "description": "Explanada principal del campus. Punto de reunión accesible."
+    "description": "Explanada Principal del TecNM Colima."
+  },
+  {
+    "id": "tec_edificio_a",
+    "name": "Edificio A (Administrativo)",
+    "latitude": 19.262145000000004,
+    "longitude": -103.72357199999998,
+    "type": "Edificio",
+    "accessibilityLevel": "alto",
+    "description": "Edificio A (Administrativo) del TecNM Colima."
+  },
+  {
+    "id": "tec_edificio_b",
+    "name": "Centro de Información (Biblioteca)",
+    "latitude": 19.262645000000003,
+    "longitude": -103.72347199999997,
+    "type": "Edificio",
+    "accessibilityLevel": "alto",
+    "description": "Centro de Información (Biblioteca) del TecNM Colima."
+  },
+  {
+    "id": "tec_edificio_p",
+    "name": "Edificio P (Académico)",
+    "latitude": 19.262945000000006,
+    "longitude": -103.72367199999998,
+    "type": "Edificio",
+    "accessibilityLevel": "alto",
+    "description": "Edificio P (Académico) del TecNM Colima."
+  },
+  {
+    "id": "tec_cafeteria",
+    "name": "Cafetería Norte",
+    "latitude": 19.263045000000005,
+    "longitude": -103.72337199999997,
+    "type": "Cafeteria",
+    "accessibilityLevel": "alto",
+    "description": "Cafetería Norte del TecNM Colima."
+  },
+  {
+    "id": "tec_sistemas",
+    "name": "Edificio de Sistemas y Computación",
+    "latitude": 19.262145000000004,
+    "longitude": -103.72297199999997,
+    "type": "Edificio",
+    "accessibilityLevel": "alto",
+    "description": "Edificio de Sistemas y Computación del TecNM Colima."
+  },
+  {
+    "id": "tec_arquitectura",
+    "name": "Laboratorio de Arquitectura",
+    "latitude": 19.263145000000005,
+    "longitude": -103.72297199999997,
+    "type": "Edificio",
+    "accessibilityLevel": "alto",
+    "description": "Laboratorio de Arquitectura del TecNM Colima."
+  },
+  {
+    "id": "tec_mecatronica",
+    "name": "Laboratorio de Mecatrónica",
+    "latitude": 19.263545000000004,
+    "longitude": -103.72267199999997,
+    "type": "Edificio",
+    "accessibilityLevel": "alto",
+    "description": "Laboratorio de Mecatrónica del TecNM Colima."
+  },
+  {
+    "id": "tec_industrial",
+    "name": "Ingeniería Industrial",
+    "latitude": 19.261845000000005,
+    "longitude": -103.72317199999998,
+    "type": "Edificio",
+    "accessibilityLevel": "alto",
+    "description": "Ingeniería Industrial del TecNM Colima."
+  },
+  {
+    "id": "tec_posgrado",
+    "name": "División de Posgrado",
+    "latitude": 19.261745000000005,
+    "longitude": -103.72267199999997,
+    "type": "Edificio",
+    "accessibilityLevel": "alto",
+    "description": "División de Posgrado del TecNM Colima."
+  },
+  {
+    "id": "tec_cecum",
+    "name": "CECUM",
+    "latitude": 19.263745000000004,
+    "longitude": -103.72327199999998,
+    "type": "Edificio",
+    "accessibilityLevel": "alto",
+    "description": "CECUM del TecNM Colima."
+  },
+  {
+    "id": "tec_canchas",
+    "name": "Canchas Techadas",
+    "latitude": 19.263445000000004,
+    "longitude": -103.72197199999998,
+    "type": "Parque",
+    "accessibilityLevel": "alto",
+    "description": "Canchas Techadas del TecNM Colima."
+  },
+  {
+    "id": "tec_estacionamiento",
+    "name": "Estacionamiento Principal",
+    "latitude": 19.261845000000005,
+    "longitude": -103.72397199999997,
+    "type": "Area",
+    "accessibilityLevel": "alto",
+    "description": "Estacionamiento Principal del TecNM Colima."
   }
 ]

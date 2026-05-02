@@ -54,20 +54,87 @@ final filteredMapMarkersProvider = Provider<List<Marker>>((ref) {
           
       // Mappear a Markers de flutter_map
       return filteredList.map((place) {
+        final isBuilding = place.type.toLowerCase() == 'edificio';
+        final isCafe = place.type.toLowerCase() == 'cafetería';
+        
+        // Extraer la letra del ID (ej. edificio_a -> A)
+        String buildingLetter = '';
+        if (isBuilding && place.id.startsWith('edificio_')) {
+          buildingLetter = place.id.split('_').last.toUpperCase();
+        } else if (place.id == 'cecum') {
+          buildingLetter = 'C';
+        }
+
         return Marker(
           point: LatLng(place.latitude, place.longitude),
-          width: 40,
-          height: 40,
+          width: 45,
+          height: 45,
           child: GestureDetector(
             onTap: () {
               ref.read(selectedPlaceProvider.notifier).state = place;
             },
-            child: Icon(
-              Icons.location_on,
-              size: 40,
-              color: place.accessibilityLevel.toLowerCase() == 'alto' 
-                  ? const Color(0xFF64FFDA) 
-                  : Colors.deepPurpleAccent,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Shadow / Glow
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isBuilding || isCafe) 
+                            ? const Color(0xFF00E5FF).withOpacity(0.3) 
+                            : Colors.black26,
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                ),
+                // Main Marker Circle
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0D1B2A),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF00E5FF),
+                      width: 2,
+                    ),
+                  ),
+                  child: Center(
+                    child: isBuilding && buildingLetter.isNotEmpty
+                        ? Text(
+                            buildingLetter,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          )
+                        : Icon(
+                            isCafe ? Icons.coffee_rounded : Icons.location_on_rounded,
+                            size: 18,
+                            color: const Color(0xFF00E5FF),
+                          ),
+                  ),
+                ),
+                // Tip of the pin (optional visual flair)
+                Positioned(
+                  bottom: 0,
+                  child: Container(
+                    width: 4,
+                    height: 4,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF00E5FF),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );

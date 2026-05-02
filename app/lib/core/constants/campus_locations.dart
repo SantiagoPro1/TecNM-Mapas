@@ -6,83 +6,43 @@ class CampusLocations {
   CampusLocations._();
 
   // ─── Coordenadas del centro del campus ────────────────────────────────────
-  static const double centerLat = 19.2619;
-  static const double centerLng = -103.7237;
+  static const double centerLat = 19.2628;
+  static const double centerLng = -103.7233;
 
   // ─── Entrada y áreas especiales ───────────────────────────────────────────
-  static const String entradaPrincipal = 'entrada_principal';
-  static const String estacionamientoPrincipal = 'estacionamiento_principal';
-  static const String estacionamientoNorte = 'estacionamiento_norte';
-  static const String patioCivico = 'patio_civico';
-  static const String plazaCultural = 'plaza_cultural';
+  static const String entradaPrincipal = 'tec_entrada';
+  static const String estacionamientoPrincipal = 'tec_estacionamiento';
+  static const String explanadaPrincipal = 'tec_explanada';
+  static const String canchas = 'tec_canchas';
 
-  // ─── Edificios A–Z ────────────────────────────────────────────────────────
-  static const String edificioA = 'edificio_a'; // Administrativo / Dirección
-  static const String edificioB = 'edificio_b'; // Centro de Información
-  static const String edificioC = 'edificio_c'; // Cafetería Norte
-  static const String edificioC1 = 'edificio_c1'; // Cafetería Sur
-  static const String edificioD = 'edificio_d'; // Aulas
-  static const String edificioE = 'edificio_e'; // Aulas y Lab de Microbiología
-  static const String edificioF = 'edificio_f'; // Ciencias Básicas
-  static const String edificioG = 'edificio_g'; // Aulas y Lab de Química
-  static const String edificioH = 'edificio_h'; // Centro de Cómputo
-  static const String edificioI = 'edificio_i'; // Aulas de Arquitectura
-  static const String edificioJ = 'edificio_j'; // Lab de Bioquímica
-  static const String edificioK = 'edificio_k'; // Aulas
-  static const String edificioL = 'edificio_l'; // Lab de Química Orgánica
-  static const String edificioM = 'edificio_m'; // Lab de Operaciones Unitarias
-  static const String edificioN = 'edificio_n'; // Ciencias de la Tierra
-  static const String edificioNTilde = 'edificio_n_tilde'; // Actividades Extraescolares
-  static const String edificioO = 'edificio_o'; // Cubículos Docentes
-  static const String edificioP = 'edificio_p'; // Taller de Manufactura
-  static const String edificioQ = 'edificio_q'; // Recursos Materiales y Mantenimiento
-  static const String edificioR = 'edificio_r'; // Sistemas y Computación
-  static const String edificioS = 'edificio_s'; // Salón de la Paz
-  static const String edificioT = 'edificio_t'; // Ciencias Económico Administrativas
-  static const String edificioU = 'edificio_u'; // Laboratorio de Arquitectura
-  static const String edificioV = 'edificio_v'; // División de Posgrado e Investigación
-  static const String edificioW = 'edificio_w'; // Ingeniería Industrial
-  static const String edificioX = 'edificio_x'; // Laboratorio de Ambiental
-  static const String edificioY = 'edificio_y'; // Laboratorio de Mecatrónica
-  static const String edificioZ = 'edificio_z'; // Banco de Reactivos
-  static const String cecum = 'cecum';          // Centro Cultural y de Usos Múltiples
+  // ─── Edificios y Laboratorios ─────────────────────────────────────────────
+  static const String edificioA = 'tec_edificio_a'; // Administrativo / Dirección
+  static const String edificioB = 'tec_edificio_b'; // Centro de Información / Biblioteca
+  static const String edificioP = 'tec_edificio_p'; // Académico
+  static const String sistemas = 'tec_sistemas'; // Sistemas y Computación
+  static const String mecatronica = 'tec_mecatronica'; // Laboratorio de Mecatrónica
+  static const String arquitectura = 'tec_arquitectura'; // Laboratorio de Arquitectura
+  static const String industrial = 'tec_industrial'; // Ingeniería Industrial
+  static const String posgrado = 'tec_posgrado'; // División de Posgrado
+  static const String cecum = 'tec_cecum'; // Centro Cultural y de Usos Múltiples
+  static const String cafeteria = 'tec_cafeteria'; // Cafetería Norte
 
   // ─── Destinos principales (voz + QR) ──────────────────────────────────────
   static const List<String> mainDestinations = [
     entradaPrincipal,
+    estacionamientoPrincipal,
+    explanadaPrincipal,
+    canchas,
     edificioA,
     edificioB,
-    edificioC,
-    edificioC1,
-    edificioD,
-    edificioE,
-    edificioF,
-    edificioG,
-    edificioH,
-    edificioI,
-    edificioJ,
-    edificioK,
-    edificioL,
-    edificioM,
-    edificioN,
-    edificioNTilde,
-    edificioO,
     edificioP,
-    edificioQ,
-    edificioR,
-    edificioS,
-    edificioT,
-    edificioU,
-    edificioV,
-    edificioW,
-    edificioX,
-    edificioY,
-    edificioZ,
+    sistemas,
+    mecatronica,
+    arquitectura,
+    industrial,
+    posgrado,
     cecum,
-    patioCivico,
-    plazaCultural,
-    estacionamientoPrincipal,
-    estacionamientoNorte,
+    cafeteria,
   ];
 
   /// Genera el contenido QR para un nodo del campus.

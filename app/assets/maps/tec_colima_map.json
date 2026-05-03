@@ -366,25 +366,14 @@
       "id": "estacionamiento_sur",
       "name": "Estacionamiento Sur",
       "type": "area",
-      "lat": 19.261100,
-      "lng": -103.722700,
+      "lat": 19.261631,
+      "lng": -103.722771,
       "floor": 0,
       "accessible": true,
       "aliases": ["estacionamiento sur"],
       "description": "Estacionamiento Sur, cerca de Posgrado."
     },
     
-    {
-      "id": "cecum",
-      "name": "CECUM - Centro Cultural",
-      "type": "building",
-      "lat": 19.263800,
-      "lng": -103.723680,
-      "floor": 0,
-      "accessible": true,
-      "aliases": ["cecum", "centro cultural", "usos múltiples"],
-      "description": "Centro Cultural y de Usos Múltiples."
-    },
     {
       "id": "actividades_extraescolares",
       "name": "Actividades Extraescolares",
@@ -401,8 +390,9 @@
       "id": "edificio_na",
       "name": "Edificio NA - Centro de Idiomas",
       "type": "building",
-      "lat": 19.263400,
-      "lng": -103.722800,
+      "lat": 19.262854,
+      "lng": -103.723482,
+      "letter": "CI",
       "floor": 0,
       "accessible": true,
       "aliases": ["edificio na", "centro de idiomas", "idiomas"],
@@ -495,13 +485,13 @@
     
     { "from": "actividades_extraescolares", "to": "path_north_main", "distance": 25, "accessible": true, "direction": "Sal al andador norte" },
     { "from": "path_north_main", "to": "actividades_extraescolares", "distance": 25, "accessible": true, "direction": "Llegaste a Actividades Extraescolares" },
-    { "from": "edificio_na", "to": "path_north_east", "distance": 20, "accessible": true, "direction": "Sal al andador norte" },
-    { "from": "path_north_east", "to": "edificio_na", "distance": 20, "accessible": true, "direction": "Llegaste al Edificio NA (Centro de Idiomas)" },
+    { "from": "edificio_na", "to": "path_main_5", "distance": 15, "accessible": true, "direction": "Sal al andador principal" },
+    { "from": "path_main_5", "to": "edificio_na", "distance": 15, "accessible": true, "direction": "Llegaste al Centro de Idiomas" },
 
-    { "from": "edificio_v", "to": "path_main_0", "distance": 80, "accessible": true, "direction": "Sube hacia el campus" },
-    { "from": "path_main_0", "to": "edificio_v", "distance": 80, "accessible": true, "direction": "Llegaste a Posgrado" },
+    { "from": "path_east_0", "to": "estacionamiento_sur", "distance": 40, "accessible": true, "direction": "Baja hacia el Estacionamiento Sur" },
+    { "from": "estacionamiento_sur", "to": "path_east_0", "distance": 40, "accessible": true, "direction": "Sube hacia el andador este" },
     { "from": "estacionamiento_sur", "to": "edificio_v", "distance": 20, "accessible": true, "direction": "Camina al Edificio V" },
-    { "from": "edificio_v", "to": "estacionamiento_sur", "distance": 20, "accessible": true, "direction": "Llegaste al Estacionamiento Sur" },
+    { "from": "edificio_v", "to": "estacionamiento_sur", "distance": 20, "accessible": true, "direction": "Regresa al Estacionamiento Sur" },
     
     { "from": "estacionamiento_principal", "to": "tec_entrada", "distance": 40, "accessible": true, "direction": "Ve a la entrada" },
     { "from": "tec_entrada", "to": "estacionamiento_principal", "distance": 40, "accessible": true, "direction": "Llegaste al Estacionamiento Principal" },

@@ -12,6 +12,7 @@ import 'package:sinait/presentation/widgets/bottom_nav.dart';
 import 'package:sinait/data/models/place_node.dart';
 import 'package:sinait/presentation/screens/map/providers/map_providers.dart';
 import 'package:sinait/core/constants/campus_locations.dart';
+import 'package:sinait/data/providers/navigation_provider.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -24,10 +25,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   final MapController _mapController = MapController();
   List<Polyline> _polylines = [];
   LatLng? _currentPosition;
-  Marker? _userLocationMarker;
+  bool _centeredOnUser = false; // se vuelve true cuando el stream centra el mapa por primera vez
 
   // Coordenadas iniciales (TecNM Campus Colima)
-  final LatLng _initialPosition =
+  static const LatLng _initialPosition =
       LatLng(CampusLocations.centerLat, CampusLocations.centerLng);
 
   // TTS
@@ -46,14 +47,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   // Dev Panel State
   final List<String> _ttsHistory = [];
-  bool _isSimulatingLocation = false;
+  final bool _isSimulatingLocation = false;
 
   @override
   void initState() {
     super.initState();
     _initTts();
     _initStt();
-    _determinePosition();
+    _requestLocationPermission();
   }
 
   Future<void> _initTts() async {
@@ -89,43 +90,54 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     super.dispose();
   }
 
-  Future<void> _determinePosition() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  // Solo pide permisos al iniciar. El stream currentLocationStreamProvider
+  // es quien actualiza _currentPosition y el marker continuamente.
+  Future<void> _requestLocationPermission() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
 
-    permission = await Geolocator.checkPermission();
+    var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return;
     }
-    if (permission == LocationPermission.deniedForever) return;
+  }
 
-    Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high);
+  // Centra el mapa en la posición actual (llamado por el botón FAB).
+  void _centerOnUser() {
+    final navState = ref.read(navigationProvider);
+    LatLng? targetPos;
+    if (navState.currentNode != null) {
+      targetPos = LatLng(navState.currentNode!.lat, navState.currentNode!.lng);
+    } else if (_currentPosition != null) {
+      targetPos = _currentPosition;
+    }
+    
+    if (targetPos != null) {
+      _mapController.move(targetPos, 17.5);
+    }
+  }
 
-    final latLng = LatLng(position.latitude, position.longitude);
-
-    setState(() {
-      _currentPosition = latLng;
-      _userLocationMarker = Marker(
-        point: _currentPosition!,
-        width: 30,
-        height: 30,
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF2196F3),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
-          ),
+  Marker _buildUserMarker(LatLng position) {
+    return Marker(
+      point: position,
+      width: 40,
+      height: 40,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFAB00),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFFAB00).withOpacity(0.5),
+              blurRadius: 15,
+              spreadRadius: 4,
+            ),
+          ],
         ),
-      );
-    });
-
-    _mapController.move(_currentPosition!, 17.5);
+        child: const Icon(Icons.person_pin_circle_rounded, color: Colors.white, size: 24),
+      ),
+    );
   }
 
   void _onPositionChanged(MapCamera camera, bool hasGesture) {
@@ -524,27 +536,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         final latLng = LatLng(position.latitude, position.longitude);
         setState(() {
           _currentPosition = latLng;
-          _userLocationMarker = Marker(
-            point: _currentPosition!,
-            width: 40,
-            height: 40,
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFAB00),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFFAB00).withOpacity(0.5),
-                    blurRadius: 15,
-                    spreadRadius: 4,
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.person_pin_circle_rounded, color: Colors.white, size: 24),
-            ),
-          );
         });
+
+        // Centrar el mapa automáticamente solo la primera vez que llega GPS
+        if (!_centeredOnUser) {
+          _centeredOnUser = true;
+          _mapController.move(latLng, 17.5);
+        }
 
         if (_isNavigating &&
             _destinationLatLng != null &&
@@ -574,8 +572,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             builder: (context, ref, child) {
               final markers = ref.watch(filteredMapMarkersProvider);
               final allMarkers = [...markers];
-              if (_userLocationMarker != null)
-                allMarkers.add(_userLocationMarker!);
+              
+              final navState = ref.watch(navigationProvider);
+              LatLng? actualUserPos;
+              if (navState.currentNode != null) {
+                actualUserPos = LatLng(navState.currentNode!.lat, navState.currentNode!.lng);
+              } else if (_currentPosition != null) {
+                actualUserPos = _currentPosition;
+              }
+
+              if (actualUserPos != null) {
+                allMarkers.add(_buildUserMarker(actualUserPos));
+              }
 
               return FlutterMap(
                 mapController: _mapController,
@@ -700,10 +708,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
             child: const Icon(Icons.school_rounded, color: Color(0xFF00E5FF), size: 20),
           ),
-          Column(
+          const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               Text('SINAIT', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2.5)),
               Text('TecNM Campus Colima', style: TextStyle(fontSize: 10, color: Color(0xFF90CAF9), letterSpacing: 0.5, fontWeight: FontWeight.w400)),
             ],
@@ -746,7 +754,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           // Location button
           FloatingActionButton(
             heroTag: 'center_button',
-            onPressed: _determinePosition,
+            onPressed: _centerOnUser,
             backgroundColor: const Color(0xFF1A2E45),
             elevation: 4,
             child: const Icon(Icons.my_location_rounded, color: Color(0xFF00E5FF), size: 26),

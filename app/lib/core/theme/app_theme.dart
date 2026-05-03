@@ -1,57 +1,58 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Colores Premium SINAIT
-  static const Color background = Color(0xFF0D1B2A);
-  static const Color surface = Color(0xFF1A2E45);
+  // Colores Softer Premium SINAIT
+  static const Color background = Color(0xFF0F172A); // Navy suave (Slate 900)
+  static const Color surface = Color(0xFF1E293B);    // Superficie integrada (Slate 800)
   static const Color primary = Color(0xFFFFFFFF);
-  static const Color accent = Color(0xFF00E5FF); // Cian SINAIT
-  static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFF90CAF9); // Azul claro para sutileza
-  static const Color success = Color(0xFF00E676);
-  static const Color error = Color(0xFFFF5252);
-  static const Color cardBackground = Color(0xFF1A2E45);
-  static const Color navBackground = Color(0xFF0D1B2A);
+  static const Color accent = Color(0xFF38BDF8);      // Cian cielo suave (Sky 400)
+  static const Color textPrimary = Color(0xFFF1F5F9); // Slate 100
+  static const Color textSecondary = Color(0xFF94A3B8); // Slate 400
+  static const Color success = Color(0xFF34D399);     // Esmeralda suave (Emerald 400)
+  static const Color error = Color(0xFFF43F5E);       // Rosa suave (Rose 500)
+  static const Color cardBackground = Color(0xFF1E293B);
+  static const Color navBackground = Color(0xFF0F172A);
 
   static ThemeData get darkTheme {
     return ThemeData(
       brightness: Brightness.dark,
       scaffoldBackgroundColor: background,
       primaryColor: accent,
+      fontFamily: 'Roboto', // Usar una fuente limpia
       colorScheme: const ColorScheme.dark(
         primary: accent,
         secondary: accent,
         surface: surface,
-        onPrimary: Color(0xFF0D1B2A), // Contraste oscuro sobre cian
-        onSecondary: Color(0xFF0D1B2A),
+        onPrimary: Color(0xFF0F172A),
+        onSecondary: Color(0xFF0F172A),
         onSurface: textPrimary,
         error: error,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: background,
+        backgroundColor: Colors.transparent,
         foregroundColor: textPrimary,
         elevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
           color: textPrimary,
-          fontSize: 22,
-          fontWeight: FontWeight.w900,
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
           letterSpacing: 0.5,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: accent,
-          foregroundColor: const Color(0xFF0D1B2A),
+          foregroundColor: const Color(0xFF0F172A),
           minimumSize: const Size(double.infinity, 56),
-          elevation: 4,
-          shadowColor: accent.withOpacity(0.3),
+          elevation: 2,
+          shadowColor: accent.withOpacity(0.2),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20), // Más redondeado para suavidad
           ),
           textStyle: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
             letterSpacing: 0.5,
           ),
         ),
@@ -60,51 +61,51 @@ class AppTheme {
         style: TextButton.styleFrom(
           foregroundColor: accent,
           textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
       cardTheme: CardThemeData(
         color: cardBackground,
-        elevation: 8,
-        shadowColor: Colors.black38,
+        elevation: 4,
+        shadowColor: Colors.black12,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: accent.withOpacity(0.1), width: 1),
+          borderRadius: BorderRadius.circular(24), // Más redondeado
+          side: BorderSide(color: Colors.white.withOpacity(0.03), width: 1),
         ),
       ),
       iconTheme: const IconThemeData(
         color: accent,
-        size: 28,
+        size: 24, // Tamaño más estándar
       ),
       textTheme: const TextTheme(
         displayLarge: TextStyle(
           color: textPrimary,
-          fontSize: 34,
-          fontWeight: FontWeight.w900,
-          letterSpacing: -1.0,
+          fontSize: 32,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.5,
         ),
         displayMedium: TextStyle(
           color: textPrimary,
-          fontSize: 26,
-          fontWeight: FontWeight.w800,
+          fontSize: 24,
+          fontWeight: FontWeight.w700,
         ),
         bodyLarge: TextStyle(
           color: textPrimary,
-          fontSize: 18,
-          height: 1.4,
+          fontSize: 16,
+          height: 1.5,
           fontWeight: FontWeight.w500,
         ),
         bodyMedium: TextStyle(
           color: textSecondary,
-          fontSize: 15,
-          height: 1.4,
+          fontSize: 14,
+          height: 1.5,
         ),
         labelLarge: TextStyle(
-          color: Color(0xFF0D1B2A),
-          fontSize: 16,
-          fontWeight: FontWeight.w800,
+          color: Color(0xFF0F172A),
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
         ),
       ),
       useMaterial3: true,

@@ -131,7 +131,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Versión 1.0.0 (Stable)', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w800, fontSize: 12)),
+            const Text('Versión 1.0.0 (Stable)', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w800, fontSize: 12)),
             const SizedBox(height: 16),
             Text(
               'Sistema de Navegación Inteligente Accesible del Instituto Tecnológico.\n\nDesarrollado para el InnovaTecNM 2026 por estudiantes del Campus Colima.',
@@ -205,7 +205,7 @@ class _SwitchTile extends StatelessWidget {
         subtitle: Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12)),
         value: value,
         onChanged: onChanged,
-        activeColor: AppTheme.accent,
+        activeThumbColor: AppTheme.accent,
         activeTrackColor: AppTheme.accent.withOpacity(0.3),
         inactiveTrackColor: Colors.white10,
       ),

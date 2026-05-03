@@ -36,9 +36,9 @@ dart run build_runner watch  # Watch mode during development
 Clean Architecture with three layers:
 
 **`lib/core/`** — App-wide configuration
-- `router/app_router.dart` — GoRouter route definitions
-- `constants/app_routes.dart` — Route name constants
-- `theme/app_theme.dart` — Dark theme (black `#000000`, surface `#1A1A1A`, accent yellow `#FFD600`)
+- `router/app_router.dart` — GoRouter definitions (declared but **not used**; `main.dart` uses Navigator 1.0 with a `routes` map instead)
+- `constants/app_routes.dart` — Route name constants shared by both Navigator 1.0 and app_router.dart
+- `theme/app_theme.dart` — Dark theme: background Slate `#0F172A`, surface Slate `#1E293B`, accent Sky `#38BDF8`
 
 **`lib/data/`** — Data layer
 - `models/` — Plain Dart data classes (no business logic): `CampusNode`, `CampusEdge`, `NavRoute`, `Announcement`, `PlaceNode`
@@ -58,7 +58,7 @@ Clean Architecture with three layers:
 - Shared widgets in `widgets/`
 - Screens are thin — they read Riverpod providers and delegate to services
 
-**State management:** Riverpod (`flutter_riverpod: ^2.5.1`). Use `ConsumerWidget` / `ConsumerStatefulWidget`. Providers live in `data/providers/`.
+**State management:** Riverpod (`flutter_riverpod: ^2.5.1`). Use `ConsumerWidget` / `ConsumerStatefulWidget`. Core providers live in `data/providers/`; screen-specific providers (e.g., `map/providers/map_providers.dart`) live alongside their screen.
 
 **Local persistence:**
 - Hive for structured local data (campus graph cache, history)
@@ -67,7 +67,7 @@ Clean Architecture with three layers:
 **Assets:**
 - `assets/maps/tec_colima_map.json` — Campus graph data (nodes + edges) for offline navigation
 - `assets/models/` — TFLite model files
-- `.env` loaded via `flutter_dotenv` at runtime (not committed; template in `.env.example`)
+- `.env` loaded via `flutter_dotenv` at runtime (not committed; **no `app/.env.example` exists** — create one manually for new contributors)
 
 ---
 

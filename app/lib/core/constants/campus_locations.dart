@@ -11,21 +11,21 @@ class CampusLocations {
 
   // ─── Entrada y áreas especiales ───────────────────────────────────────────
   static const String entradaPrincipal = 'tec_entrada';
-  static const String estacionamientoPrincipal = 'tec_estacionamiento';
-  static const String explanadaPrincipal = 'tec_explanada';
-  static const String canchas = 'tec_canchas';
+  static const String estacionamientoPrincipal = 'estacionamiento_principal';
+  static const String explanadaPrincipal = 'patio_civico';
+  static const String canchas = 'campo_futbol';
 
   // ─── Edificios y Laboratorios ─────────────────────────────────────────────
-  static const String edificioA = 'tec_edificio_a'; // Administrativo / Dirección
-  static const String edificioB = 'tec_edificio_b'; // Centro de Información / Biblioteca
-  static const String edificioP = 'tec_edificio_p'; // Académico
-  static const String sistemas = 'tec_sistemas'; // Sistemas y Computación
-  static const String mecatronica = 'tec_mecatronica'; // Laboratorio de Mecatrónica
-  static const String arquitectura = 'tec_arquitectura'; // Laboratorio de Arquitectura
-  static const String industrial = 'tec_industrial'; // Ingeniería Industrial
-  static const String posgrado = 'tec_posgrado'; // División de Posgrado
-  static const String cecum = 'tec_cecum'; // Centro Cultural y de Usos Múltiples
-  static const String cafeteria = 'tec_cafeteria'; // Cafetería Norte
+  static const String edificioA = 'edificio_a'; // Administrativo / Dirección
+  static const String edificioB = 'edificio_b'; // Centro de Información / Biblioteca
+  static const String edificioP = 'edificio_p'; // Académico
+  static const String sistemas = 'edificio_r'; // Sistemas y Computación
+  static const String mecatronica = 'edificio_y'; // Laboratorio de Mecatrónica
+  static const String arquitectura = 'edificio_u'; // Laboratorio de Arquitectura
+  static const String industrial = 'edificio_w'; // Ingeniería Industrial
+  static const String posgrado = 'edificio_v'; // División de Posgrado
+  static const String cecum = 'cecum'; // Centro Cultural y de Usos Múltiples
+  static const String cafeteria = 'edificio_c'; // Cafetería Norte
 
   // ─── Destinos principales (voz + QR) ──────────────────────────────────────
   static const List<String> mainDestinations = [

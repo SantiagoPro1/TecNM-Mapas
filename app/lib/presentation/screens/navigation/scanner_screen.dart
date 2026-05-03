@@ -46,7 +46,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 
   void _onDetect(BarcodeCapture capture) {
     if (_scanned) return;
-    
+
     final List<Barcode> barcodes = capture.barcodes;
     if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
       final String code = barcodes.first.rawValue!;
@@ -79,13 +79,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       setState(() {
         _scanned = true;
         _scannedNodeId = parsedId;
-        _result = '${navState.currentNode!.name}\n${navState.currentNode!.description}';
+        _result =
+            '${navState.currentNode!.name}\n${navState.currentNode!.description}';
       });
 
       ref.read(feedProvider.notifier).loadForZone(parsedId);
       ref.read(voiceProvider.notifier).speakAnnouncement(
-        'Posición confirmada: ${navState.currentNode!.name}.',
-      );
+            'Posición confirmada: ${navState.currentNode!.name}.',
+          );
     } else {
       setState(() {
         _scanned = true;
@@ -121,7 +122,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
               Text(
                 'Confirma tu posición escaneando el código QR más cercano',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 40),
               _ScanViewport(
@@ -133,10 +137,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                 onTap: () => setState(() => _isCameraActive = !_isCameraActive),
               ),
               const SizedBox(height: 32),
-              if (!_scanned && !_isCameraActive)
-                _PremiumScanButton(
-                  onTap: () => setState(() => _isCameraActive = true),
-                ),
               const SizedBox(height: 16),
               if (_scanned && _result != null) ...[
                 _ResultCard(
@@ -151,23 +151,26 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: _resetScan,
-                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
-                    label: const Text('ESCANEAR DE NUEVO'),
+                    icon: const Icon(Icons.refresh_rounded, size: 20),
+                    label: const Text('REINTENTAR ESCANEO'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.accent,
                       side: BorderSide(color: AppTheme.accent.withOpacity(0.5)),
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
                     ),
                   ),
                 ),
               ] else
                 TextButton.icon(
                   onPressed: () => _showDemoSelector(context),
-                  icon: const Icon(Icons.touch_app_rounded, color: AppTheme.accent),
-                  label: const Text('Simular escaneo (demo)', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w800)),
+                  icon: const Icon(Icons.touch_app_rounded,
+                      color: AppTheme.accent),
+                  label: const Text('Simular escaneo (demo)',
+                      style: TextStyle(
+                          color: AppTheme.accent, fontWeight: FontWeight.w800)),
                 ),
-
               if (navState.currentNode != null && !_scanned) ...[
                 const SizedBox(height: 40),
                 Container(
@@ -175,8 +178,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                   decoration: BoxDecoration(
                     color: AppTheme.surface,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppTheme.success.withOpacity(0.1)),
-                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+                    border:
+                        Border.all(color: AppTheme.success.withOpacity(0.1)),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black12, blurRadius: 10)
+                    ],
                   ),
                   child: Row(
                     children: [
@@ -186,7 +192,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                           color: AppTheme.success.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.location_on_rounded, color: AppTheme.success, size: 24),
+                        child: const Icon(Icons.location_on_rounded,
+                            color: AppTheme.success, size: 24),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -221,22 +228,39 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 
   void _showDemoSelector(BuildContext context) {
     final demoLocations = [
-      ('tec_entrada', 'Acceso Principal', Icons.door_front_door_rounded),
-      ('tec_edificio_b', 'Centro de Información', Icons.local_library_rounded),
-      ('tec_sistemas', 'Sistemas y Computación', Icons.computer_rounded),
-      ('tec_cafeteria', 'Cafetería Norte', Icons.restaurant_rounded),
-      ('tec_edificio_a', 'Administrativo', Icons.business_rounded),
-      ('tec_edificio_p', 'Edificio P', Icons.school_rounded),
-      ('tec_cecum', 'CECUM', Icons.event_rounded),
-      ('tec_canchas', 'Canchas Techadas', Icons.sports_soccer_rounded),
-      ('tec_mecatronica', 'Lab. Mecatrónica', Icons.memory_rounded),
-      ('tec_explanada', 'Explanada Principal', Icons.park_rounded),
+      (
+        CampusLocations.entradaPrincipal,
+        'Acceso Principal',
+        Icons.door_front_door_rounded
+      ),
+      (
+        CampusLocations.edificioB,
+        'Centro de Información',
+        Icons.local_library_rounded
+      ),
+      (
+        CampusLocations.sistemas,
+        'Sistemas y Computación',
+        Icons.computer_rounded
+      ),
+      (CampusLocations.cafeteria, 'Cafetería Norte', Icons.restaurant_rounded),
+      (CampusLocations.edificioA, 'Administrativo', Icons.business_rounded),
+      (CampusLocations.edificioP, 'Edificio P', Icons.school_rounded),
+      (CampusLocations.cecum, 'CECUM', Icons.event_rounded),
+      (
+        CampusLocations.canchas,
+        'Canchas Techadas',
+        Icons.sports_soccer_rounded
+      ),
+      (CampusLocations.mecatronica, 'Lab. Mecatrónica', Icons.memory_rounded),
+      (CampusLocations.explanadaPrincipal, 'Patio Cívico', Icons.park_rounded),
     ];
 
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.background,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
       builder: (_) => Container(
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
         child: Column(
@@ -245,13 +269,20 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
           children: [
             Center(
               child: Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(10)),
               ),
             ),
             const SizedBox(height: 24),
             const Text('SIMULAR ESCANEO',
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5)),
             const SizedBox(height: 16),
             Flexible(
               child: ListView.separated(
@@ -263,13 +294,24 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                   return ListTile(
                     leading: Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: AppTheme.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                      decoration: BoxDecoration(
+                          color: AppTheme.accent.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10)),
                       child: Icon(loc.$3, color: AppTheme.accent, size: 22),
                     ),
-                    title: Text(loc.$2, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                    subtitle: Text('ZONA: ${loc.$1.toUpperCase()}', style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 10, fontWeight: FontWeight.w800)),
+                    title: Text(loc.$2,
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w700)),
+                    subtitle: Text('ZONA: ${loc.$1.toUpperCase()}',
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.3),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800)),
                     tileColor: AppTheme.surface,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(0.05))),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side:
+                            BorderSide(color: Colors.white.withOpacity(0.05))),
                     onTap: () {
                       Navigator.pop(context);
                       _simulateScan(loc.$1);
@@ -294,7 +336,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       context: context,
       backgroundColor: AppTheme.background,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
       builder: (_) => DraggableScrollableSheet(
         initialChildSize: 0.7,
         maxChildSize: 0.9,
@@ -307,13 +350,20 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
             children: [
               Center(
                 child: Container(
-                  width: 40, height: 4,
-                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
               const SizedBox(height: 24),
               const Text('SELECCIONA DESTINO',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5)),
               const SizedBox(height: 20),
               Expanded(
                 child: ListView.separated(
@@ -325,20 +375,34 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                     return ListTile(
                       leading: Container(
                         padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: AppTheme.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                        child: const Icon(Icons.place_rounded, color: AppTheme.accent, size: 22),
+                        decoration: BoxDecoration(
+                            color: AppTheme.accent.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10)),
+                        child: const Icon(Icons.place_rounded,
+                            color: AppTheme.accent, size: 22),
                       ),
-                      title: Text(dest.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                      subtitle: Text(dest.description, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12)),
+                      title: Text(dest.name,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700)),
+                      subtitle: Text(dest.description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: Colors.white.withOpacity(0.3),
+                              fontSize: 12)),
                       tileColor: AppTheme.surface,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(0.05))),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                              color: Colors.white.withOpacity(0.05))),
                       onTap: () {
                         Navigator.pop(context);
                         navNotifier.navigateTo(dest.name);
                         final navState = ref.read(navigationProvider);
                         if (navState.activeRoute != null) {
-                          ref.read(voiceProvider.notifier).speakAnnouncement(navState.activeRoute!.voiceSummary);
+                          ref.read(voiceProvider.notifier).speakAnnouncement(
+                              navState.activeRoute!.voiceSummary);
                         }
                         Navigator.pushReplacementNamed(context, '/home');
                       },
@@ -380,15 +444,18 @@ class _ScanViewport extends StatelessWidget {
         height: 280,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: scanned ? AppTheme.success.withOpacity(0.05) : AppTheme.surface,
+          color:
+              scanned ? AppTheme.success.withOpacity(0.05) : AppTheme.surface,
           borderRadius: BorderRadius.circular(32),
           border: Border.all(
-            color: scanned ? AppTheme.success : AppTheme.accent.withOpacity(0.3),
+            color:
+                scanned ? AppTheme.success : AppTheme.accent.withOpacity(0.3),
             width: 2,
           ),
           boxShadow: [
             BoxShadow(
-              color: (scanned ? AppTheme.success : AppTheme.accent).withOpacity(0.1),
+              color: (scanned ? AppTheme.success : AppTheme.accent)
+                  .withOpacity(0.1),
               blurRadius: 20,
               spreadRadius: 2,
             )
@@ -400,12 +467,19 @@ class _ScanViewport extends StatelessWidget {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: AppTheme.success.withOpacity(0.1), shape: BoxShape.circle),
-                    child: const Icon(Icons.check_circle_rounded, color: AppTheme.success, size: 64),
+                    decoration: BoxDecoration(
+                        color: AppTheme.success.withOpacity(0.1),
+                        shape: BoxShape.circle),
+                    child: const Icon(Icons.check_circle_rounded,
+                        color: AppTheme.success, size: 64),
                   ),
                   const SizedBox(height: 20),
                   const Text('CONFIRMADO',
-                      style: TextStyle(color: AppTheme.success, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
+                      style: TextStyle(
+                          color: AppTheme.success,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 2.0)),
                 ],
               )
             : isCameraActive
@@ -415,72 +489,51 @@ class _ScanViewport extends StatelessWidget {
                   )
                 : Stack(
                     children: [
+                      // Contenido de "Haz click aquí" cuando está inactivo
                       Center(
-                        child: Icon(Icons.qr_code_2_rounded, size: 100, color: AppTheme.accent.withOpacity(0.1)),
-                      ),
-                      // Animated laser
-                      AnimatedBuilder(
-                        animation: animation,
-                        builder: (_, __) => Positioned(
-                          top: animation.value * 230 + 25,
-                          left: 25,
-                          right: 25,
-                          child: Column(
-                            children: [
-                              Container(
-                                height: 3,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.accent,
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [BoxShadow(color: AppTheme.accent.withOpacity(0.8), blurRadius: 10, spreadRadius: 2)],
-                                ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accent.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color:
+                                        AppTheme.accent.withValues(alpha: 0.2),
+                                    width: 1.5),
                               ),
-                            ],
-                          ),
+                              child: const Icon(Icons.qr_code_scanner_rounded,
+                                  color: AppTheme.accent, size: 52),
+                            ),
+                            const SizedBox(height: 24),
+                            const Text(
+                              'Haz click aquí',
+                              style: TextStyle(
+                                color: AppTheme.accent,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'PARA ESCANEAR EL QR DE LAS AULAS',
+                              style: TextStyle(
+                                color: AppTheme.accent.withValues(alpha: 0.5),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 2.0,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       // Corner markers
                       const _ScannerCorners(),
                     ],
                   ),
-      ),
-    );
-  }
-}
-
-class _PremiumScanButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _PremiumScanButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 120,
-        height: 120,
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppTheme.accent.withOpacity(0.3)),
-          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.qr_code_scanner_rounded, color: AppTheme.accent, size: 40),
-            const SizedBox(height: 12),
-            const Text(
-              'Escanear',
-              style: TextStyle(
-                color: AppTheme.accent,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -509,7 +562,8 @@ class _Corner extends StatelessWidget {
     return RotatedBox(
       quarterTurns: quarterTurns,
       child: Container(
-        width: 30, height: 30,
+        width: 30,
+        height: 30,
         decoration: const BoxDecoration(
           border: Border(
             top: BorderSide(color: AppTheme.accent, width: 4),
@@ -535,41 +589,66 @@ class _ResultCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.success.withOpacity(0.3), width: 1.5),
-        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, 5))],
+        border:
+            Border.all(color: AppTheme.success.withOpacity(0.3), width: 1.5),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, 5))
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.location_on_rounded, color: AppTheme.success, size: 20),
+              const Icon(Icons.location_on_rounded,
+                  color: AppTheme.success, size: 20),
               const SizedBox(width: 8),
-              Text('ESTÁS EN:', style: TextStyle(color: AppTheme.success.withOpacity(0.8), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+              Text('ESTÁS EN:',
+                  style: TextStyle(
+                      color: AppTheme.success.withOpacity(0.8),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5)),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             result,
-            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800, height: 1.4),
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                height: 1.4),
           ),
           if (onNavigate != null) ...[
             const SizedBox(height: 24),
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(colors: [Color(0xFF00E5FF), Color(0xFF0091EA)]),
-                boxShadow: [BoxShadow(color: AppTheme.accent.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
+                gradient: const LinearGradient(
+                    colors: [Color(0xFF00E5FF), Color(0xFF0091EA)]),
+                boxShadow: [
+                  BoxShadow(
+                      color: AppTheme.accent.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4))
+                ],
               ),
               child: ElevatedButton.icon(
                 onPressed: onNavigate,
-                icon: const Icon(Icons.directions_walk_rounded, size: 22, color: Color(0xFF0D1B2A)),
-                label: const Text('TRAZAR RUTA AQUÍ', style: TextStyle(color: Color(0xFF0D1B2A), fontWeight: FontWeight.w900, fontSize: 14)),
+                icon: const Icon(Icons.directions_walk_rounded,
+                    size: 22, color: Color(0xFF0D1B2A)),
+                label: const Text('TRAZAR RUTA AQUÍ',
+                    style: TextStyle(
+                        color: Color(0xFF0D1B2A),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,
                   minimumSize: const Size(double.infinity, 56),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                 ),
               ),
             ),

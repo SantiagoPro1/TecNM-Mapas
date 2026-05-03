@@ -110,7 +110,7 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
               color: AppTheme.accent.withOpacity(0.05),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.lock_outline_rounded, size: 80, color: AppTheme.accent.withOpacity(0.5)),
+            child: Icon(Icons.lock_rounded, size: 80, color: AppTheme.accent.withValues(alpha: 0.5)),
           ),
           const SizedBox(height: 24),
           const Text('Inicia sesión para generar tu credencial',
@@ -309,7 +309,7 @@ class _CredentialFront extends StatelessWidget {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.grey[200]!, width: 2),
-                      boxShadow: [const BoxShadow(color: Colors.black12, blurRadius: 8)],
+                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
@@ -409,7 +409,7 @@ class _CredentialBack extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [const BoxShadow(color: Colors.black12, blurRadius: 10)],
+                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
                 ),
                 child: QrImageView(data: qrData, size: 100, padding: EdgeInsets.zero),
               ),

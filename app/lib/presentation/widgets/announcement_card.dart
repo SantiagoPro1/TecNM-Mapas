@@ -152,7 +152,7 @@ class AnnouncementCard extends StatelessWidget {
       case AnnouncementType.service:
         return Icons.build_rounded;
       case AnnouncementType.info:
-        return Icons.info_outline_rounded;
+        return Icons.info_rounded;
     }
   }
 }

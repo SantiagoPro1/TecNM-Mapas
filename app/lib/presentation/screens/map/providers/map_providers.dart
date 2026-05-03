@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:io';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:sinait/data/models/place_node.dart';
 import 'package:sinait/data/repositories/place_repository.dart';
+import 'package:sinait/core/theme/app_theme.dart';
 import 'package:geolocator/geolocator.dart';
 
 // 1. Proveedor del Repositorio
@@ -31,6 +33,16 @@ final currentUserPositionProvider = StateProvider<PlaceNode?>((ref) => null);
 
 // 4.2. StreamProvider de Ubicación GPS en Tiempo Real
 final currentLocationStreamProvider = StreamProvider<Position>((ref) {
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    // En Windows el getPositionStream tiene un bug con los hilos.
+    // Usamos getCurrentPosition periódicamente para obtener la ubicación real.
+    return Stream.periodic(const Duration(seconds: 3)).asyncMap((_) async {
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+    });
+  }
+
   return Geolocator.getPositionStream(
     locationSettings: const LocationSettings(
       accuracy: LocationAccuracy.high,
@@ -57,6 +69,11 @@ final filteredMapMarkersProvider = Provider<List<Marker>>((ref) {
         final isBuilding = place.type.toLowerCase() == 'edificio';
         final isCafe = place.type.toLowerCase() == 'cafetería';
         
+        // Color suave basado en el nuevo tema
+        // Usar colores del tema para mayor suavidad y consistencia
+        const softAccent = AppTheme.accent;
+        const softBackground = AppTheme.surface;
+
         // Extraer la letra del ID (ej. edificio_a -> A)
         String buildingLetter = '';
         if (isBuilding && place.id.startsWith('edificio_')) {
@@ -76,7 +93,7 @@ final filteredMapMarkersProvider = Provider<List<Marker>>((ref) {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // Shadow / Glow
+                // Shadow / Glow Suave
                 Container(
                   width: 38,
                   height: 38,
@@ -84,10 +101,8 @@ final filteredMapMarkersProvider = Provider<List<Marker>>((ref) {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: (isBuilding || isCafe) 
-                            ? const Color(0xFF00E5FF).withOpacity(0.3) 
-                            : Colors.black26,
-                        blurRadius: 8,
+                        color: softAccent.withOpacity(0.15),
+                        blurRadius: 10,
                         spreadRadius: 2,
                       ),
                     ],
@@ -95,14 +110,14 @@ final filteredMapMarkersProvider = Provider<List<Marker>>((ref) {
                 ),
                 // Main Marker Circle
                 Container(
-                  width: 34,
-                  height: 34,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0D1B2A),
+                    color: softBackground,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: const Color(0xFF00E5FF),
-                      width: 2,
+                      color: softAccent.withOpacity(0.6),
+                      width: 1.5,
                     ),
                   ),
                   child: Center(
@@ -110,26 +125,26 @@ final filteredMapMarkersProvider = Provider<List<Marker>>((ref) {
                         ? Text(
                             buildingLetter,
                             style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
+                              color: softAccent,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
                             ),
                           )
                         : Icon(
                             isCafe ? Icons.coffee_rounded : Icons.location_on_rounded,
-                            size: 18,
-                            color: const Color(0xFF00E5FF),
+                            size: 16,
+                            color: softAccent,
                           ),
                   ),
                 ),
-                // Tip of the pin (optional visual flair)
+                // Pequeño indicador debajo
                 Positioned(
-                  bottom: 0,
+                  bottom: 2,
                   child: Container(
                     width: 4,
                     height: 4,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF00E5FF),
+                    decoration: BoxDecoration(
+                      color: softAccent.withOpacity(0.4),
                       shape: BoxShape.circle,
                     ),
                   ),

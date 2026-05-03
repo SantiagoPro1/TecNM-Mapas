@@ -50,7 +50,7 @@ class ProfileScreen extends ConsumerWidget {
           child: Icon(Icons.account_circle_rounded, size: 100, color: Colors.white.withOpacity(0.1)),
         ),
         const SizedBox(height: 32),
-        Text(
+        const Text(
           'IDENTIDAD INSTITUCIONAL',
           style: TextStyle(color: AppTheme.accent, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2.0),
         ),
@@ -71,7 +71,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.error_outline_rounded, color: AppTheme.error, size: 20),
+                const Icon(Icons.error_rounded, color: AppTheme.error, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(authState.errorMessage!, style: const TextStyle(color: AppTheme.error, fontSize: 13, fontWeight: FontWeight.w500)),

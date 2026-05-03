@@ -28,11 +28,11 @@ class CampusEdge extends Equatable {
 
   factory CampusEdge.fromJson(Map<String, dynamic> json) {
     return CampusEdge(
-      from: json['from'] as String,
-      to: json['to'] as String,
-      distance: (json['distance'] as num).toDouble(),
-      accessible: json['accessible'] as bool,
-      direction: json['direction'] as String,
+      from: (json['from'] as String?) ?? '',
+      to: (json['to'] as String?) ?? '',
+      distance: (json['distance'] as num?)?.toDouble() ?? 0.0,
+      accessible: (json['accessible'] as bool?) ?? true,
+      direction: (json['direction'] as String?) ?? (json['description'] as String?) ?? '',
     );
   }
 

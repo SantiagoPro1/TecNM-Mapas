@@ -8,6 +8,8 @@ import 'package:sinait/data/providers/navigation_provider.dart';
 import 'package:sinait/data/providers/voice_provider.dart';
 import 'package:sinait/data/providers/feed_provider.dart';
 import 'package:sinait/presentation/widgets/bottom_nav.dart';
+import 'package:sinait/presentation/screens/map/providers/map_providers.dart';
+import 'package:sinait/data/models/campus_node.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
@@ -107,6 +109,16 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   Widget build(BuildContext context) {
     final navState = ref.watch(navigationProvider);
 
+    ref.listen<NavigationState>(navigationProvider, (previous, next) {
+      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.errorMessage!),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    });
     return Scaffold(
       backgroundColor: AppTheme.background,
       bottomNavigationBar: const BottomNav(currentIndex: 2),
@@ -168,7 +180,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                   onPressed: () => _showDemoSelector(context),
                   icon: const Icon(Icons.touch_app_rounded,
                       color: AppTheme.accent),
-                  label: const Text('Simular escaneo (demo)',
+                  label: const Text('¿No puedes escanear? Selecciona dónde estás',
                       style: TextStyle(
                           color: AppTheme.accent, fontWeight: FontWeight.w800)),
                 ),
@@ -228,187 +240,203 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   }
 
   void _showDemoSelector(BuildContext context) {
-    final demoLocations = [
-      (
-        CampusLocations.entradaPrincipal,
-        'Acceso Principal',
-        Icons.door_front_door_rounded
-      ),
-      (
-        CampusLocations.edificioB,
-        'Centro de Información',
-        Icons.local_library_rounded
-      ),
-      (
-        CampusLocations.sistemas,
-        'Sistemas y Computación',
-        Icons.computer_rounded
-      ),
-      (CampusLocations.cafeteria, 'Cafetería Norte', Icons.restaurant_rounded),
-      (CampusLocations.edificioA, 'Administrativo', Icons.business_rounded),
-      (CampusLocations.edificioP, 'Edificio P', Icons.school_rounded),
-      (CampusLocations.cecum, 'CECUM', Icons.event_rounded),
-      (
-        CampusLocations.canchas,
-        'Canchas Techadas',
-        Icons.sports_soccer_rounded
-      ),
-      (CampusLocations.mecatronica, 'Lab. Mecatrónica', Icons.memory_rounded),
-      (CampusLocations.explanadaPrincipal, 'Patio Cívico', Icons.park_rounded),
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.background,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
-      builder: (_) => Container(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text('SIMULAR ESCANEO',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5)),
-            const SizedBox(height: 16),
-            Flexible(
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: demoLocations.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (_, i) {
-                  final loc = demoLocations[i];
-                  return ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                          color: AppTheme.accent.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10)),
-                      child: Icon(loc.$3, color: AppTheme.accent, size: 22),
-                    ),
-                    title: Text(loc.$2,
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.w700)),
-                    subtitle: Text('ZONA: ${loc.$1.toUpperCase()}',
-                        style: TextStyle(
-                            color: Colors.white.withOpacity(0.3),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800)),
-                    tileColor: AppTheme.surface,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side:
-                            BorderSide(color: Colors.white.withOpacity(0.05))),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _simulateScan(loc.$1);
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showNavigateDialog(BuildContext context) {
     final navNotifier = ref.read(navigationProvider.notifier);
-    final destinations = navNotifier.allDestinations
-        .where((d) => d.id != _scannedNodeId)
-        .toList();
+    final allNodes = navNotifier.allDestinations;
+
+    // Agrupar nodos por venue (insensible a mayúsculas/minúsculas)
+    final tecNodes = allNodes.where((n) {
+      final id = n.id.toLowerCase();
+      return !id.contains('sendera') && !id.contains('zentralia');
+    }).toList();
+    
+    final senderaNodes = allNodes.where((n) {
+      final id = n.id.toLowerCase();
+      return id.contains('sendera');
+    }).toList();
+    
+    final zentraliaNodes = allNodes.where((n) {
+      final id = n.id.toLowerCase();
+      return id.contains('zentralia');
+    }).toList();
+
+    // Ordenar alfabéticamente
+    tecNodes.sort((a, b) => a.name.compareTo(b.name));
+    senderaNodes.sort((a, b) => a.name.compareTo(b.name));
+    zentraliaNodes.sort((a, b) => a.name.compareTo(b.name));
 
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.background,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
       builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.9,
-        minChildSize: 0.4,
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        minChildSize: 0.5,
         expand: false,
-        builder: (_, controller) => Container(
+        builder: (_, scrollController) => Container(
           padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10))),
               const SizedBox(height: 24),
-              const Text('SELECCIONA DESTINO',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.5)),
+              const Text('SELECCIONA TU UBICACIÓN ACTUAL', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
               const SizedBox(height: 20),
               Expanded(
-                child: ListView.separated(
-                  controller: controller,
-                  itemCount: destinations.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) {
-                    final dest = destinations[i];
-                    return ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                            color: AppTheme.accent.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(10)),
-                        child: const Icon(Icons.place_rounded,
-                            color: AppTheme.accent, size: 22),
-                      ),
-                      title: Text(dest.name,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700)),
-                      subtitle: Text(dest.description,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              color: Colors.white.withOpacity(0.3),
-                              fontSize: 12)),
-                      tileColor: AppTheme.surface,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                              color: Colors.white.withOpacity(0.05))),
-                      onTap: () {
-                        Navigator.pop(context);
-                        navNotifier.navigateTo(dest.name);
-                        final navState = ref.read(navigationProvider);
-                        if (navState.activeRoute != null) {
-                          ref.read(voiceProvider.notifier).speakAnnouncement(
-                              navState.activeRoute!.voiceSummary);
-                        }
-                        Navigator.pushReplacementNamed(context, '/home');
-                      },
-                    );
-                  },
+                child: ListView(
+                  controller: scrollController,
+                  children: [
+                    _buildVenueSection('SISTEMA GPS', [
+                      (null, '📍 Usar mi ubicación real (GPS)', Icons.my_location_rounded, Colors.blueAccent)
+                    ], isGps: true),
+                    if (tecNodes.isNotEmpty)
+                      _buildVenueSection('TECNM CAMPUS COLIMA', tecNodes.map((n) => (n.id, n.name, _getIconForType(n.type))).toList(), color: const Color(0xFF00E5FF)),
+                    if (senderaNodes.isNotEmpty)
+                      _buildVenueSection('PLAZA SENDERA', senderaNodes.map((n) => (n.id, n.name, _getIconForType(n.type))).toList(), color: const Color(0xFFFF9800)),
+                    if (zentraliaNodes.isNotEmpty)
+                      _buildVenueSection('PLAZA ZENTRALIA', zentraliaNodes.map((n) => (n.id, n.name, _getIconForType(n.type))).toList(), color: const Color(0xFFE040FB)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _getIconForType(NodeType type) {
+    switch (type) {
+      case NodeType.building: return Icons.business_rounded;
+      case NodeType.entrance: return Icons.door_front_door_rounded;
+      case NodeType.area: return Icons.park_rounded;
+      case NodeType.corridor: return Icons.directions_walk_rounded;
+      default: return Icons.location_on_rounded;
+    }
+  }
+
+  Widget _buildVenueSection(String title, List<dynamic> locations, {Color color = Colors.white24, bool isGps = false, bool isDestination = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+          child: Text(title, style: TextStyle(color: color.withOpacity(0.8), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+        ),
+        ...locations.map((loc) {
+          final id = loc.$1 as String?;
+          final name = loc.$2 as String;
+          final icon = loc.$3 as IconData;
+          final iconColor = isGps ? (loc.$4 as Color) : color;
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: ListTile(
+              onTap: () {
+                Navigator.pop(context);
+                if (isGps) {
+                  final locationAsync = ref.read(currentLocationStreamProvider);
+                  locationAsync.when(
+                    data: (pos) {
+                      ref.read(navigationProvider.notifier).setPositionByCoordinates(pos.latitude, pos.longitude);
+                    },
+                    loading: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Buscando señal GPS... Por favor espera.')),
+                      );
+                    },
+                    error: (err, stack) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('No se pudo obtener el GPS. Verifica permisos o ubicación.'),
+                          backgroundColor: AppTheme.error,
+                        ),
+                      );
+                    },
+                  );
+                } else if (isDestination) {
+                  final navNotifier = ref.read(navigationProvider.notifier);
+                  navNotifier.navigateTo(name);
+                  final navState = ref.read(navigationProvider);
+                  if (navState.activeRoute != null) {
+                    ref.read(voiceProvider.notifier).speakAnnouncement(navState.activeRoute!.voiceSummary);
+                  }
+                  Navigator.pushReplacementNamed(context, '/home');
+                } else {
+                  _simulateScan(id!);
+                }
+              },
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, color: iconColor, size: 22),
+              ),
+              title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+              subtitle: id != null ? Text('ID: ${id.toUpperCase()}', style: TextStyle(color: Colors.white24, fontSize: 9, fontWeight: FontWeight.w800)) : null,
+              tileColor: AppTheme.surface,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(0.05))),
+            ),
+          );
+        }),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  void _showNavigateDialog(BuildContext context) {
+    final navNotifier = ref.read(navigationProvider.notifier);
+    final allNodes = navNotifier.allDestinations.where((d) => d.id != _scannedNodeId).toList();
+
+    // Agrupar nodos por venue (insensible a mayúsculas/minúsculas)
+    final tecNodes = allNodes.where((n) {
+      final id = n.id.toLowerCase();
+      return !id.contains('sendera') && !id.contains('zentralia');
+    }).toList();
+    
+    final senderaNodes = allNodes.where((n) {
+      final id = n.id.toLowerCase();
+      return id.contains('sendera');
+    }).toList();
+    
+    final zentraliaNodes = allNodes.where((n) {
+      final id = n.id.toLowerCase();
+      return id.contains('zentralia');
+    }).toList();
+
+    // Ordenar alfabéticamente
+    tecNodes.sort((a, b) => a.name.compareTo(b.name));
+    senderaNodes.sort((a, b) => a.name.compareTo(b.name));
+    zentraliaNodes.sort((a, b) => a.name.compareTo(b.name));
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.background,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        minChildSize: 0.5,
+        expand: false,
+        builder: (_, scrollController) => Container(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+          child: Column(
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10))),
+              const SizedBox(height: 24),
+              const Text('SELECCIONA DESTINO', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 20),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  children: [
+                    if (tecNodes.isNotEmpty)
+                      _buildVenueSection('TECNM CAMPUS COLIMA', tecNodes.map((n) => (n.id, n.name, _getIconForType(n.type))).toList(), color: const Color(0xFF00E5FF), isDestination: true),
+                    if (senderaNodes.isNotEmpty)
+                      _buildVenueSection('PLAZA SENDERA', senderaNodes.map((n) => (n.id, n.name, _getIconForType(n.type))).toList(), color: const Color(0xFFFF9800), isDestination: true),
+                    if (zentraliaNodes.isNotEmpty)
+                      _buildVenueSection('PLAZA ZENTRALIA', zentraliaNodes.map((n) => (n.id, n.name, _getIconForType(n.type))).toList(), color: const Color(0xFFE040FB), isDestination: true),
+                  ],
                 ),
               ),
             ],
@@ -632,7 +660,7 @@ class _ResultCard extends StatelessWidget {
                 onPressed: onNavigate,
                 icon: const Icon(Icons.directions_walk_rounded,
                     size: 22, color: Color(0xFF0D1B2A)),
-                label: const Text('TRAZAR RUTA AQUÍ',
+                label: const Text('SELECCIONAR DESTINO',
                     style: TextStyle(
                         color: Color(0xFF0D1B2A),
                         fontWeight: FontWeight.w900,

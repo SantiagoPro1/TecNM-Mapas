@@ -60,26 +60,33 @@ final filteredMapMarkersProvider = Provider<List<Marker>>((ref) {
   return placesAsyncValue.when(
     data: (places) {
       // Filtrar la lista
-      final filteredList = filter.toLowerCase() == 'todo' 
-          ? places 
-          : places.where((p) => p.type.toLowerCase() == filter.toLowerCase()).toList();
-          
+      final filteredList = filter.toLowerCase() == 'todo'
+          ? places
+          : places
+              .where((p) => p.type.toLowerCase() == filter.toLowerCase())
+              .toList();
+
       // Mappear a Markers de flutter_map
       return filteredList.map((place) {
         final isBuilding = place.type.toLowerCase() == 'edificio';
         final isCafe = place.type.toLowerCase() == 'cafetería';
-        
+
         // Color suave basado en el nuevo tema
         // Usar colores del tema para mayor suavidad y consistencia
         const softAccent = AppTheme.accent;
         const softBackground = AppTheme.surface;
 
-        // Extraer la letra del ID (ej. edificio_a -> A)
-        String buildingLetter = '';
-        if (isBuilding && place.id.startsWith('edificio_')) {
-          buildingLetter = place.id.split('_').last.toUpperCase();
-        } else if (place.id == 'cecum') {
-          buildingLetter = 'C';
+        // Extraer la letra del ID (priorizando el campo 'letter' si existe)
+        String buildingLetter = place.letter ?? '';
+        if (buildingLetter.isEmpty) {
+          if (isBuilding && place.id.startsWith('edificio_')) {
+            buildingLetter = place.id.split('_').last.toUpperCase();
+          } else if (place.id == 'cecum') {
+            buildingLetter = 'C';
+          } else if (place.id == 'activididades_extraescolares') {
+            // <--- AGREGA ESTO
+            buildingLetter = 'Ñ';
+          }
         }
 
         return Marker(
@@ -121,7 +128,7 @@ final filteredMapMarkersProvider = Provider<List<Marker>>((ref) {
                     ),
                   ),
                   child: Center(
-                    child: isBuilding && buildingLetter.isNotEmpty
+                    child: buildingLetter.isNotEmpty
                         ? Text(
                             buildingLetter,
                             style: const TextStyle(
@@ -131,7 +138,9 @@ final filteredMapMarkersProvider = Provider<List<Marker>>((ref) {
                             ),
                           )
                         : Icon(
-                            isCafe ? Icons.coffee_rounded : Icons.location_on_rounded,
+                            isCafe
+                                ? Icons.coffee_rounded
+                                : Icons.location_on_rounded,
                             size: 16,
                             color: softAccent,
                           ),

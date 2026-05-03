@@ -66,5 +66,7 @@ flutter:
     - assets/images/
     - assets/maps/
     - assets/maps/tec_colima_map.json
+    - assets/maps/sendera_map.json
+    - assets/maps/zentralia_map.json
     - assets/models/
     - .env

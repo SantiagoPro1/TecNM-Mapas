@@ -6,7 +6,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:dio/dio.dart';
 
 import 'package:sinait/presentation/widgets/bottom_nav.dart';
 import 'package:sinait/data/models/place_node.dart';
@@ -49,12 +48,65 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   final List<String> _ttsHistory = [];
   final bool _isSimulatingLocation = false;
 
+  // Coordenadas dinámicas para el inicio
+  late LatLng _mapInitialCenter;
+  late double _mapInitialZoom;
+  bool _initializedWithArgs = false;
+
   @override
   void initState() {
     super.initState();
+    _mapInitialCenter = _initialPosition;
+    _mapInitialZoom = 17.0;
     _initTts();
     _initStt();
     _requestLocationPermission();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initializedWithArgs) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map<String, dynamic>) {
+        final lat = args['lat'] as double?;
+        final lng = args['lng'] as double?;
+        final zoom = args['zoom'] as double? ?? 17.0;
+        if (lat != null && lng != null) {
+          _mapInitialCenter = LatLng(lat, lng);
+          _mapInitialZoom = zoom;
+          _centeredOnUser = true;
+        }
+      }
+      _initializedWithArgs = true;
+
+      // Active route logic
+      final navState = ref.read(navigationProvider);
+      if (navState.activeRoute != null) {
+        final points = navState.activeRoute!.steps.map((s) => LatLng(s.node.lat, s.node.lng)).toList();
+        Future.microtask(() {
+          setState(() {
+            _polylines = [
+              Polyline(points: points, color: const Color(0xFF00E5FF), strokeWidth: 6)
+            ];
+            _isNavigating = true;
+            _destinationLatLng = points.last;
+          });
+        });
+        if (_mapInitialCenter == _initialPosition) {
+           _mapInitialCenter = points.first;
+           _mapInitialZoom = 17.5;
+           _centeredOnUser = true;
+        }
+      } else if (navState.currentNode != null) {
+        // If they manually set their location but haven't started a route yet
+        if (_mapInitialCenter == _initialPosition) {
+           _mapInitialCenter = LatLng(navState.currentNode!.lat, navState.currentNode!.lng);
+           _mapInitialZoom = 18.0;
+           _centeredOnUser = true;
+        }
+      }
+    }
   }
 
   Future<void> _initTts() async {
@@ -233,23 +285,28 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       final placesAsync = ref.read(placesStreamProvider);
       placesAsync.whenData((places) {
         PlaceNode? bestMatch;
+        
+        String _removeAccents(String s) {
+          return s.replaceAll('á', 'a').replaceAll('é', 'e').replaceAll('í', 'i').replaceAll('ó', 'o').replaceAll('ú', 'u');
+        }
+        
+        final normalizedSearch = _removeAccents(searchTarget);
+
         for (var place in places) {
-          if (place.name.toLowerCase().contains(searchTarget) ||
-              place.type.toLowerCase().contains(searchTarget)) {
+          final normalizedName = _removeAccents(place.name.toLowerCase());
+          final normalizedType = _removeAccents(place.type.toLowerCase());
+
+          if (normalizedName.contains(normalizedSearch) ||
+              normalizedType.contains(normalizedSearch)) {
             bestMatch = place;
             break;
           }
         }
 
         if (bestMatch != null) {
-          if (_currentPosition != null) {
-            calculateAccessibleRoute(
-                _currentPosition!,
-                LatLng(bestMatch.latitude, bestMatch.longitude),
-                bestMatch.name);
-          } else {
-            _speak('Aún no tengo tu ubicación actual para trazar la ruta.');
-          }
+          calculateAccessibleRoute(
+              LatLng(bestMatch.latitude, bestMatch.longitude),
+              bestMatch.name);
         } else {
           _speak(
               'No encontré el lugar: $searchTarget. Intenta decirlo de otra forma.');
@@ -399,13 +456,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     ),
                     onPressed: () {
                       Navigator.pop(context);
-                      if (_currentPosition != null) {
-                        calculateAccessibleRoute(
-                          _currentPosition!,
-                          LatLng(place.latitude, place.longitude),
-                          place.name,
-                        );
-                      }
+                      calculateAccessibleRoute(
+                        LatLng(place.latitude, place.longitude),
+                        place.name,
+                      );
                     },
                   ),
                 ),
@@ -443,36 +497,24 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  Future<void> calculateAccessibleRoute(LatLng origin, LatLng destination,
+  Future<void> calculateAccessibleRoute(LatLng destination,
       [String? destinationName]) async {
     _destinationLatLng = destination;
     _isNavigating = true;
 
     try {
-      const backendUrl = 'http://localhost:3000';
-      final originStr = '${origin.latitude},${origin.longitude}';
-      final destinationStr = '${destination.latitude},${destination.longitude}';
-
-      final dio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 15),
-      ));
-
-      final url =
-          '$backendUrl/api/directions?origin=$originStr&destination=$destinationStr&mode=walking';
-      debugPrint('Solicitando ruta a: $url');
-
-      final response = await dio.get(url);
-      final json = response.data;
-
-      if (json['success'] != true) throw Exception(json['error']);
-
-      final List<dynamic> pointsList = json['data']['points'] ?? [];
-      final List<LatLng> polylineCoordinates = pointsList
-          .map((p) => LatLng(p['lat'] as double, p['lng'] as double))
-          .toList();
-
-      if (polylineCoordinates.isNotEmpty) {
+      if (destinationName != null) {
+        ref.read(navigationProvider.notifier).navigateTo(destinationName);
+      }
+      
+      final navState = ref.read(navigationProvider);
+      
+      if (navState.activeRoute != null) {
+        final route = navState.activeRoute!;
+        final List<LatLng> polylineCoordinates = route.steps
+            .map((s) => LatLng(s.node.lat, s.node.lng))
+            .toList();
+            
         setState(() {
           _polylines = [
             Polyline(
@@ -483,17 +525,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           ];
         });
 
-        _fitBounds([origin, destination, ...polylineCoordinates]);
+        // Use the first point of the route as the origin to prevent zooming to GPS
+        _fitBounds([polylineCoordinates.first, destination, ...polylineCoordinates]);
 
-        final distance = json['data']['distance'] as int? ?? 0;
-        _speak(
-            'Ruta trazada hacia ${destinationName ?? "destino"}. Distancia: ${(distance / 1000).toStringAsFixed(1)} km.');
+        _speak('Ruta trazada hacia ${destinationName ?? "destino"}. Distancia: ${route.totalDistance.round()} metros.');
       } else {
-        _drawFallbackStraightLine(origin, destination);
+        if (_currentPosition != null) {
+          _drawFallbackStraightLine(_currentPosition!, destination);
+        }
       }
     } catch (e) {
       debugPrint('Error en ruta: $e');
-      _drawFallbackStraightLine(origin, destination);
+      if (_currentPosition != null) {
+        _drawFallbackStraightLine(_currentPosition!, destination);
+      }
     }
   }
 
@@ -558,6 +603,25 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       });
     });
 
+    ref.listen<NavigationState>(navigationProvider, (previous, next) {
+      if (next.activeRoute != previous?.activeRoute) {
+        if (next.activeRoute != null) {
+          final points = next.activeRoute!.steps.map((s) => LatLng(s.node.lat, s.node.lng)).toList();
+          setState(() {
+            _polylines = [
+              Polyline(points: points, color: const Color(0xFF00E5FF), strokeWidth: 6)
+            ];
+            _isNavigating = true;
+          });
+        } else {
+          setState(() {
+            _polylines = [];
+            _isNavigating = false;
+          });
+        }
+      }
+    });
+
     final currentTheme = ref.watch(mapThemeProvider);
     final isDark = currentTheme == 'dark';
 
@@ -588,8 +652,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               return FlutterMap(
                 mapController: _mapController,
                 options: MapOptions(
-                  initialCenter: _initialPosition,
-                  initialZoom: 17.0,
+                  initialCenter: _mapInitialCenter,
+                  initialZoom: _mapInitialZoom,
                   onPositionChanged: _onPositionChanged,
                   interactionOptions: const InteractionOptions(
                     flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
@@ -708,12 +772,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
             child: const Icon(Icons.school_rounded, color: Color(0xFF00E5FF), size: 20),
           ),
-          const Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('SINAIT', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2.5)),
-              Text('TecNM Campus Colima', style: TextStyle(fontSize: 10, color: Color(0xFF90CAF9), letterSpacing: 0.5, fontWeight: FontWeight.w400)),
+              const Text('SINAIT', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2.5)),
+              Text(
+                _mapInitialCenter.latitude == 19.27580 
+                  ? 'Plaza Sendera' 
+                  : (_mapInitialCenter.latitude == 19.26691 ? 'Plaza Zentralia' : 'TecNM Campus Colima'), 
+                style: const TextStyle(fontSize: 10, color: Color(0xFF90CAF9), letterSpacing: 0.5, fontWeight: FontWeight.w400)
+              ),
             ],
           ),
         ],

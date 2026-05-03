@@ -7,6 +7,7 @@ class PlaceNode {
   final double longitude;
   final String type; // ej. 'edificio', 'cafeteria', 'parque', 'salon'
   final String accessibilityLevel; // ej. 'alto', 'medio', 'bajo'
+  final String? letter; // Nueva propiedad opcional
 
   PlaceNode({
     required this.id,
@@ -15,6 +16,7 @@ class PlaceNode {
     required this.longitude,
     required this.type,
     required this.accessibilityLevel,
+    this.letter,
   });
 
   // Factory para parsear los documentos desde Firestore

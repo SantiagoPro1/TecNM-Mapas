@@ -47,7 +47,28 @@ class NavigationService {
   /// Busca el nodo más cercano a las coordenadas dadas.
   CampusNode? setPositionByCoordinates(double lat, double lng) {
     if (_graph == null) return null;
-    final nearby = _graph!.nearbyNodes(lat, lng, radiusM: 30);
+    
+    // Aumentamos el radio de búsqueda inicial a 200m para mayor tolerancia
+    var nearby = _graph!.nearbyNodes(lat, lng, radiusM: 200);
+    
+    // Si no hay nodos a 200m, buscamos el más cercano absoluto en todo el grafo
+    if (nearby.isEmpty) {
+      CampusNode? absoluteNearest;
+      double minDistance = double.infinity;
+      
+      for (final node in _graph!.nodes.values) {
+        final d = _approxDistMeters(lat, lng, node.lat, node.lng);
+        if (d < minDistance) {
+          minDistance = d;
+          absoluteNearest = node;
+        }
+      }
+      // Solo hacer snap si está a menos de 500 metros del campus
+      if (absoluteNearest != null && minDistance < 500) {
+        nearby = [absoluteNearest];
+      }
+    }
+
     if (nearby.isEmpty) return null;
 
     // Ordenar por distancia y tomar el más cercano

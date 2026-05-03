@@ -31,17 +31,17 @@ class CampusNode extends Equatable {
   /// Deserializa un nodo desde el JSON del mapa.
   factory CampusNode.fromJson(Map<String, dynamic> json) {
     return CampusNode(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      aliases: (json['aliases'] as List<dynamic>)
-          .map((e) => e as String)
-          .toList(),
-      type: _parseNodeType(json['type'] as String),
-      lat: (json['lat'] as num).toDouble(),
-      lng: (json['lng'] as num).toDouble(),
-      floor: json['floor'] as int,
-      accessible: json['accessible'] as bool,
-      description: json['description'] as String,
+      id: (json['id'] as String?) ?? '',
+      name: (json['name'] as String?) ?? '',
+      aliases: (json['aliases'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ?? [],
+      type: _parseNodeType((json['type'] as String?) ?? 'corridor'),
+      lat: (json['lat'] as num?)?.toDouble() ?? 0.0,
+      lng: (json['lng'] as num?)?.toDouble() ?? 0.0,
+      floor: (json['floor'] as int?) ?? 0,
+      accessible: (json['accessible'] as bool?) ?? true,
+      description: (json['description'] as String?) ?? '',
     );
   }
 

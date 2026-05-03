@@ -18,22 +18,43 @@ class PlaceRepository {
   }
 
   Future<List<PlaceNode>> _loadLocalPlaces() async {
-    final jsonStr =
-        await rootBundle.loadString('assets/maps/tec_colima_map.json', cache: false);
-    final data = json.decode(jsonStr) as Map<String, dynamic>;
-    final nodes = data['nodes'] as List<dynamic>;
-    return nodes
-        .where((n) => n['type'] != 'corridor')
-        .map((n) => PlaceNode(
-              id: n['id'] as String,
-              name: n['name'] as String,
-              latitude: (n['lat'] as num).toDouble(),
-              longitude: (n['lng'] as num).toDouble(),
-              type: _resolveType(n['id'] as String, n['type'] as String),
-              accessibilityLevel:
-                  (n['accessible'] as bool? ?? true) ? 'alto' : 'medio',
-            ))
-        .toList();
+    final mapFiles = [
+      'assets/maps/tec_colima_map.json',
+      'assets/maps/sendera_map.json',
+      'assets/maps/zentralia_map.json',
+    ];
+
+    final allPlaces = <PlaceNode>[];
+
+    for (final file in mapFiles) {
+      try {
+        final jsonStr = await rootBundle.loadString(file, cache: false);
+        final data = json.decode(jsonStr) as Map<String, dynamic>;
+        final nodes = (data['nodes'] as List<dynamic>?) ?? [];
+        final places = nodes
+            .where((n) => (n as Map<String, dynamic>)['type'] != 'corridor')
+            .map((n) {
+              final node = n as Map<String, dynamic>;
+              return PlaceNode(
+                  id: (node['id'] as String?) ?? '',
+                  name: (node['name'] as String?) ?? '',
+                  latitude: (node['lat'] as num?)?.toDouble() ?? 0.0,
+                  longitude: (node['lng'] as num?)?.toDouble() ?? 0.0,
+                  type: _resolveType((node['id'] as String?) ?? '', (node['type'] as String?) ?? ''),
+                  accessibilityLevel:
+                      (node['accessible'] as bool? ?? true) ? 'alto' : 'medio',
+                  letter: node['letter'] as String?,
+                );
+            })
+            .toList();
+        allPlaces.addAll(places);
+      } catch (e) {
+        // Si un archivo falla, continúa con los demás
+        continue;
+      }
+    }
+
+    return allPlaces;
   }
 
   static String _resolveType(String id, String nodeType) {

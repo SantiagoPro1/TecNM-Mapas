@@ -35,6 +35,7 @@ class AnnouncementCard extends StatelessWidget {
             color: AppTheme.error, size: 24),
       ),
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),

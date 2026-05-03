@@ -106,6 +106,21 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
     }
   }
 
+  /// Establece la posición actual por coordenadas GPS.
+  void setPositionByCoordinates(double lat, double lng) {
+    final node = _navService.setPositionByCoordinates(lat, lng);
+    if (node != null) {
+      state = state.copyWith(
+        status: NavStatus.ready,
+        currentNode: node,
+      );
+    } else {
+      state = state.copyWith(
+        errorMessage: 'No se encontró un punto de navegación cercano a tu ubicación GPS.',
+      );
+    }
+  }
+
   /// Calcula y activa la navegación a un destino por texto.
   void navigateTo(String destinationQuery) {
     state = state.copyWith(status: NavStatus.calculating);

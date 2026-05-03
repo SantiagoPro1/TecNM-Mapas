@@ -29,28 +29,54 @@ class CampusGraph {
     dijkstra = Dijkstra(adjacency: adjacency, nodes: nodes);
   }
 
-  /// Carga el grafo desde `assets/maps/tec_colima_map.json`.
+  /// Carga el grafo desde todos los mapas disponibles en assets.
   static Future<CampusGraph> load() async {
-    final jsonStr = await rootBundle.loadString('assets/maps/tec_colima_map.json');
-    final data = json.decode(jsonStr) as Map<String, dynamic>;
-    return CampusGraph.fromJson(data);
+    final mapFiles = [
+      'assets/maps/tec_colima_map.json',
+      'assets/maps/sendera_map.json',
+      'assets/maps/zentralia_map.json',
+    ];
+
+    final allNodes = <dynamic>[];
+    final allEdges = <dynamic>[];
+
+    for (final file in mapFiles) {
+      try {
+        final jsonStr = await rootBundle.loadString(file);
+        final data = json.decode(jsonStr) as Map<String, dynamic>;
+        allNodes.addAll(data['nodes'] as List<dynamic>);
+        allEdges.addAll(data['edges'] as List<dynamic>);
+      } catch (e) {
+        // Si un archivo falla, continúa con los demás
+        continue;
+      }
+    }
+
+    final mergedData = {
+      'nodes': allNodes,
+      'edges': allEdges,
+    };
+
+    return CampusGraph.fromJson(mergedData);
   }
 
   /// Construye el grafo desde un Map ya parseado.
   factory CampusGraph.fromJson(Map<String, dynamic> data) {
     // Parsear nodos
-    final nodesList = (data['nodes'] as List<dynamic>)
-        .map((n) => CampusNode.fromJson(n as Map<String, dynamic>))
+    final nodesList = ((data['nodes'] as List<dynamic>?) ?? [])
+        .map((n) => CampusNode.fromJson((n as Map<String, dynamic>?) ?? {}))
         .toList();
 
     final nodesMap = <String, CampusNode>{};
     for (final node in nodesList) {
-      nodesMap[node.id] = node;
+      if (node.id.isNotEmpty) {
+        nodesMap[node.id] = node;
+      }
     }
 
     // Parsear aristas
-    final edgesList = (data['edges'] as List<dynamic>)
-        .map((e) => CampusEdge.fromJson(e as Map<String, dynamic>))
+    final edgesList = ((data['edges'] as List<dynamic>?) ?? [])
+        .map((e) => CampusEdge.fromJson((e as Map<String, dynamic>?) ?? {}))
         .toList();
 
     // Construir lista de adyacencia BIDIRECCIONAL
@@ -61,6 +87,11 @@ class CampusGraph {
     }
 
     for (final edge in edgesList) {
+      // Validar que AMBOS nodos existan antes de agregar la arista
+      if (!nodesMap.containsKey(edge.from) || !nodesMap.containsKey(edge.to)) {
+        continue; // Ignorar aristas rotas (previene crashes en Dijkstra)
+      }
+
       // Dirección original: from → to
       adjacency[edge.from]?.add(edge);
 

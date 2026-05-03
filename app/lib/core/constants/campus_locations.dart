@@ -27,6 +27,18 @@ class CampusLocations {
   static const String cecum = 'cecum'; // Centro Cultural y de Usos Múltiples
   static const String cafeteria = 'edificio_c'; // Cafetería Norte
 
+  // ─── Plaza Sendera ───────────────────────────────────────────────────────
+  static const String senderaEntrada = 'sendera_entrada_sur';
+  static const String senderaCinemex = 'cinemex_sendera';
+  static const String senderaWoolworth = 'woolworth_sendera';
+  static const String senderaBanos = 'banos_sendera';
+
+  // ─── Plaza Zentralia ─────────────────────────────────────────────────────
+  static const String zentraliaEntrada = 'zentralia_entrada_sur';
+  static const String zentraliaLiverpool = 'liverpool_zentralia';
+  static const String zentraliaCinepolis = 'cinepolis_zentralia';
+  static const String zentraliaBanos = 'banos_zentralia';
+
   // ─── Destinos principales (voz + QR) ──────────────────────────────────────
   static const List<String> mainDestinations = [
     entradaPrincipal,

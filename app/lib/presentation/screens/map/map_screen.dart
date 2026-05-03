@@ -583,6 +583,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   initialCenter: _initialPosition,
                   initialZoom: 17.0,
                   onPositionChanged: _onPositionChanged,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                  ),
                 ),
                 children: [
                   TileLayer(
@@ -739,6 +742,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+
           // Location button
           FloatingActionButton(
             heroTag: 'center_button',

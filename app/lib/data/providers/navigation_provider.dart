@@ -106,6 +106,12 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
     }
   }
 
+  /// Limpia la posición manual para volver al modo GPS.
+  void clearManualPosition() {
+    _navService.resetManualPosition();
+    state = state.copyWith(status: NavStatus.ready);
+  }
+
   /// Establece la posición actual por coordenadas GPS.
   void setPositionByCoordinates(double lat, double lng) {
     final node = _navService.setPositionByCoordinates(lat, lng);

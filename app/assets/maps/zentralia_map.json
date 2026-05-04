@@ -1,10 +1,10 @@
 {
   "meta": {
-    "version": "3.0.0",
+    "version": "3.1.0",
     "campus": "Plaza Zentralia Colima",
     "center": {
-      "lat": 19.26691,
-      "lng": -103.69754
+      "lat": 19.26700,
+      "lng": -103.69750
     },
     "lastUpdated": "2026-05-03",
     "units": "meters"
@@ -333,88 +333,131 @@
     },
 
     {
-      "id": "z_p1",
+      "id": "hall_1",
+      "name": "Pasillo Acceso Sur",
+      "type": "corridor",
+      "lat": 19.266050,
+      "lng": -103.697200,
+      "floor": 0,
+      "accessible": true
+    },
+    {
+      "id": "hall_2",
       "name": "Pasillo Sur",
       "type": "corridor",
-      "lat": 19.26620,
-      "lng": -103.69720,
+      "lat": 19.266500,
+      "lng": -103.697350,
       "floor": 0,
       "accessible": true
     },
     {
-      "id": "z_p2",
+      "id": "hall_3",
+      "name": "Pasillo Centro-Sur",
+      "type": "corridor",
+      "lat": 19.266850,
+      "lng": -103.697850,
+      "floor": 0,
+      "accessible": true
+    },
+    {
+      "id": "hall_4",
       "name": "Pasillo Central",
       "type": "corridor",
-      "lat": 19.26690,
-      "lng": -103.69760,
+      "lat": 19.267150,
+      "lng": -103.697950,
       "floor": 0,
       "accessible": true
     },
     {
-      "id": "z_p3",
+      "id": "hall_5",
+      "name": "Pasillo Centro-Norte",
+      "type": "corridor",
+      "lat": 19.267450,
+      "lng": -103.698100,
+      "floor": 0,
+      "accessible": true
+    },
+    {
+      "id": "hall_6",
       "name": "Pasillo Norte",
       "type": "corridor",
-      "lat": 19.26760,
-      "lng": -103.69820,
+      "lat": 19.267750,
+      "lng": -103.698350,
       "floor": 0,
       "accessible": true
     },
     {
-      "id": "z_pe",
-      "name": "Cruce Este",
+      "id": "hall_7",
+      "name": "Pasillo Acceso Norte",
       "type": "corridor",
-      "lat": 19.26670,
-      "lng": -103.69650,
+      "lat": 19.268100,
+      "lng": -103.698600,
       "floor": 0,
       "accessible": true
     },
     {
-      "id": "z_pw",
-      "name": "Cruce Oeste",
+      "id": "hall_e1",
+      "name": "Pasillo Ala Este",
       "type": "corridor",
-      "lat": 19.26670,
-      "lng": -103.69820,
+      "lat": 19.266700,
+      "lng": -103.696900,
+      "floor": 0,
+      "accessible": true
+    },
+    {
+      "id": "hall_e2",
+      "name": "Pasillo Cinépolis",
+      "type": "corridor",
+      "lat": 19.266500,
+      "lng": -103.696300,
       "floor": 0,
       "accessible": true
     }
   ],
   "edges": [
-    { "from": "zentralia_entrada_sur", "to": "z_p1", "distance": 70, "accessible": true, "description": "Entrando a la plaza." },
-    { "from": "z_p1", "to": "z_p2", "distance": 90, "accessible": true, "description": "Caminando al centro." },
-    { "from": "z_p2", "to": "z_p3", "distance": 90, "accessible": true, "description": "Hacia zona norte." },
-    { "from": "z_p2", "to": "z_pe", "distance": 100, "accessible": true, "description": "Hacia el ala este." },
-    { "from": "z_p2", "to": "z_pw", "distance": 60, "accessible": true, "description": "Hacia el ala oeste." },
-    { "from": "zentralia_entrada_norte", "to": "z_p3", "distance": 50, "accessible": true, "description": "Entrando por el norte." },
+    { "from": "hall_1", "to": "hall_2", "distance": 40, "accessible": true, "direction": "Avanza por el pasillo principal hacia el norte" },
+    { "from": "hall_2", "to": "hall_3", "distance": 55, "accessible": true, "direction": "Continúa derecho por el pasillo" },
+    { "from": "hall_3", "to": "hall_4", "distance": 35, "accessible": true, "direction": "Sigue por el pasillo central" },
+    { "from": "hall_4", "to": "hall_5", "distance": 35, "accessible": true, "direction": "Avanza hacia el norte" },
+    { "from": "hall_5", "to": "hall_6", "distance": 35, "accessible": true, "direction": "Continúa por el pasillo norte" },
+    { "from": "hall_6", "to": "hall_7", "distance": 40, "accessible": true, "direction": "Te acercas al acceso norte" },
 
-    { "from": "z_p1", "to": "sears_zentralia", "distance": 40, "accessible": true, "description": "Sears al sur." },
-    { "from": "z_p1", "to": "liverpool_zentralia", "distance": 30, "accessible": true, "description": "Liverpool." },
-    { "from": "z_p1", "to": "helados_dolphy_zentralia", "distance": 25, "accessible": true, "description": "Helados Dolphy." },
-    { "from": "z_p1", "to": "estacionamiento_zentralia_sur", "distance": 80, "accessible": true, "description": "Hacia el estacionamiento sur." },
+    { "from": "hall_3", "to": "hall_e1", "distance": 30, "accessible": true, "direction": "Gira hacia el ala este" },
+    { "from": "hall_e1", "to": "hall_e2", "distance": 55, "accessible": true, "direction": "Camina por el pasillo este hacia Cinépolis" },
 
-    { "from": "z_pw", "to": "ishop_zentralia", "distance": 15, "accessible": true, "description": "iShop Mixup." },
-    { "from": "z_pw", "to": "devlyn_zentralia", "distance": 10, "accessible": true, "description": "Devlyn óptica." },
-    { "from": "z_pw", "to": "starbucks_zentralia", "distance": 20, "accessible": true, "description": "Starbucks Coffee." },
-    { "from": "z_pw", "to": "bobois_zentralia", "distance": 15, "accessible": true, "description": "BOBOIS." },
+    { "from": "zentralia_entrada_sur", "to": "hall_1", "distance": 15, "accessible": true, "direction": "Entra a la plaza" },
+    { "from": "zentralia_entrada_norte", "to": "hall_7", "distance": 15, "accessible": true, "direction": "Entra por el acceso norte" },
 
-    { "from": "z_p2", "to": "santa_clara_zentralia", "distance": 20, "accessible": true, "description": "Santa Clara." },
-    { "from": "z_p2", "to": "miniso_zentralia", "distance": 30, "accessible": true, "description": "Miniso." },
-    { "from": "z_p2", "to": "nutrisa_zentralia", "distance": 35, "accessible": true, "description": "Nutrisa." },
-    { "from": "z_p2", "to": "sally_beauty_zentralia", "distance": 40, "accessible": true, "description": "Sally Beauty." },
-    { "from": "z_p2", "to": "zhola_zentralia", "distance": 25, "accessible": true, "description": "Zhola." },
-    { "from": "z_p2", "to": "mobo_zentralia", "distance": 15, "accessible": true, "description": "MOBO Shop." },
-    { "from": "z_p2", "to": "gnc_zentralia", "distance": 15, "accessible": true, "description": "GNC." },
-    { "from": "z_p2", "to": "flexi_zentralia", "distance": 20, "accessible": true, "description": "Flexi." },
+    { "from": "hall_2", "to": "liverpool_zentralia", "distance": 25, "accessible": true, "direction": "Liverpool está a tu izquierda" },
+    { "from": "hall_2", "to": "zhola_zentralia", "distance": 20, "accessible": true, "direction": "Zhola a tu derecha" },
+    { "from": "hall_1", "to": "estacionamiento_zentralia_sur", "distance": 30, "accessible": true, "direction": "Salida al estacionamiento sur" },
 
-    { "from": "z_pe", "to": "cinepolis_zentralia", "distance": 40, "accessible": true, "description": "Cinépolis al este." },
-    { "from": "z_pe", "to": "onix_zentralia", "distance": 15, "accessible": true, "description": "Onix joyería." },
+    { "from": "hall_3", "to": "devlyn_zentralia", "distance": 15, "accessible": true, "direction": "Devlyn óptica" },
+    { "from": "hall_3", "to": "mobo_zentralia", "distance": 15, "accessible": true, "direction": "MOBO Shop" },
 
-    { "from": "z_p3", "to": "ca_zentralia", "distance": 30, "accessible": true, "description": "C&A." },
-    { "from": "z_p3", "to": "shasa_zentralia", "distance": 20, "accessible": true, "description": "Shasa." },
-    { "from": "z_p3", "to": "cuadra_zentralia", "distance": 15, "accessible": true, "description": "CUADRA." },
-    { "from": "z_p3", "to": "taf_zentralia", "distance": 15, "accessible": true, "description": "TAF." },
-    { "from": "z_p3", "to": "todomoda_zentralia", "distance": 20, "accessible": true, "description": "Todomoda." },
-    { "from": "z_p3", "to": "capa_ozono_zentralia", "distance": 20, "accessible": true, "description": "Capa de Ozono." },
-    { "from": "z_p3", "to": "happyland_zentralia", "distance": 40, "accessible": true, "description": "Happyland." },
-    { "from": "z_p3", "to": "estacionamiento_zentralia_norte", "distance": 50, "accessible": true, "description": "Estacionamiento norte." }
+    { "from": "hall_e1", "to": "nutrisa_zentralia", "distance": 20, "accessible": true, "direction": "Nutrisa helados" },
+    { "from": "hall_e1", "to": "gnc_zentralia", "distance": 15, "accessible": true, "direction": "GNC vitaminas" },
+    { "from": "hall_e1", "to": "flexi_zentralia", "distance": 20, "accessible": true, "direction": "Flexi calzado" },
+    { "from": "hall_e2", "to": "cinepolis_zentralia", "distance": 20, "accessible": true, "direction": "Llegaste a Cinépolis" },
+    { "from": "hall_e2", "to": "onix_zentralia", "distance": 15, "accessible": true, "direction": "Onix joyería" },
+    { "from": "hall_e2", "to": "sally_beauty_zentralia", "distance": 20, "accessible": true, "direction": "Sally Beauty" },
+    { "from": "hall_e2", "to": "happyland_zentralia", "distance": 25, "accessible": true, "direction": "Happyland" },
+    { "from": "hall_e1", "to": "helados_dolphy_zentralia", "distance": 20, "accessible": true, "direction": "Helados Dolphy" },
+    { "from": "hall_1", "to": "sears_zentralia", "distance": 35, "accessible": true, "direction": "Sears está a tu derecha" },
+
+    { "from": "hall_4", "to": "ishop_zentralia", "distance": 15, "accessible": true, "direction": "iShop Mixup" },
+    { "from": "hall_4", "to": "miniso_zentralia", "distance": 20, "accessible": true, "direction": "Miniso en el centro" },
+
+    { "from": "hall_5", "to": "santa_clara_zentralia", "distance": 15, "accessible": true, "direction": "Santa Clara" },
+    { "from": "hall_5", "to": "bobois_zentralia", "distance": 15, "accessible": true, "direction": "BOBOIS" },
+    { "from": "hall_5", "to": "capa_ozono_zentralia", "distance": 20, "accessible": true, "direction": "Capa de Ozono" },
+
+    { "from": "hall_6", "to": "shasa_zentralia", "distance": 15, "accessible": true, "direction": "Shasa moda" },
+    { "from": "hall_6", "to": "cuadra_zentralia", "distance": 15, "accessible": true, "direction": "CUADRA artículos de piel" },
+    { "from": "hall_6", "to": "taf_zentralia", "distance": 15, "accessible": true, "direction": "TAF calzado deportivo" },
+
+    { "from": "hall_7", "to": "ca_zentralia", "distance": 25, "accessible": true, "direction": "C&A moda" },
+    { "from": "hall_7", "to": "todomoda_zentralia", "distance": 20, "accessible": true, "direction": "Todomoda" },
+    { "from": "hall_7", "to": "estacionamiento_zentralia_norte", "distance": 50, "accessible": true, "direction": "Salida al estacionamiento norte" }
   ]
 }

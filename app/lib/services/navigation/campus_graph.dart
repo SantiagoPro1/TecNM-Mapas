@@ -95,14 +95,17 @@ class CampusGraph {
       // Dirección original: from → to
       adjacency[edge.from]?.add(edge);
 
-      // Dirección inversa: to → from (con instrucción genérica de regreso)
-      adjacency[edge.to]?.add(CampusEdge(
-        from: edge.to,
-        to: edge.from,
-        distance: edge.distance,
-        accessible: edge.accessible,
-        direction: _reverseDirection(edge, nodesMap),
-      ));
+      // Solo agregar dirección inversa automática si NO existe ya una arista manual en ese sentido
+      final manualReverse = edgesList.any((e) => e.from == edge.to && e.to == edge.from);
+      if (!manualReverse) {
+        adjacency[edge.to]?.add(CampusEdge(
+          from: edge.to,
+          to: edge.from,
+          distance: edge.distance,
+          accessible: edge.accessible,
+          direction: _reverseDirection(edge, nodesMap),
+        ));
+      }
     }
 
     return CampusGraph._(

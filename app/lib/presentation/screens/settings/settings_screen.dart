@@ -1,26 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sinait/core/constants/app_routes.dart';
 import 'package:sinait/core/theme/app_theme.dart';
 import 'package:sinait/data/providers/auth_provider.dart';
 import 'package:sinait/data/providers/voice_provider.dart';
+import 'package:sinait/data/providers/settings_provider.dart';
+import 'package:sinait/presentation/screens/map/providers/map_providers.dart';
 import 'package:sinait/presentation/widgets/bottom_nav.dart';
 
-class SettingsScreen extends ConsumerStatefulWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final notifier = ref.read(settingsProvider.notifier);
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  bool _voiceEnabled = true;
-  bool _highContrast = false;
-  bool _vibrationEnabled = true;
-  double _speechRate = 1.0;
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
       bottomNavigationBar: const BottomNav(currentIndex: 5),
@@ -31,40 +27,55 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
         children: [
-          const _SectionHeader('ACCESIBILIDAD'),  
+          const _SectionHeader('ACCESIBILIDAD'),
           _SwitchTile(
             icon: Icons.record_voice_over_rounded,
             label: 'Navegación Asistida',
             subtitle: 'Guía por voz en tiempo real',
-            value: _voiceEnabled,
-            onChanged: (v) => setState(() => _voiceEnabled = v),
+            value: settings.voiceEnabled,
+            onChanged: (v) {
+              notifier.toggleVoice(v);
+              if (v) {
+                ref.read(voiceProvider.notifier).speakAnnouncement('Navegación asistida activada');
+              }
+              _haptic(settings.vibrationEnabled);
+            },
           ),
           _SwitchTile(
             icon: Icons.visibility_rounded,
             label: 'Modo Alto Contraste',
-            subtitle: 'Optimización de legibilidad',
-            value: _highContrast,
-            onChanged: (v) => setState(() => _highContrast = v),
+            subtitle: 'Cambia el mapa a modo oscuro',
+            value: settings.highContrast,
+            onChanged: (v) {
+              notifier.toggleHighContrast(v);
+              // Sincronizar con el tema del mapa
+              ref.read(mapThemeProvider.notifier).state = v ? 'dark' : 'light';
+              _haptic(settings.vibrationEnabled);
+            },
           ),
           _SwitchTile(
             icon: Icons.sensors_rounded,
             label: 'Respuesta Háptica',
-            subtitle: 'Vibración inteligente',
-            value: _vibrationEnabled,
-            onChanged: (v) => setState(() => _vibrationEnabled = v),
+            subtitle: 'Vibración al interactuar',
+            value: settings.vibrationEnabled,
+            onChanged: (v) {
+              notifier.toggleVibration(v);
+              if (v) HapticFeedback.mediumImpact();
+            },
           ),
           const SizedBox(height: 12),
           _SliderTile(
             icon: Icons.speed_rounded,
             label: 'Velocidad de Voz',
-            value: _speechRate,
+            value: settings.speechRate,
             min: 0.5,
             max: 2.0,
             divisions: 6,
-            display: '${_speechRate.toStringAsFixed(1)}x',
+            display: '${settings.speechRate.toStringAsFixed(1)}x',
             onChanged: (v) {
-              setState(() => _speechRate = v);
+              notifier.setSpeechRate(v);
               ref.read(voiceProvider.notifier).setSpeechRate(v);
+              _haptic(settings.vibrationEnabled);
             },
           ),
           const SizedBox(height: 32),
@@ -89,16 +100,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _NavTile(
             icon: Icons.security_rounded,
             label: 'Privacidad y Seguridad',
-            onTap: () {},
+            onTap: () => _showPrivacy(context),
           ),
           const SizedBox(height: 48),
-          
+
           SizedBox(
             width: double.infinity,
             child: TextButton.icon(
               onPressed: () => ref.read(authProvider.notifier).signOut(),
               icon: const Icon(Icons.logout_rounded, color: AppTheme.error, size: 20),
-              label: const Text('CERRAR SESIÓN', 
+              label: const Text('CERRAR SESIÓN',
                 style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 20),
@@ -112,12 +123,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 12),
           Center(
-            child: Text('SINAIT v1.0.0 (InnovaTec Edition)', 
+            child: Text('SINAIT v1.0.0 (InnovaTec Edition)',
               style: TextStyle(color: Colors.white.withOpacity(0.2), fontSize: 11, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
     );
+  }
+
+  static void _haptic(bool enabled) {
+    if (enabled) HapticFeedback.lightImpact();
   }
 
   void _showAbout(BuildContext context) {
@@ -136,6 +151,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Text(
               'Sistema de Navegación Inteligente Accesible del Instituto Tecnológico.\n\nDesarrollado para el InnovaTecNM 2026 por estudiantes del Campus Colima.',
               style: TextStyle(color: Colors.white.withOpacity(0.6), height: 1.6),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ENTENDIDO', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPrivacy(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppTheme.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Privacidad', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '• Los datos de tu cuenta se almacenan de forma segura en Firebase.\n\n'
+              '• Tu ubicación se usa exclusivamente para navegación dentro del campus y NO se comparte con terceros.\n\n'
+              '• Las grabaciones de voz se procesan localmente y no se envían a servidores externos.\n\n'
+              '• Cumplimos con la Ley Federal de Protección de Datos Personales.',
+              style: TextStyle(color: Colors.white.withOpacity(0.6), height: 1.6, fontSize: 13),
             ),
           ],
         ),

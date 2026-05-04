@@ -29,6 +29,6 @@ void main() {
   final disconnectedNodes = nodeIds.difference(connectedNodes);
   print('Disconnected nodes:');
   for (final node in disconnectedNodes) {
-    print('- ' + node);
+    print('- $node');
   }
 }

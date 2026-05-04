@@ -18,9 +18,14 @@ class NavigationService {
   /// Referencia al grafo cargado (null si no se ha inicializado).
   CampusGraph? get graph => _graph;
 
-  /// Nodo actual del usuario (determinado por escaneo QR).
+  /// Nodo actual del usuario (determinado por escaneo QR o GPS).
   String? _currentNodeId;
   String? get currentNodeId => _currentNodeId;
+
+  /// Indica si la posición fue fijada manualmente (QR/Estoy Aquí).
+  /// Si es true, las actualizaciones de GPS se ignoran hasta resetear.
+  bool _isManualPosition = false;
+  bool get isManualPosition => _isManualPosition;
 
   /// Inicializa el servicio cargando el grafo del campus desde assets.
   /// Debe llamarse una sola vez al inicio de la app.
@@ -39,14 +44,25 @@ class NavigationService {
     final node = _graph!.nodes[nodeId];
     if (node != null) {
       _currentNodeId = nodeId;
+      _isManualPosition = true; // Bloquear GPS
     }
     return node;
+  }
+
+  /// Desbloquea la posición manual para volver a usar GPS real.
+  void resetManualPosition() {
+    _isManualPosition = false;
   }
 
   /// Establece la posición del usuario por coordenadas GPS.
   /// Busca el nodo más cercano a las coordenadas dadas.
   CampusNode? setPositionByCoordinates(double lat, double lng) {
     if (_graph == null) return null;
+    
+    // Si la posición fue fijada manualmente, ignoramos el GPS
+    if (_isManualPosition) {
+      return _graph!.nodes[_currentNodeId];
+    }
     
     // Aumentamos el radio de búsqueda inicial a 200m para mayor tolerancia
     var nearby = _graph!.nearbyNodes(lat, lng, radiusM: 200);

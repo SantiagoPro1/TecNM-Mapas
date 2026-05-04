@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:sinait/core/constants/campus_locations.dart';
 import 'package:sinait/core/theme/app_theme.dart';
@@ -8,7 +9,6 @@ import 'package:sinait/data/providers/navigation_provider.dart';
 import 'package:sinait/data/providers/voice_provider.dart';
 import 'package:sinait/data/providers/feed_provider.dart';
 import 'package:sinait/presentation/widgets/bottom_nav.dart';
-import 'package:sinait/presentation/screens/map/providers/map_providers.dart';
 import 'package:sinait/data/models/campus_node.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
@@ -239,6 +239,70 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     );
   }
 
+  Future<void> _useGpsPosition() async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Buscando señal GPS...')),
+    );
+
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Activa el GPS en tu dispositivo.'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.deniedForever ||
+          permission == LocationPermission.denied) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Permiso de GPS denegado.'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      if (!mounted) return;
+      ref.read(navigationProvider.notifier).setPositionByCoordinates(pos.latitude, pos.longitude);
+
+      final navState = ref.read(navigationProvider);
+      if (navState.currentNode != null) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Ubicación: ${navState.currentNode!.name}')),
+        );
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('No se encontró un punto de navegación cercano.'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo obtener el GPS. Verifica permisos.'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+    }
+  }
+
   void _showDemoSelector(BuildContext context) {
     final navNotifier = ref.read(navigationProvider.notifier);
     final allNodes = navNotifier.allDestinations;
@@ -335,25 +399,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
               onTap: () {
                 Navigator.pop(context);
                 if (isGps) {
-                  final locationAsync = ref.read(currentLocationStreamProvider);
-                  locationAsync.when(
-                    data: (pos) {
-                      ref.read(navigationProvider.notifier).setPositionByCoordinates(pos.latitude, pos.longitude);
-                    },
-                    loading: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Buscando señal GPS... Por favor espera.')),
-                      );
-                    },
-                    error: (err, stack) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('No se pudo obtener el GPS. Verifica permisos o ubicación.'),
-                          backgroundColor: AppTheme.error,
-                        ),
-                      );
-                    },
-                  );
+                  _useGpsPosition();
                 } else if (isDestination) {
                   final navNotifier = ref.read(navigationProvider.notifier);
                   navNotifier.navigateTo(name);
@@ -372,7 +418,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                 child: Icon(icon, color: iconColor, size: 22),
               ),
               title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
-              subtitle: id != null ? Text('ID: ${id.toUpperCase()}', style: TextStyle(color: Colors.white24, fontSize: 9, fontWeight: FontWeight.w800)) : null,
+              subtitle: id != null ? Text('ID: ${id.toUpperCase()}', style: const TextStyle(color: Colors.white24, fontSize: 9, fontWeight: FontWeight.w800)) : null,
               tileColor: AppTheme.surface,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(0.05))),
             ),

@@ -9,9 +9,11 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import 'package:sinait/presentation/widgets/bottom_nav.dart';
 import 'package:sinait/data/models/place_node.dart';
+import 'package:sinait/data/models/campus_node.dart';
 import 'package:sinait/presentation/screens/map/providers/map_providers.dart';
 import 'package:sinait/core/constants/campus_locations.dart';
 import 'package:sinait/data/providers/navigation_provider.dart';
+import 'package:sinait/data/providers/settings_provider.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -66,6 +68,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Sync map theme from settings
+    final settings = ref.read(settingsProvider);
+    ref.read(mapThemeProvider.notifier).state = settings.highContrast ? 'dark' : 'light';
+
     if (!_initializedWithArgs) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is Map<String, dynamic>) {
@@ -122,7 +128,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           "${DateTime.now().hour}:${DateTime.now().minute}:${DateTime.now().second} - $text");
       if (_ttsHistory.length > 10) _ttsHistory.removeLast();
     });
-    _flutterTts.speak(text);
+    // Solo hablar si la navegación asistida está activada
+    final voiceEnabled = ref.read(settingsProvider).voiceEnabled;
+    if (voiceEnabled) {
+      _flutterTts.speak(text);
+    }
   }
 
   Future<void> _initStt() async {
@@ -286,15 +296,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       placesAsync.whenData((places) {
         PlaceNode? bestMatch;
         
-        String _removeAccents(String s) {
+        String removeAccents(String s) {
           return s.replaceAll('á', 'a').replaceAll('é', 'e').replaceAll('í', 'i').replaceAll('ó', 'o').replaceAll('ú', 'u');
         }
         
-        final normalizedSearch = _removeAccents(searchTarget);
+        final normalizedSearch = removeAccents(searchTarget);
 
         for (var place in places) {
-          final normalizedName = _removeAccents(place.name.toLowerCase());
-          final normalizedType = _removeAccents(place.type.toLowerCase());
+          final normalizedName = removeAccents(place.name.toLowerCase());
+          final normalizedType = removeAccents(place.type.toLowerCase());
 
           if (normalizedName.contains(normalizedSearch) ||
               normalizedType.contains(normalizedSearch)) {
@@ -420,49 +430,69 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 ],
               ),
               const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 60,
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF00E5FF), Color(0xFF0091EA)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF00E5FF).withOpacity(0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 54,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF00E5FF), Color(0xFF0091EA)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                       ),
-                    ],
-                  ),
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.directions_walk_rounded, size: 28, color: Color(0xFF0D1B2A)),
-                    label: const Text(
-                      'Trazar Ruta Accesible',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0D1B2A),
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.directions_walk_rounded, size: 22, color: Color(0xFF0D1B2A)),
+                        label: const Text(
+                          'Trazar Ruta',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0D1B2A)),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          calculateAccessibleRoute(
+                            LatLng(place.latitude, place.longitude),
+                            place.name,
+                          );
+                        },
                       ),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      calculateAccessibleRoute(
-                        LatLng(place.latitude, place.longitude),
-                        place.name,
-                      );
-                    },
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      height: 54,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFF00E5FF).withOpacity(0.4)),
+                        color: const Color(0xFF00E5FF).withOpacity(0.05),
+                      ),
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.location_on_rounded, size: 22, color: Color(0xFF00E5FF)),
+                        label: const Text(
+                          'Estoy Aquí',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF00E5FF)),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          ref.read(navigationProvider.notifier).setPosition(place.id);
+                          _speak('Ubicación fijada en ${place.name}.');
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -503,57 +533,111 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _isNavigating = true;
 
     try {
-      if (destinationName != null) {
-        ref.read(navigationProvider.notifier).navigateTo(destinationName);
+      final notifier = ref.read(navigationProvider.notifier);
+      final navService = ref.read(navigationServiceProvider);
+      final graph = navService.graph;
+
+      if (graph == null) {
+        _speak('El mapa aún no está listo. Intenta de nuevo.');
+        return;
       }
-      
-      final navState = ref.read(navigationProvider);
-      
-      if (navState.activeRoute != null) {
-        final route = navState.activeRoute!;
-        final List<LatLng> polylineCoordinates = route.steps
-            .map((s) => LatLng(s.node.lat, s.node.lng))
-            .toList();
-            
+
+      // 1. Encontrar el nodo destino en el grafo por coordenadas
+      final destNode = _closestNodeTo(graph.nodes.values.toList(), destination);
+      if (destNode == null) {
+        _speak('No encontré ese lugar en el mapa.');
+        return;
+      }
+
+      // 2. Determinar origen: QR escaneado tiene prioridad.
+      //    Si no hay QR, usar GPS para encontrar el hall más cercano.
+      String? fromId = navService.currentNodeId;
+
+      if (fromId == null) {
+        // Sin QR: intentar GPS
+        if (_currentPosition != null) {
+          final corridors = graph.nodes.values
+              .where((n) => n.type == NodeType.corridor || n.type == NodeType.entrance)
+              .toList();
+          final nearest = _closestNodeTo(corridors, _currentPosition!, maxDistanceM: 500);
+          if (nearest != null) {
+            fromId = nearest.id;
+          }
+        }
+
+        if (fromId == null) {
+          // Sin GPS ni QR: pedir escaneo
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Row(
+                  children: [
+                    Icon(Icons.qr_code_scanner, color: Color(0xFF0D1B2A), size: 22),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Activa el GPS o escanea el QR del pasillo más cercano para trazar tu ruta.',
+                        style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0D1B2A)),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: const Color(0xFF00E5FF),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                margin: const EdgeInsets.all(16),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+          setState(() { _isNavigating = false; });
+          return;
+        }
+      }
+
+      // 3. Fijar el origen en el servicio y calcular ruta por IDs
+      notifier.setPosition(fromId);
+      final route = navService.calculateRouteById(fromId, destNode.id);
+
+      if (route != null) {
+        notifier.navigateTo(destNode.id);
+
+        final List<LatLng> points =
+            route.steps.map((s) => LatLng(s.node.lat, s.node.lng)).toList();
+
         setState(() {
           _polylines = [
-            Polyline(
-              points: polylineCoordinates,
-              color: const Color(0xFF00E5FF),
-              strokeWidth: 6,
-            ),
+            Polyline(points: points, color: const Color(0xFF00E5FF), strokeWidth: 6),
           ];
         });
 
-        // Use the first point of the route as the origin to prevent zooming to GPS
-        _fitBounds([polylineCoordinates.first, destination, ...polylineCoordinates]);
-
-        _speak('Ruta trazada hacia ${destinationName ?? "destino"}. Distancia: ${route.totalDistance.round()} metros.');
+        _fitBounds(points);
+        _speak('Ruta trazada hacia ${destinationName ?? destNode.name}. '
+            '${route.totalDistance.round()} metros.');
       } else {
-        if (_currentPosition != null) {
-          _drawFallbackStraightLine(_currentPosition!, destination);
-        }
+        _speak('No encontré una ruta hacia ${destinationName ?? destNode.name}.');
       }
     } catch (e) {
       debugPrint('Error en ruta: $e');
-      if (_currentPosition != null) {
-        _drawFallbackStraightLine(_currentPosition!, destination);
-      }
+      _speak('Ocurrió un error al calcular la ruta.');
     }
   }
 
-  void _drawFallbackStraightLine(LatLng origin, LatLng destination) {
-    setState(() {
-      _polylines = [
-        Polyline(
-          points: [origin, destination],
-          color: const Color(0xFF00E5FF).withOpacity(0.5),
-          strokeWidth: 4,
-        ),
-      ];
-    });
-    _fitBounds([origin, destination]);
-    _speak('No pude calcular la ruta peatonal. Mostrando línea de guía.');
+  /// Nodo del grafo más cercano a [target]. Retorna null si el más cercano
+  /// supera [maxDistanceM] metros (por defecto sin límite).
+  CampusNode? _closestNodeTo(List<CampusNode> nodes, LatLng target,
+      {double maxDistanceM = double.infinity}) {
+    CampusNode? best;
+    double bestDist = double.infinity;
+    for (final node in nodes) {
+      final d = Geolocator.distanceBetween(
+          target.latitude, target.longitude, node.lat, node.lng);
+      if (d < bestDist) {
+        bestDist = d;
+        best = node;
+      }
+    }
+    return bestDist <= maxDistanceM ? best : null;
   }
 
   void _fitBounds(List<LatLng> points) {
@@ -604,6 +688,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     });
 
     ref.listen<NavigationState>(navigationProvider, (previous, next) {
+      if (next.currentNode != previous?.currentNode && next.currentNode != null) {
+        // Mover el mapa al nuevo nodo (Estoy Aquí o QR)
+        _mapController.move(
+          LatLng(next.currentNode!.lat, next.currentNode!.lng),
+          _mapController.camera.zoom,
+        );
+      }
+      
       if (next.activeRoute != previous?.activeRoute) {
         if (next.activeRoute != null) {
           final points = next.activeRoute!.steps.map((s) => LatLng(s.node.lat, s.node.lng)).toList();
@@ -639,6 +731,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               
               final navState = ref.watch(navigationProvider);
               LatLng? actualUserPos;
+              
+              // Prioridad: Si hay un nodo fijado manualmente (QR/Estoy Aquí), usar ese.
+              // Si no, usar el GPS en tiempo real.
               if (navState.currentNode != null) {
                 actualUserPos = LatLng(navState.currentNode!.lat, navState.currentNode!.lng);
               } else if (_currentPosition != null) {

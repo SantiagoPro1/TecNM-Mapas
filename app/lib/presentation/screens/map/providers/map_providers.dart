@@ -36,17 +36,30 @@ final currentLocationStreamProvider = StreamProvider<Position>((ref) {
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     // En Windows el getPositionStream tiene un bug con los hilos.
     // Usamos getCurrentPosition periódicamente para obtener la ubicación real.
-    return Stream.periodic(const Duration(seconds: 3)).asyncMap((_) async {
-      return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+    return Stream.periodic(const Duration(seconds: 4)).asyncMap((_) async {
+      try {
+        return await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.best,
+          timeLimit: const Duration(seconds: 3),
+        );
+      } catch (e) {
+        // Fallback a la última conocida si falla el timeout
+        final last = await Geolocator.getLastKnownPosition();
+        return last ?? Position(
+          latitude: 19.266, longitude: -103.71,
+          timestamp: DateTime.now(), accuracy: 0, altitude: 0,
+          heading: 0, speed: 0, speedAccuracy: 0, altitudeAccuracy: 0, headingAccuracy: 0,
+        );
+      }
     });
   }
 
+  // Mobile/Tablet
   return Geolocator.getPositionStream(
     locationSettings: const LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 5, // Notificar cada 5 metros
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: 2, // Más sensible para mejor respuesta
+      timeLimit: Duration(seconds: 10),
     ),
   );
 });

@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sinait/core/constants/app_routes.dart';
@@ -444,11 +443,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => ref.read(voiceProvider.notifier).nextStepAndSpeak(),
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                  label: const Text('SIGUIENTE', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00E5FF), foregroundColor: const Color(0xFF0D1B2A),
-                    padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                  onPressed: () {
+                    if (navState.status == NavStatus.arrived) {
+                      ref.read(navigationProvider.notifier).cancelNavigation();
+                    } else {
+                      ref.read(voiceProvider.notifier).nextStepAndSpeak();
+                    }
+                  },
+                  icon: Icon(
+                    navState.status == NavStatus.arrived ? Icons.check_circle_outline_rounded : Icons.arrow_forward_rounded,
+                    size: 18,
+                  ),
+                  label: Text(
+                    navState.status == NavStatus.arrived ? 'FINALIZAR' : 'SIGUIENTE',
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: navState.status == NavStatus.arrived ? Colors.greenAccent : const Color(0xFF00E5FF),
+                    foregroundColor: const Color(0xFF0D1B2A),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
                 ),
               ),
             ],

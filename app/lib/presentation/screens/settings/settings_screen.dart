@@ -8,6 +8,7 @@ import 'package:sinait/data/providers/voice_provider.dart';
 import 'package:sinait/data/providers/settings_provider.dart';
 import 'package:sinait/presentation/screens/map/providers/map_providers.dart';
 import 'package:sinait/presentation/widgets/bottom_nav.dart';
+import 'package:sinait/presentation/screens/settings/credits_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -101,6 +102,11 @@ class SettingsScreen extends ConsumerWidget {
             icon: Icons.security_rounded,
             label: 'Privacidad y Seguridad',
             onTap: () => _showPrivacy(context),
+          ),
+          _NavTile(
+            icon: Icons.groups_rounded,
+            label: 'Créditos del Proyecto',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreditsScreen())),
           ),
           const SizedBox(height: 48),
 

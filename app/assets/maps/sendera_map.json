@@ -1,0 +1,245 @@
+{
+  "meta": {
+    "version": "3.0.0",
+    "campus": "Sendera Colima Hábitat Urbano",
+    "center": {
+      "lat": 19.27620,
+      "lng": -103.71780
+    },
+    "lastUpdated": "2026-05-03",
+    "units": "meters"
+  },
+  "nodes": [
+    {
+      "id": "sendera_entrada_sur",
+      "name": "Acceso Sur Sendera",
+      "type": "entrance",
+      "lat": 19.275792,
+      "lng": -103.717209,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["entrada sendera", "acceso principal", "entrada"],
+      "description": "Entrada principal sobre Paseo Miguel de la Madrid."
+    },
+    {
+      "id": "sendera_entrada_norte",
+      "name": "Acceso Norte Sendera",
+      "type": "entrance",
+      "lat": 19.276818,
+      "lng": -103.719354,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["entrada norte"],
+      "description": "Acceso norte de la plaza."
+    },
+    {
+      "id": "soriana_sendera",
+      "name": "Soriana Súper",
+      "type": "building",
+      "lat": 19.275451,
+      "lng": -103.716428,
+      "letter": "So",
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["soriana", "super", "supermercado"],
+      "description": "Soriana Súper. Planta Baja."
+    },
+    {
+      "id": "starbucks_sendera",
+      "name": "Starbucks",
+      "type": "building",
+      "lat": 19.276653,
+      "lng": -103.718941,
+      "letter": "Sb",
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["starbucks", "café", "coffee"],
+      "description": "Starbucks Coffee. Planta Baja."
+    },
+    {
+      "id": "smartfit_sendera",
+      "name": "Smart Fit",
+      "type": "building",
+      "lat": 19.275319,
+      "lng": -103.716471,
+      "letter": "SF",
+      "floor": 1,
+      "accessible": true,
+      "aliases": ["smart fit", "gimnasio", "gym"],
+      "description": "Smart Fit. Planta Alta."
+    },
+    {
+      "id": "petco_sendera",
+      "name": "Petco",
+      "type": "building",
+      "lat": 19.275932,
+      "lng": -103.717576,
+      "letter": "Pe",
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["petco", "mascotas", "veterinaria"],
+      "description": "Petco. Planta Baja."
+    },
+    {
+      "id": "carls_jr_sendera",
+      "name": "Carl's Jr",
+      "type": "building",
+      "lat": 19.275952,
+      "lng": -103.717439,
+      "letter": "CJ",
+      "floor": 1,
+      "accessible": true,
+      "aliases": ["carls jr", "hamburguesas"],
+      "description": "Carl's Jr. Planta Alta."
+    },
+    {
+      "id": "ishop_sendera",
+      "name": "iShop Mixup",
+      "type": "building",
+      "lat": 19.275965,
+      "lng": -103.716938,
+      "letter": "iS",
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["ishop", "apple", "mixup", "iphone"],
+      "description": "iShop Mixup. Planta Baja."
+    },
+    {
+      "id": "lapso_sendera",
+      "name": "LAPSO Librería & Café",
+      "type": "building",
+      "lat": 19.276562,
+      "lng": -103.717938,
+      "letter": "La",
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["lapso", "librería", "libros"],
+      "description": "LAPSO. Librería, café y postres."
+    },
+    {
+      "id": "coloso_fly_sendera",
+      "name": "Coloso Fly",
+      "type": "building",
+      "lat": 19.277056,
+      "lng": -103.719083,
+      "letter": "CF",
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["coloso", "diversión", "entretenimiento", "niños"],
+      "description": "Coloso Fly. Entretenimiento familiar."
+    },
+    {
+      "id": "bansi_sendera",
+      "name": "Bansí",
+      "type": "building",
+      "lat": 19.276079,
+      "lng": -103.717761,
+      "letter": "Ba",
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["bansi", "banco"],
+      "description": "Bansí. Servicios financieros."
+    },
+    {
+      "id": "torre_medica_sendera",
+      "name": "Torre Médica Sendera",
+      "type": "building",
+      "lat": 19.275679,
+      "lng": -103.716677,
+      "letter": "TM",
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["torre médica", "médico", "doctor"],
+      "description": "Torre Médica Sendera."
+    },
+    {
+      "id": "estacionamiento_sendera",
+      "name": "Estacionamiento Sendera",
+      "type": "area",
+      "lat": 19.275362,
+      "lng": -103.716004,
+      "floor": 0,
+      "accessible": true,
+      "aliases": ["parking", "estacionamiento"],
+      "description": "Estacionamiento principal."
+    },
+
+    {
+      "id": "s_hall_1",
+      "name": "Pasillo Acceso Sur",
+      "type": "corridor",
+      "lat": 19.27585,
+      "lng": -103.71715,
+      "floor": 0,
+      "accessible": true
+    },
+    {
+      "id": "s_hall_2",
+      "name": "Pasillo Soriana/iShop",
+      "type": "corridor",
+      "lat": 19.27600,
+      "lng": -103.71740,
+      "floor": 0,
+      "accessible": true
+    },
+    {
+      "id": "s_hall_3",
+      "name": "Pasillo Central",
+      "type": "corridor",
+      "lat": 19.27625,
+      "lng": -103.71785,
+      "floor": 0,
+      "accessible": true
+    },
+    {
+      "id": "s_hall_4",
+      "name": "Pasillo Lapso",
+      "type": "corridor",
+      "lat": 19.27650,
+      "lng": -103.71830,
+      "floor": 0,
+      "accessible": true
+    },
+    {
+      "id": "s_hall_5",
+      "name": "Pasillo Starbucks",
+      "type": "corridor",
+      "lat": 19.27670,
+      "lng": -103.71885,
+      "floor": 0,
+      "accessible": true
+    },
+    {
+      "id": "s_hall_6",
+      "name": "Pasillo Acceso Norte",
+      "type": "corridor",
+      "lat": 19.27685,
+      "lng": -103.71925,
+      "floor": 0,
+      "accessible": true
+    }
+  ],
+  "edges": [
+    { "from": "s_hall_1", "to": "s_hall_2", "distance": 35, "accessible": true, "direction": "Camina por el pasillo principal hacia el norte" },
+    { "from": "s_hall_2", "to": "s_hall_3", "distance": 45, "accessible": true, "direction": "Continúa derecho por la plaza" },
+    { "from": "s_hall_3", "to": "s_hall_4", "distance": 45, "accessible": true, "direction": "Sigues por el pasillo central" },
+    { "from": "s_hall_4", "to": "s_hall_5", "distance": 45, "accessible": true, "direction": "Avanza hacia el área de Starbucks" },
+    { "from": "s_hall_5", "to": "s_hall_6", "distance": 35, "accessible": true, "direction": "Te acercas al acceso norte" },
+
+    { "from": "sendera_entrada_sur", "to": "s_hall_1", "distance": 15, "accessible": true, "direction": "Entra a Sendera" },
+    { "from": "sendera_entrada_norte", "to": "s_hall_6", "distance": 15, "accessible": true, "direction": "Entra por el acceso norte" },
+
+    { "from": "s_hall_1", "to": "soriana_sendera", "distance": 30, "accessible": true, "direction": "Soriana está a tu derecha" },
+    { "from": "s_hall_2", "to": "ishop_sendera", "distance": 15, "accessible": true, "direction": "Llegaste a iShop" },
+    { "from": "s_hall_2", "to": "petco_sendera", "distance": 15, "accessible": true, "direction": "Petco a un costado" },
+    { "from": "s_hall_2", "to": "carls_jr_sendera", "distance": 15, "accessible": true, "direction": "Carl's Jr cerca" },
+    
+    { "from": "s_hall_3", "to": "bansi_sendera", "distance": 20, "accessible": true, "direction": "Bansí" },
+    { "from": "s_hall_4", "to": "lapso_sendera", "distance": 20, "accessible": true, "direction": "Librería Lapso" },
+    { "from": "s_hall_5", "to": "starbucks_sendera", "distance": 15, "accessible": true, "direction": "Starbucks" },
+    { "from": "s_hall_6", "to": "coloso_fly_sendera", "distance": 20, "accessible": true, "direction": "Coloso Fly" },
+    
+    { "from": "s_hall_1", "to": "torre_medica_sendera", "distance": 25, "accessible": true, "direction": "Torre Médica" },
+    { "from": "s_hall_1", "to": "estacionamiento_sendera", "distance": 50, "accessible": true, "direction": "Salida al estacionamiento" }
+  ]
+}

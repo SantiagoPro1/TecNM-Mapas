@@ -1,121 +1,200 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sinait/core/constants/app_routes.dart';
 import 'package:sinait/core/theme/app_theme.dart';
+import 'package:sinait/data/providers/auth_provider.dart';
+import 'package:sinait/data/providers/voice_provider.dart';
+import 'package:sinait/data/providers/settings_provider.dart';
+import 'package:sinait/presentation/screens/map/providers/map_providers.dart';
 import 'package:sinait/presentation/widgets/bottom_nav.dart';
+import 'package:sinait/presentation/screens/settings/credits_screen.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final notifier = ref.read(settingsProvider.notifier);
 
-class _SettingsScreenState extends State<SettingsScreen> {
-  bool _voiceEnabled = true;
-  bool _highContrast = false;
-  bool _vibrationEnabled = true;
-  double _speechRate = 1.0;
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       bottomNavigationBar: const BottomNav(currentIndex: 5),
-      appBar: AppBar(title: const Text('Configuración')),
+      appBar: AppBar(
+        title: const Text('AJUSTES'),
+        backgroundColor: Colors.transparent,
+      ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
         children: [
-          const _SectionHeader('Accesibilidad'),  
+          const _SectionHeader('ACCESIBILIDAD'),
           _SwitchTile(
-            icon: Icons.mic_rounded,
-            label: 'Navegación por voz',
-            subtitle: 'Comandos de voz en español mexicano',
-            value: _voiceEnabled,
-            onChanged: (v) => setState(() => _voiceEnabled = v),
+            icon: Icons.record_voice_over_rounded,
+            label: 'Navegación Asistida',
+            subtitle: 'Guía por voz en tiempo real',
+            value: settings.voiceEnabled,
+            onChanged: (v) {
+              notifier.toggleVoice(v);
+              if (v) {
+                ref.read(voiceProvider.notifier).speakAnnouncement('Navegación asistida activada');
+              }
+              _haptic(settings.vibrationEnabled);
+            },
           ),
           _SwitchTile(
-            icon: Icons.contrast_rounded,
-            label: 'Alto contraste',
-            subtitle: 'Mayor legibilidad en pantalla',
-            value: _highContrast,
-            onChanged: (v) => setState(() => _highContrast = v),
+            icon: Icons.visibility_rounded,
+            label: 'Modo Alto Contraste',
+            subtitle: 'Cambia el mapa a modo oscuro',
+            value: settings.highContrast,
+            onChanged: (v) {
+              notifier.toggleHighContrast(v);
+              // Sincronizar con el tema del mapa
+              ref.read(mapThemeProvider.notifier).state = v ? 'dark' : 'light';
+              _haptic(settings.vibrationEnabled);
+            },
           ),
           _SwitchTile(
-            icon: Icons.vibration_rounded,
-            label: 'Vibración',
-            subtitle: 'Retroalimentación háptica al navegar',
-            value: _vibrationEnabled,
-            onChanged: (v) => setState(() => _vibrationEnabled = v),
+            icon: Icons.sensors_rounded,
+            label: 'Respuesta Háptica',
+            subtitle: 'Vibración al interactuar',
+            value: settings.vibrationEnabled,
+            onChanged: (v) {
+              notifier.toggleVibration(v);
+              if (v) HapticFeedback.mediumImpact();
+            },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           _SliderTile(
             icon: Icons.speed_rounded,
-            label: 'Velocidad de voz',
-            value: _speechRate,
+            label: 'Velocidad de Voz',
+            value: settings.speechRate,
             min: 0.5,
             max: 2.0,
             divisions: 6,
-            display: '${_speechRate.toStringAsFixed(1)}x',
-            onChanged: (v) => setState(() => _speechRate = v),
+            display: '${settings.speechRate.toStringAsFixed(1)}x',
+            onChanged: (v) {
+              notifier.setSpeechRate(v);
+              ref.read(voiceProvider.notifier).setSpeechRate(v);
+              _haptic(settings.vibrationEnabled);
+            },
           ),
-          const SizedBox(height: 16),
-          const _SectionHeader('Cuenta'),
+          const SizedBox(height: 32),
+          const _SectionHeader('CUENTA ESTUDIANTIL'),
           _NavTile(
-            icon: Icons.person_rounded,
-            label: 'Perfil estudiantil',
+            icon: Icons.account_circle_rounded,
+            label: 'Perfil del Alumno',
             onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
           ),
           _NavTile(
             icon: Icons.badge_rounded,
-            label: 'Credencial digital',
-            onTap: () =>
-                Navigator.pushNamed(context, AppRoutes.credential),
+            label: 'Credencial Digital SINAIT',
+            onTap: () => Navigator.pushNamed(context, AppRoutes.credential),
           ),
-          const SizedBox(height: 16),
-          const _SectionHeader('Applicación'),
+          const SizedBox(height: 32),
+          const _SectionHeader('SOPORTE Y APP'),
           _NavTile(
-            icon: Icons.info_outline_rounded,
-            label: 'Acerca de SINAIT',
+            icon: Icons.info_rounded,
+            label: 'Acerca de la Plataforma',
             onTap: () => _showAbout(context),
           ),
           _NavTile(
-            icon: Icons.privacy_tip_outlined,
-            label: 'Aviso de privacidad',
-            onTap: () {},
+            icon: Icons.security_rounded,
+            label: 'Privacidad y Seguridad',
+            onTap: () => _showPrivacy(context),
           ),
-          const SizedBox(height: 24),
-          OutlinedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.logout_rounded,
-                color: AppTheme.error, size: 20),
-            label: const Text('Cerrar sesión',
-                style: TextStyle(color: AppTheme.error)),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppTheme.error),
-              minimumSize: const Size(double.infinity, 52),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+          _NavTile(
+            icon: Icons.groups_rounded,
+            label: 'Créditos del Proyecto',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreditsScreen())),
+          ),
+          const SizedBox(height: 48),
+
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: () => ref.read(authProvider.notifier).signOut(),
+              icon: const Icon(Icons.logout_rounded, color: AppTheme.error, size: 20),
+              label: const Text('CERRAR SESIÓN',
+                style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                backgroundColor: AppTheme.error.withOpacity(0.05),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: BorderSide(color: AppTheme.error.withOpacity(0.2)),
+                ),
+              ),
             ),
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: Text('SINAIT v1.0.0 (InnovaTec Edition)',
+              style: TextStyle(color: Colors.white.withOpacity(0.2), fontSize: 11, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
     );
   }
 
+  static void _haptic(bool enabled) {
+    if (enabled) HapticFeedback.lightImpact();
+  }
+
   void _showAbout(BuildContext context) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: AppTheme.cardBackground,
-        title: const Text('SINAIT v1.0.0',
-            style: TextStyle(color: AppTheme.textPrimary)),
-        content: const Text(
-          'Sistema de Navegación Inteligente Accesible del Instituto Tecnológico.\n\nDesarrollado por estudiantes del TecNM Campus Colima para el InnovaTecNM 2026.',
-          style: TextStyle(color: AppTheme.textSecondary, height: 1.5),
+        backgroundColor: AppTheme.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('SINAIT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Versión 1.0.0 (Stable)', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w800, fontSize: 12)),
+            const SizedBox(height: 16),
+            Text(
+              'Sistema de Navegación Inteligente Accesible del Instituto Tecnológico.\n\nDesarrollado para el InnovaTecNM 2026 por estudiantes del Campus Colima.',
+              style: TextStyle(color: Colors.white.withOpacity(0.6), height: 1.6),
+            ),
+          ],
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cerrar')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ENTENDIDO', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPrivacy(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppTheme.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Privacidad', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '• Los datos de tu cuenta se almacenan de forma segura en Firebase.\n\n'
+              '• Tu ubicación se usa exclusivamente para navegación dentro del campus y NO se comparte con terceros.\n\n'
+              '• Las grabaciones de voz se procesan localmente y no se envían a servidores externos.\n\n'
+              '• Cumplimos con la Ley Federal de Protección de Datos Personales.',
+              style: TextStyle(color: Colors.white.withOpacity(0.6), height: 1.6, fontSize: 13),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ENTENDIDO', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w900)),
+          ),
         ],
       ),
     );
@@ -129,14 +208,14 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 10, top: 4),
+      padding: const EdgeInsets.fromLTRB(4, 0, 0, 16),
       child: Text(
-        title.toUpperCase(),
+        title,
         style: const TextStyle(
           color: AppTheme.accent,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1.2,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 2.0,
         ),
       ),
     );
@@ -161,27 +240,25 @@ class _SwitchTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF333333)),
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: SwitchListTile(
-        secondary: Icon(icon, color: AppTheme.accent, size: 26),
-        title: Text(label,
-            style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle,
-            style: const TextStyle(
-                color: AppTheme.textSecondary, fontSize: 13)),
+        secondary: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: AppTheme.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, color: AppTheme.accent, size: 22),
+        ),
+        title: Text(label, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+        subtitle: Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12)),
         value: value,
         onChanged: onChanged,
         activeThumbColor: AppTheme.accent,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14)),
+        activeTrackColor: AppTheme.accent.withOpacity(0.3),
+        inactiveTrackColor: Colors.white10,
       ),
     );
   }
@@ -212,41 +289,45 @@ class _SliderTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF333333)),
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: AppTheme.accent, size: 26),
+              Icon(icon, color: AppTheme.accent, size: 22),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(label,
-                    style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600)),
+                child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
               ),
-              Text(display,
-                  style: const TextStyle(
-                      color: AppTheme.accent,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: AppTheme.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                child: Text(display, style: const TextStyle(color: AppTheme.accent, fontSize: 12, fontWeight: FontWeight.w900)),
+              ),
             ],
           ),
-          Slider(
-            value: value,
-            min: min,
-            max: max,
-            divisions: divisions,
-            activeColor: AppTheme.accent,
-            inactiveColor: const Color(0xFF333333),
-            onChanged: onChanged,
+          const SizedBox(height: 8),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 4,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+            ),
+            child: Slider(
+              value: value,
+              min: min,
+              max: max,
+              divisions: divisions,
+              activeColor: AppTheme.accent,
+              inactiveColor: Colors.white10,
+              onChanged: onChanged,
+            ),
           ),
         ],
       ),
@@ -268,24 +349,22 @@ class _NavTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF333333)),
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: ListTile(
-        leading: Icon(icon, color: AppTheme.accent, size: 26),
-        title: Text(label,
-            style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w600)),
-        trailing: const Icon(Icons.arrow_forward_ios_rounded,
-            size: 14, color: AppTheme.textSecondary),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, color: Colors.white70, size: 22),
+        ),
+        title: Text(label, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.white24),
         onTap: onTap,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }

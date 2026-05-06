@@ -2,6 +2,9 @@
 cmake_minimum_required(VERSION 3.14)
 project(sinait LANGUAGES CXX)
 
+# Workaround for Firebase C++ SDK using deprecated cmake_minimum_required < 3.5
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
 set(BINARY_NAME "sinait")

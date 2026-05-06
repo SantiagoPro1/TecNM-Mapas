@@ -12,15 +12,22 @@ class BottomNav extends StatelessWidget {
     return Semantics(
       label: 'Navegación principal',
       child: Container(
-        decoration: const BoxDecoration(
-          color: AppTheme.surface,
+        decoration: BoxDecoration(
+          color: AppTheme.background,
           border: Border(
-            top: BorderSide(color: Color(0xFF333333), width: 1),
+            top: BorderSide(color: AppTheme.accent.withOpacity(0.08), width: 1.5),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            )
+          ],
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -44,7 +51,7 @@ class BottomNav extends StatelessWidget {
                 ),
                 _NavItem(
                   icon: Icons.badge_rounded,
-                  label: 'Credencial',
+                  label: 'ID',
                   isActive: currentIndex == 3,
                   onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.credential),
                 ),
@@ -84,12 +91,14 @@ class _NavItem extends StatelessWidget {
       selected: isActive,
       child: GestureDetector(
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: isActive
               ? BoxDecoration(
-                  color: AppTheme.accent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppTheme.accent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
                 )
               : null,
           child: Column(
@@ -97,17 +106,17 @@ class _NavItem extends StatelessWidget {
             children: [
               Icon(
                 icon,
-                color: isActive ? AppTheme.accent : AppTheme.textSecondary,
-                size: 28,
+                color: isActive ? AppTheme.accent : AppTheme.textSecondary.withOpacity(0.6),
+                size: 26,
               ),
               const SizedBox(height: 4),
               Text(
                 label,
                 style: TextStyle(
-                  color: isActive ? AppTheme.accent : AppTheme.textSecondary,
-                  fontSize: 11,
-                  fontWeight:
-                      isActive ? FontWeight.bold : FontWeight.normal,
+                  color: isActive ? AppTheme.accent : AppTheme.textSecondary.withOpacity(0.6),
+                  fontSize: 10,
+                  fontWeight: isActive ? FontWeight.w900 : FontWeight.w500,
+                  letterSpacing: 0.5,
                 ),
               ),
             ],

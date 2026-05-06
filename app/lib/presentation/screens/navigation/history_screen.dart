@@ -14,8 +14,8 @@ class HistoryScreen extends StatelessWidget {
       icon: Icons.computer_rounded,
     ),
     _HistoryItem(
-      destination: 'Biblioteca',
-      from: 'Edificio A',
+      destination: 'Centro de Información',
+      from: 'Administrativo',
       date: 'Hoy, 08:50',
       duration: '5 min',
       icon: Icons.local_library_rounded,
@@ -46,13 +46,14 @@ class HistoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       bottomNavigationBar: const BottomNav(currentIndex: 4),
       appBar: AppBar(
-        title: const Text('Historial de rutas'),
+        title: const Text('HISTORIAL'),
+        backgroundColor: Colors.transparent,
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_outline_rounded,
-                color: AppTheme.textSecondary),
+            icon: const Icon(Icons.delete_outline_rounded, color: Colors.white24),
             onPressed: () {},
             tooltip: 'Limpiar historial',
           ),
@@ -61,7 +62,7 @@ class HistoryScreen extends StatelessWidget {
       body: _history.isEmpty
           ? _EmptyState()
           : ListView.separated(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
               itemCount: _history.length,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (_, i) => _HistoryTile(item: _history[i]),
@@ -93,79 +94,63 @@ class _HistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF333333)),
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppTheme.accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
+              color: AppTheme.accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(item.icon, color: AppTheme.accent, size: 26),
+            child: Icon(item.icon, color: AppTheme.accent, size: 24),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(item.destination,
-                    style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
+                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.arrow_upward_rounded,
-                        size: 12, color: AppTheme.textSecondary),
-                    const SizedBox(width: 4),
-                    Text('Desde: ${item.from}',
-                        style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 13)),
+                    Icon(Icons.trip_origin_rounded, size: 10, color: Colors.white.withOpacity(0.3)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text('Desde: ${item.from}',
+                          style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12, fontWeight: FontWeight.w500)),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Row(
                   children: [
-                    const Icon(Icons.access_time_rounded,
-                        size: 13, color: AppTheme.textSecondary),
-                    const SizedBox(width: 4),
+                    Icon(Icons.access_time_filled_rounded, size: 14, color: Colors.white.withOpacity(0.2)),
+                    const SizedBox(width: 6),
                     Text(item.date,
-                        style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 12)),
-                    const SizedBox(width: 12),
+                        style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 11, fontWeight: FontWeight.w500)),
+                    const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppTheme.accent.withValues(alpha: 0.15),
+                        color: AppTheme.accent.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text('~${item.duration}',
-                          style: const TextStyle(
-                              color: AppTheme.accent,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600)),
+                      child: Text(item.duration,
+                          style: const TextStyle(color: AppTheme.accent, fontSize: 11, fontWeight: FontWeight.w800)),
                     ),
                   ],
                 ),
               ],
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.replay_rounded,
-                color: AppTheme.textSecondary, size: 20),
-            onPressed: () {},
-            tooltip: 'Repetir ruta',
           ),
         ],
       ),
@@ -180,13 +165,13 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.history_rounded,
-              size: 80,
-              color: AppTheme.textSecondary.withValues(alpha: 0.4)),
-          const SizedBox(height: 16),
-          const Text('Sin rutas recientes',
-              style: TextStyle(
-                  color: AppTheme.textSecondary, fontSize: 18)),
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.02), shape: BoxShape.circle),
+            child: Icon(Icons.history_rounded, size: 64, color: Colors.white.withOpacity(0.1)),
+          ),
+          const SizedBox(height: 24),
+          Text('Sin rutas recientes', style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 16, fontWeight: FontWeight.w600)),
         ],
       ),
     );

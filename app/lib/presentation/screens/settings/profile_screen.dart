@@ -46,8 +46,8 @@ class ProfileScreen extends ConsumerWidget {
         const SizedBox(height: 60),
         Container(
           padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(color: Colors.white.withOpacity(0.02), shape: BoxShape.circle),
-          child: Icon(Icons.account_circle_rounded, size: 100, color: Colors.white.withOpacity(0.1)),
+          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.02), shape: BoxShape.circle),
+          child: Icon(Icons.account_circle_rounded, size: 100, color: Colors.white.withValues(alpha: 0.1)),
         ),
         const SizedBox(height: 32),
         const Text(
@@ -58,16 +58,16 @@ class ProfileScreen extends ConsumerWidget {
         Text(
           'Inicia sesión para acceder a tu credencial y sincronizar tu progreso en el campus.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 15, height: 1.5),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 15, height: 1.5),
         ),
         if (authState.errorMessage != null) ...[
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.error.withOpacity(0.1),
+              color: AppTheme.error.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.error.withOpacity(0.2)),
+              border: Border.all(color: AppTheme.error.withValues(alpha: 0.2)),
             ),
             child: Row(
               children: [
@@ -134,10 +134,10 @@ class ProfileScreen extends ConsumerWidget {
             label: const Text('CERRAR SESIÓN', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 18),
-              backgroundColor: AppTheme.error.withOpacity(0.05),
+              backgroundColor: AppTheme.error.withValues(alpha: 0.05),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: AppTheme.error.withOpacity(0.2)),
+                side: BorderSide(color: AppTheme.error.withValues(alpha: 0.2)),
               ),
             ),
           ),
@@ -163,7 +163,7 @@ class _AvatarSection extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: const LinearGradient(colors: [Color(0xFF00E5FF), Color(0xFF0091EA)]),
-                boxShadow: [BoxShadow(color: AppTheme.accent.withOpacity(0.2), blurRadius: 20, spreadRadius: 5)],
+                boxShadow: [BoxShadow(color: AppTheme.accent.withValues(alpha: 0.2), blurRadius: 20, spreadRadius: 5)],
               ),
               child: CircleAvatar(
                 radius: 56,
@@ -204,7 +204,7 @@ class _InfoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,9 +218,9 @@ class _InfoCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 18),
                 child: Row(
                   children: [
-                    Icon(item.$1, color: Colors.white.withOpacity(0.3), size: 20),
+                    Icon(item.$1, color: Colors.white.withValues(alpha: 0.3), size: 20),
                     const SizedBox(width: 14),
-                    Text(item.$2, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12, fontWeight: FontWeight.w700)),
+                    Text(item.$2, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12, fontWeight: FontWeight.w700)),
                     const Spacer(),
                     Text(item.$3, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
                   ],

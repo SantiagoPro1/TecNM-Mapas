@@ -191,7 +191,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           border: Border.all(color: Colors.white, width: 3),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFFFAB00).withOpacity(0.5),
+              color: const Color(0xFFFFAB00).withValues(alpha: 0.5),
               blurRadius: 15,
               spreadRadius: 4,
             ),
@@ -247,6 +247,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _flutterTts.stop();
     if (!_speechToText.isAvailable) {
       bool available = await _speechToText.initialize();
+      if (!mounted) return;
       if (!available) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Micrófono no disponible.')),
@@ -362,9 +363,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00E5FF).withOpacity(0.1),
+                      color: const Color(0xFF00E5FF).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFF00E5FF).withOpacity(0.3)),
+                      border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.3)),
                     ),
                     child: Icon(
                       place.type.toLowerCase().contains('cafetería') 
@@ -394,7 +395,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: const Color(0xFF00E5FF).withOpacity(0.8),
+                            color: const Color(0xFF00E5FF).withValues(alpha: 0.8),
                             letterSpacing: 1.2,
                           ),
                         ),
@@ -470,8 +471,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       height: 54,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF00E5FF).withOpacity(0.4)),
-                        color: const Color(0xFF00E5FF).withOpacity(0.05),
+                        border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.4)),
+                        color: const Color(0xFF00E5FF).withValues(alpha: 0.05),
                       ),
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.location_on_rounded, size: 22, color: Color(0xFF00E5FF)),
@@ -505,9 +506,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -779,8 +780,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    (isDark ? const Color(0xFF0D1B2A) : Colors.white).withOpacity(0.95),
-                    (isDark ? const Color(0xFF0D1B2A) : Colors.white).withOpacity(0.0),
+                    (isDark ? const Color(0xFF0D1B2A) : Colors.white).withValues(alpha: 0.95),
+                    (isDark ? const Color(0xFF0D1B2A) : Colors.white).withValues(alpha: 0.0),
                   ],
                 ),
               ),
@@ -794,12 +795,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0D1B2A).withOpacity(0.95),
+                  color: const Color(0xFF0D1B2A).withValues(alpha: 0.95),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFF00E5FF), width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF00E5FF).withOpacity(0.2),
+                      color: const Color(0xFF00E5FF).withValues(alpha: 0.2),
                       blurRadius: 20,
                     )
                   ],
@@ -827,7 +828,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1A2E45),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF00E5FF).withOpacity(0.5)),
+                  border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.5)),
                 ),
                 child: Row(
                   children: [
@@ -861,9 +862,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             width: 36, height: 36,
             margin: const EdgeInsets.only(left: 4, right: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFF00E5FF).withOpacity(0.15),
+              color: const Color(0xFF00E5FF).withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF00E5FF).withOpacity(0.4), width: 1.5),
+              border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.4), width: 1.5),
             ),
             child: const Icon(Icons.school_rounded, color: Color(0xFF00E5FF), size: 20),
           ),
@@ -942,7 +943,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       ),
                 boxShadow: [
                   BoxShadow(
-                    color: (_isListening ? const Color(0xFFFF5252) : const Color(0xFF00E5FF)).withOpacity(0.5),
+                    color: (_isListening ? const Color(0xFFFF5252) : const Color(0xFF00E5FF)).withValues(alpha: 0.5),
                     blurRadius: _isListening ? 20 : 12,
                     spreadRadius: _isListening ? 4 : 2,
                   ),
@@ -996,16 +997,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           end: Alignment.bottomRight,
                         )
                       : null,
-                  color: isSelected ? null : const Color(0xFF0D1B2A).withOpacity(0.88),
+                  color: isSelected ? null : const Color(0xFF0D1B2A).withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(30),
                   border: Border.all(
-                    color: isSelected ? Colors.transparent : const Color(0xFF00E5FF).withOpacity(0.3),
+                    color: isSelected ? Colors.transparent : const Color(0xFF00E5FF).withValues(alpha: 0.3),
                     width: 1.5,
                   ),
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: const Color(0xFF00E5FF).withOpacity(0.35),
+                            color: const Color(0xFF00E5FF).withValues(alpha: 0.35),
                             blurRadius: 10,
                             spreadRadius: 1,
                           )
@@ -1045,6 +1046,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       _destinationLatLng = null;
     });
     _speak('Has llegado a tu destino. SINAIT te desea un excelente día.');
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Row(

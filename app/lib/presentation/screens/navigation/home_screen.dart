@@ -140,7 +140,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${_getGreeting()} 👋', style: TextStyle(color: const Color(0xFF00E5FF).withOpacity(0.8), fontSize: 14, fontWeight: FontWeight.w700)),
+              Text('${_getGreeting()} 👋', style: TextStyle(color: const Color(0xFF00E5FF).withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               Text(name, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
             ],
@@ -154,7 +154,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: const LinearGradient(colors: [Color(0xFF00E5FF), Color(0xFF0077B6)]),
-              boxShadow: [BoxShadow(color: const Color(0xFF00E5FF).withOpacity(0.3), blurRadius: 12)],
+              boxShadow: [BoxShadow(color: const Color(0xFF00E5FF).withValues(alpha: 0.3), blurRadius: 12)],
             ),
             child: CircleAvatar(
               radius: 22,
@@ -185,13 +185,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             begin: Alignment.topLeft, end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(24),
-          boxShadow: [BoxShadow(color: (isListening ? const Color(0xFFFF5252) : const Color(0xFF00E5FF)).withOpacity(0.35), blurRadius: 20, offset: const Offset(0, 8))],
+          boxShadow: [BoxShadow(color: (isListening ? const Color(0xFFFF5252) : const Color(0xFF00E5FF)).withValues(alpha: 0.35), blurRadius: 20, offset: const Offset(0, 8))],
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
+              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
               child: Icon(isListening ? Icons.graphic_eq_rounded : Icons.mic_rounded, size: 28, color: Colors.white),
             ),
             const SizedBox(width: 16),
@@ -200,7 +200,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(isListening ? 'ESCUCHANDO...' : 'ASISTENTE DE VOZ',
-                      style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
                   const SizedBox(height: 4),
                   Text(
                     isListening ? (voiceState.recognizedText.isEmpty ? 'Habla ahora...' : voiceState.recognizedText) : '¿A dónde quieres ir?',
@@ -210,7 +210,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios_rounded, color: Colors.white.withOpacity(0.5), size: 18),
+            Icon(Icons.arrow_forward_ios_rounded, color: Colors.white.withValues(alpha: 0.5), size: 18),
           ],
         ),
       ),
@@ -222,9 +222,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF00E676).withOpacity(0.1),
+        color: const Color(0xFF00E676).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF00E676).withOpacity(0.25)),
+        border: Border.all(color: const Color(0xFF00E676).withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -236,7 +236,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () => Navigator.pushNamed(context, AppRoutes.scanner),
-            child: Text('CAMBIAR', style: TextStyle(color: const Color(0xFF00E676).withOpacity(0.8), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+            child: Text('CAMBIAR', style: TextStyle(color: const Color(0xFF00E676).withValues(alpha: 0.8), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
           ),
         ],
       ),
@@ -267,24 +267,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [v.$4.withOpacity(0.15), v.$4.withOpacity(0.05)],
+                  colors: [v.$4.withValues(alpha: 0.15), v.$4.withValues(alpha: 0.05)],
                   begin: Alignment.topLeft, end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: v.$4.withOpacity(0.2)),
+                border: Border.all(color: v.$4.withValues(alpha: 0.2)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: v.$4.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                    decoration: BoxDecoration(color: v.$4.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
                     child: Icon(v.$3, color: v.$4, size: 24),
                   ),
                   const Spacer(),
                   Text(v.$1, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 4),
-                  Text(v.$5, style: TextStyle(color: v.$4.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text(v.$5, style: TextStyle(color: v.$4.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
@@ -314,9 +314,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: a.$4.withOpacity(0.1),
+                    color: a.$4.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: a.$4.withOpacity(0.15)),
+                    border: Border.all(color: a.$4.withValues(alpha: 0.15)),
                   ),
                   child: Icon(a.$1, color: a.$4, size: 26),
                 ),
@@ -363,15 +363,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.04),
+              color: Colors.white.withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white.withOpacity(0.06)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
             ),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: d.$5.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: d.$5.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
                   child: Icon(d.$1, color: d.$5, size: 22),
                 ),
                 const SizedBox(width: 14),
@@ -385,7 +385,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right_rounded, color: Colors.white.withOpacity(0.2), size: 22),
+                Icon(Icons.chevron_right_rounded, color: Colors.white.withValues(alpha: 0.2), size: 22),
               ],
             ),
           ),
@@ -403,8 +403,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       decoration: BoxDecoration(
         color: const Color(0xFF0D1B2A),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFF00E5FF).withOpacity(0.3)),
-        boxShadow: [BoxShadow(color: const Color(0xFF00E5FF).withOpacity(0.08), blurRadius: 20)],
+        border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.3)),
+        boxShadow: [BoxShadow(color: const Color(0xFF00E5FF).withValues(alpha: 0.08), blurRadius: 20)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -437,7 +437,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                   icon: const Icon(Icons.volume_up_rounded, size: 18),
                   label: const Text('REPETIR', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
                   style: TextButton.styleFrom(foregroundColor: const Color(0xFF00E5FF), padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: const Color(0xFF00E5FF).withOpacity(0.3)))),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: const Color(0xFF00E5FF).withValues(alpha: 0.3)))),
                 ),
               ),
               const SizedBox(width: 12),
@@ -490,7 +490,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: AppTheme.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
+                  decoration: BoxDecoration(color: AppTheme.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(16)),
                   child: const Icon(Icons.campaign_rounded, color: AppTheme.accent, size: 32),
                 ),
                 const SizedBox(width: 16),
@@ -498,7 +498,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               ],
             ),
             const SizedBox(height: 24),
-            Text(a.body, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 16, height: 1.5)),
+            Text(a.body, style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 16, height: 1.5)),
             const SizedBox(height: 40),
             SizedBox(
               width: double.infinity,

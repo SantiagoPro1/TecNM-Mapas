@@ -98,7 +98,7 @@ class _HistoryTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
       ),
       child: Row(
@@ -107,7 +107,7 @@ class _HistoryTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppTheme.accent.withOpacity(0.1),
+              color: AppTheme.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(item.icon, color: AppTheme.accent, size: 24),
@@ -122,26 +122,26 @@ class _HistoryTile extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(Icons.trip_origin_rounded, size: 10, color: Colors.white.withOpacity(0.3)),
+                    Icon(Icons.trip_origin_rounded, size: 10, color: Colors.white.withValues(alpha: 0.3)),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text('Desde: ${item.from}',
-                          style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12, fontWeight: FontWeight.w500)),
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12, fontWeight: FontWeight.w500)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(Icons.access_time_filled_rounded, size: 14, color: Colors.white.withOpacity(0.2)),
+                    Icon(Icons.access_time_filled_rounded, size: 14, color: Colors.white.withValues(alpha: 0.2)),
                     const SizedBox(width: 6),
                     Text(item.date,
-                        style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 11, fontWeight: FontWeight.w500)),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 11, fontWeight: FontWeight.w500)),
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppTheme.accent.withOpacity(0.1),
+                        color: AppTheme.accent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(item.duration,
@@ -167,11 +167,11 @@ class _EmptyState extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.02), shape: BoxShape.circle),
-            child: Icon(Icons.history_rounded, size: 64, color: Colors.white.withOpacity(0.1)),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.02), shape: BoxShape.circle),
+            child: Icon(Icons.history_rounded, size: 64, color: Colors.white.withValues(alpha: 0.1)),
           ),
           const SizedBox(height: 24),
-          Text('Sin rutas recientes', style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 16, fontWeight: FontWeight.w600)),
+          Text('Sin rutas recientes', style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 16, fontWeight: FontWeight.w600)),
         ],
       ),
     );

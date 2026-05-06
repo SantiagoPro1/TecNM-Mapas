@@ -44,11 +44,13 @@ void main() {
     }
   }
   
+  // ignore: avoid_print
   print('Nodes unreachable from tec_entrada:');
   for (final node in nodes) {
     final id = node['id'] as String;
     if (!visited.contains(id)) {
       final name = node['name'] as String;
+      // ignore: avoid_print
       print('- $id ($name)');
     }
   }

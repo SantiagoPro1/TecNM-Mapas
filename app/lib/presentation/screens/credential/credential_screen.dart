@@ -107,7 +107,7 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppTheme.accent.withOpacity(0.05),
+              color: AppTheme.accent.withValues(alpha: 0.05),
               shape: BoxShape.circle,
             ),
             child: Icon(Icons.lock_rounded, size: 80, color: AppTheme.accent.withValues(alpha: 0.5)),
@@ -128,7 +128,7 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: AppTheme.accent.withOpacity(0.05),
+              color: AppTheme.accent.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Row(
@@ -183,7 +183,7 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
         decoration: BoxDecoration(
           color: AppTheme.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
         ),
         child: Row(
@@ -191,7 +191,7 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: item.$4.withOpacity(0.1),
+                color: item.$4.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(item.$1, color: item.$4, size: 20),
@@ -200,7 +200,7 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.$2, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                Text(item.$2, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
                 const SizedBox(height: 2),
                 Text(item.$3, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
               ],
@@ -226,9 +226,9 @@ class _TokenTimer extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -265,9 +265,9 @@ class _CredentialFront extends StatelessWidget {
         color: const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(color: AppTheme.accent.withOpacity(0.15), blurRadius: 20, spreadRadius: 2)
+          BoxShadow(color: AppTheme.accent.withValues(alpha: 0.15), blurRadius: 20, spreadRadius: 2)
         ],
-        border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
@@ -279,7 +279,7 @@ class _CredentialFront extends StatelessWidget {
               child: Container(
                 width: 150, height: 150,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF005696).withOpacity(0.05),
+                  color: const Color(0xFF005696).withValues(alpha: 0.05),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -386,9 +386,9 @@ class _CredentialBack extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(color: AppTheme.accent.withOpacity(0.15), blurRadius: 20, spreadRadius: 2)
+          BoxShadow(color: AppTheme.accent.withValues(alpha: 0.15), blurRadius: 20, spreadRadius: 2)
         ],
-        border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20.0),

@@ -15,11 +15,11 @@ class BottomNav extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppTheme.background,
           border: Border(
-            top: BorderSide(color: AppTheme.accent.withOpacity(0.08), width: 1.5),
+            top: BorderSide(color: AppTheme.accent.withValues(alpha: 0.08), width: 1.5),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 10,
               offset: const Offset(0, -5),
             )
@@ -97,7 +97,7 @@ class _NavItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: isActive
               ? BoxDecoration(
-                  color: AppTheme.accent.withOpacity(0.12),
+                  color: AppTheme.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 )
               : null,
@@ -106,14 +106,14 @@ class _NavItem extends StatelessWidget {
             children: [
               Icon(
                 icon,
-                color: isActive ? AppTheme.accent : AppTheme.textSecondary.withOpacity(0.6),
+                color: isActive ? AppTheme.accent : AppTheme.textSecondary.withValues(alpha: 0.6),
                 size: 26,
               ),
               const SizedBox(height: 4),
               Text(
                 label,
                 style: TextStyle(
-                  color: isActive ? AppTheme.accent : AppTheme.textSecondary.withOpacity(0.6),
+                  color: isActive ? AppTheme.accent : AppTheme.textSecondary.withValues(alpha: 0.6),
                   fontSize: 10,
                   fontWeight: isActive ? FontWeight.w900 : FontWeight.w500,
                   letterSpacing: 0.5,

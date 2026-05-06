@@ -46,7 +46,7 @@ class AppTheme {
           foregroundColor: const Color(0xFF0F172A),
           minimumSize: const Size(double.infinity, 56),
           elevation: 2,
-          shadowColor: accent.withOpacity(0.2),
+          shadowColor: accent.withValues(alpha: 0.2),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20), // Más redondeado para suavidad
           ),
@@ -72,7 +72,7 @@ class AppTheme {
         shadowColor: Colors.black12,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24), // Más redondeado
-          side: BorderSide(color: Colors.white.withOpacity(0.03), width: 1),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.03), width: 1),
         ),
       ),
       iconTheme: const IconThemeData(

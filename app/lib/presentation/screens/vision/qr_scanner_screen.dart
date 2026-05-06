@@ -121,7 +121,7 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E1E).withOpacity(0.95),
+                  color: const Color(0xFF1E1E1E).withValues(alpha: 0.95),
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 child: Column(

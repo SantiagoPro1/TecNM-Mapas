@@ -135,7 +135,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                 'Confirma tu posición escaneando el código QR más cercano',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 14,
                     fontWeight: FontWeight.w500),
               ),
@@ -168,7 +168,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                     label: const Text('REINTENTAR ESCANEO'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.accent,
-                      side: BorderSide(color: AppTheme.accent.withOpacity(0.5)),
+                      side: BorderSide(color: AppTheme.accent.withValues(alpha: 0.5)),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16)),
@@ -192,7 +192,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                     color: AppTheme.surface,
                     borderRadius: BorderRadius.circular(24),
                     border:
-                        Border.all(color: AppTheme.success.withOpacity(0.1)),
+                        Border.all(color: AppTheme.success.withValues(alpha: 0.1)),
                     boxShadow: const [
                       BoxShadow(color: Colors.black12, blurRadius: 10)
                     ],
@@ -202,7 +202,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppTheme.success.withOpacity(0.1),
+                          color: AppTheme.success.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.location_on_rounded,
@@ -385,7 +385,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-          child: Text(title, style: TextStyle(color: color.withOpacity(0.8), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+          child: Text(title, style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
         ),
         ...locations.map((loc) {
           final id = loc.$1 as String?;
@@ -414,13 +414,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
               },
               leading: Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                 child: Icon(icon, color: iconColor, size: 22),
               ),
               title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
               subtitle: id != null ? Text('ID: ${id.toUpperCase()}', style: const TextStyle(color: Colors.white24, fontSize: 9, fontWeight: FontWeight.w800)) : null,
               tileColor: AppTheme.surface,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(0.05))),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
             ),
           );
         }),
@@ -519,15 +519,15 @@ class _ScanViewport extends StatelessWidget {
         height: 320,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: scanned ? AppTheme.success.withOpacity(0.05) : const Color(0xFF0D1B2A).withOpacity(0.4),
+          color: scanned ? AppTheme.success.withValues(alpha: 0.05) : const Color(0xFF0D1B2A).withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(40),
           border: Border.all(
-            color: scanned ? AppTheme.success : const Color(0xFF00E5FF).withOpacity(0.3),
+            color: scanned ? AppTheme.success : const Color(0xFF00E5FF).withValues(alpha: 0.3),
             width: 2,
           ),
           boxShadow: [
             BoxShadow(
-              color: (scanned ? AppTheme.success : const Color(0xFF00E5FF)).withOpacity(0.15),
+              color: (scanned ? AppTheme.success : const Color(0xFF00E5FF)).withValues(alpha: 0.15),
               blurRadius: 30,
               spreadRadius: 2,
             )
@@ -540,7 +540,7 @@ class _ScanViewport extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                        color: AppTheme.success.withOpacity(0.1),
+                        color: AppTheme.success.withValues(alpha: 0.1),
                         shape: BoxShape.circle),
                     child: const Icon(Icons.check_circle_rounded,
                         color: AppTheme.success, size: 64),
@@ -570,8 +570,8 @@ class _ScanViewport extends StatelessWidget {
                               padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                border: Border.all(color: const Color(0xFF00E5FF).withOpacity(0.2), width: 1),
-                                color: const Color(0xFF00E5FF).withOpacity(0.05),
+                                border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.2), width: 1),
+                                color: const Color(0xFF00E5FF).withValues(alpha: 0.05),
                               ),
                               child: const Icon(Icons.qr_code_2_rounded, size: 48, color: Color(0xFF00E5FF)),
                             ),
@@ -589,7 +589,7 @@ class _ScanViewport extends StatelessWidget {
                             Text(
                               'PARA ESCANEAR EL QR DE LAS AULAS',
                               style: TextStyle(
-                                color: const Color(0xFF00E5FF).withOpacity(0.4),
+                                color: const Color(0xFF00E5FF).withValues(alpha: 0.4),
                                 fontSize: 10,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 1.2,
@@ -658,7 +658,7 @@ class _ResultCard extends StatelessWidget {
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(24),
         border:
-            Border.all(color: AppTheme.success.withOpacity(0.3), width: 1.5),
+            Border.all(color: AppTheme.success.withValues(alpha: 0.3), width: 1.5),
         boxShadow: const [
           BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, 5))
         ],
@@ -673,7 +673,7 @@ class _ResultCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text('ESTÁS EN:',
                   style: TextStyle(
-                      color: AppTheme.success.withOpacity(0.8),
+                      color: AppTheme.success.withValues(alpha: 0.8),
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1.5)),
@@ -697,7 +697,7 @@ class _ResultCard extends StatelessWidget {
                     colors: [Color(0xFF00E5FF), Color(0xFF0091EA)]),
                 boxShadow: [
                   BoxShadow(
-                      color: AppTheme.accent.withOpacity(0.3),
+                      color: AppTheme.accent.withValues(alpha: 0.3),
                       blurRadius: 10,
                       offset: const Offset(0, 4))
                 ],

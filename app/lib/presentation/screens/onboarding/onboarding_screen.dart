@@ -131,7 +131,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   borderRadius: BorderRadius.circular(18),
                   boxShadow: [
                     BoxShadow(
-                      color: (isLastPage && !_termsAccepted) ? Colors.transparent : AppTheme.accent.withOpacity(0.2),
+                      color: (isLastPage && !_termsAccepted) ? Colors.transparent : AppTheme.accent.withValues(alpha: 0.2),
                       blurRadius: 15,
                       offset: const Offset(0, 5),
                     )
@@ -181,9 +181,9 @@ class _PageContent extends StatelessWidget {
             width: 140,
             height: 140,
             decoration: BoxDecoration(
-              color: AppTheme.accent.withOpacity(0.08),
+              color: AppTheme.accent.withValues(alpha: 0.08),
               shape: BoxShape.circle,
-              border: Border.all(color: AppTheme.accent.withOpacity(0.2), width: 2),
+              border: Border.all(color: AppTheme.accent.withValues(alpha: 0.2), width: 2),
             ),
             child: Icon(page.icon, size: 70, color: AppTheme.accent),
           ),
@@ -230,9 +230,9 @@ class _TermsCheckbox extends StatelessWidget {
       duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: value ? AppTheme.accent.withOpacity(0.05) : AppTheme.surface,
+        color: value ? AppTheme.accent.withValues(alpha: 0.05) : AppTheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: value ? AppTheme.accent.withOpacity(0.3) : Colors.white.withOpacity(0.05)),
+        border: Border.all(color: value ? AppTheme.accent.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.05)),
       ),
       child: Row(
         children: [
@@ -272,7 +272,7 @@ class _DotsIndicator extends StatelessWidget {
           width: active ? 32 : 10,
           height: 10,
           decoration: BoxDecoration(
-            color: active ? AppTheme.accent : AppTheme.accent.withOpacity(0.2),
+            color: active ? AppTheme.accent : AppTheme.accent.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(5),
           ),
         );

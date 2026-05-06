@@ -18,17 +18,21 @@ void main() {
     
     if (!nodeIds.contains(edge['from'])) {
       final f = edge['from'];
-      print('Edge references missing node (from): ' + f);
+      // ignore: avoid_print
+      print('Edge references missing node (from): $f');
     }
     if (!nodeIds.contains(edge['to'])) {
       final t = edge['to'];
-      print('Edge references missing node (to): ' + t);
+      // ignore: avoid_print
+      print('Edge references missing node (to): $t');
     }
   }
   
   final disconnectedNodes = nodeIds.difference(connectedNodes);
+  // ignore: avoid_print
   print('Disconnected nodes:');
   for (final node in disconnectedNodes) {
-    print('- $node');
+      // ignore: avoid_print
+      print('- $node');
   }
 }

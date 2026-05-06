@@ -121,7 +121,7 @@ final filteredMapMarkersProvider = Provider<List<Marker>>((ref) {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: softAccent.withOpacity(0.15),
+                        color: softAccent.withValues(alpha: 0.15),
                         blurRadius: 10,
                         spreadRadius: 2,
                       ),
@@ -136,7 +136,7 @@ final filteredMapMarkersProvider = Provider<List<Marker>>((ref) {
                     color: softBackground,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: softAccent.withOpacity(0.6),
+                      color: softAccent.withValues(alpha: 0.6),
                       width: 1.5,
                     ),
                   ),
@@ -166,7 +166,7 @@ final filteredMapMarkersProvider = Provider<List<Marker>>((ref) {
                     width: 4,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: softAccent.withOpacity(0.4),
+                      color: softAccent.withValues(alpha: 0.4),
                       shape: BoxShape.circle,
                     ),
                   ),

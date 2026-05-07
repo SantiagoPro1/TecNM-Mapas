@@ -583,9 +583,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     ),
                   ],
                 ),
-                backgroundColor: const Color(0xFF00E5FF),
+                backgroundColor: Color(0xFF00E5FF),
                 behavior: SnackBarBehavior.fixed,
-                duration: const Duration(seconds: 4),
+                duration: Duration(seconds: 4),
               ),
             );
           }

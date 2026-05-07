@@ -584,9 +584,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   ],
                 ),
                 backgroundColor: const Color(0xFF00E5FF),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                margin: const EdgeInsets.all(16),
+                behavior: SnackBarBehavior.fixed,
                 duration: const Duration(seconds: 4),
               ),
             );

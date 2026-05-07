@@ -6,6 +6,7 @@ app/.packages
 app/build/
 app/.pub-cache/
 app/.pub/
+app/.agents/
 app/android/.gradle/
 app/android/local.properties
 app/android/key.properties

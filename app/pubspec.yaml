@@ -63,6 +63,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - .env                              # Variables de entorno (flutter_dotenv)
     - assets/images/
     - assets/maps/
     - assets/maps/tec_colima_map.json

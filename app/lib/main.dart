@@ -27,8 +27,15 @@ void main() async {
   // 1. Asegura que los bindings de Flutter estén listos
   WidgetsFlutterBinding.ensureInitialized();
   
-  // 2. Inicialización de Firebase y DotEnv
-  await dotenv.load(fileName: ".env");
+  // 2. Carga robusta del archivo .env (no bloquea el arranque si no existe)
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint(
+      '[NAVIA] Advertencia: No se encontró el archivo .env. '
+      'Las variables de entorno no estarán disponibles. Error: $e',
+    );
+  }
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "487588933269-tg46038rv3d93dur881ilvda791emngu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "mx.edu.tecnm.colima.sinait",
+            "certificate_hash": "379e3b292190adb8f17752ce295622f74e698075"
+          }
+        },
+        {
           "client_id": "487588933269-82c33tklslpr0p5l6bsl6gl37tqnl8mm.apps.googleusercontent.com",
           "client_type": 3
         }

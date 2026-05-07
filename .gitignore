@@ -22,7 +22,7 @@ app/ios/Flutter/app_plugin_registrant.dart
 app/google-services.json
 app/ios/Runner/GoogleService-Info.plist
 backend/serviceAccountKey.json
-.env
+/.env
 .env.local
 .env.production
 

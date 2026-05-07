@@ -570,8 +570,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           // Sin GPS ni QR: pedir escaneo
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Row(
+              const SnackBar(
+                content: Row(
                   children: [
                     Icon(Icons.qr_code_scanner, color: Color(0xFF0D1B2A), size: 22),
                     SizedBox(width: 10),

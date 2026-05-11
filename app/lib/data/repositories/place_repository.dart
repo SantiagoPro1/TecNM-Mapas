@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:sinait/data/cache/map_cache_service.dart';
 import 'package:sinait/data/models/place_node.dart';
 
 class PlaceRepository {
@@ -9,15 +11,63 @@ class PlaceRepository {
   PlaceRepository({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  /// Carga los lugares desde el JSON local del campus como fuente primaria.
-  /// Si Firestore tiene datos, los superpone encima del local.
+  /// Carga los lugares con estrategia offline-first:
+  ///  1. Intenta leer desde la caché Hive (instantáneo, funciona offline).
+  ///  2. Si la caché está vacía, lee directamente de los assets como fallback.
+  ///  3. Si Firestore tiene datos, los superpone encima.
   Stream<List<PlaceNode>> watchPlaces() async* {
     final localPlaces = await _loadLocalPlaces();
     yield localPlaces;
-
   }
 
+  /// Carga POIs con fallback en cascada:
+  ///  Hive cache → assets originales
   Future<List<PlaceNode>> _loadLocalPlaces() async {
+    // 1. Intentar leer desde la caché Hive (offline-first)
+    try {
+      final cachedData = await MapCacheService.loadCachedMapData();
+      if (cachedData != null) {
+        final places = _parseNodesFromMapData(cachedData);
+        if (places.isNotEmpty) {
+          debugPrint('PlaceRepository: ${places.length} POIs cargados desde caché Hive ✓');
+          return places;
+        }
+      }
+    } catch (e) {
+      debugPrint('PlaceRepository: error leyendo caché Hive → $e');
+    }
+
+    // 2. Fallback: leer directamente de los assets originales
+    debugPrint('PlaceRepository: leyendo desde assets (fallback)');
+    return _loadFromAssets();
+  }
+
+  /// Parsea nodos desde el formato combinado { nodes: [...], edges: [...] }.
+  List<PlaceNode> _parseNodesFromMapData(Map<String, dynamic> data) {
+    final nodes = (data['nodes'] as List<dynamic>?) ?? [];
+    return nodes
+        .where((n) => (n as Map<String, dynamic>)['type'] != 'corridor')
+        .map((n) {
+          final node = n as Map<String, dynamic>;
+          return PlaceNode(
+            id: (node['id'] as String?) ?? '',
+            name: (node['name'] as String?) ?? '',
+            latitude: (node['lat'] as num?)?.toDouble() ?? 0.0,
+            longitude: (node['lng'] as num?)?.toDouble() ?? 0.0,
+            type: _resolveType(
+              (node['id'] as String?) ?? '',
+              (node['type'] as String?) ?? '',
+            ),
+            accessibilityLevel:
+                (node['accessible'] as bool? ?? true) ? 'alto' : 'medio',
+            letter: node['letter'] as String?,
+          );
+        })
+        .toList();
+  }
+
+  /// Lee los JSONs directamente de los assets (semilla original).
+  Future<List<PlaceNode>> _loadFromAssets() async {
     final mapFiles = [
       'assets/maps/tec_colima_map.json',
       'assets/maps/sendera_map.json',

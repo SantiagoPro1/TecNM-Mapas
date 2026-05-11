@@ -1,8 +1,9 @@
+import 'package:equatable/equatable.dart';
 import 'package:sinait/data/models/campus_node.dart';
 import 'package:sinait/data/models/campus_edge.dart';
 
 /// Un paso individual dentro de una ruta calculada.
-class RouteStep {
+class RouteStep extends Equatable {
   /// Nodo actual de este paso.
   final CampusNode node;
 
@@ -17,10 +18,13 @@ class RouteStep {
     this.edge,
     required this.voiceInstruction,
   });
+
+  @override
+  List<Object?> get props => [node, edge, voiceInstruction];
 }
 
 /// Resultado completo de una búsqueda de ruta con Dijkstra.
-class NavRoute {
+class NavRoute extends Equatable {
   /// Lista ordenada de pasos desde el origen hasta el destino.
   final List<RouteStep> steps;
 
@@ -69,4 +73,14 @@ class NavRoute {
   /// Genera todas las instrucciones de voz en orden.
   List<String> get allVoiceInstructions =>
       steps.map((s) => s.voiceInstruction).toList();
+
+  @override
+  List<Object?> get props => [
+        steps,
+        totalDistance,
+        estimatedMinutes,
+        fullyAccessible,
+        origin,
+        destination,
+      ];
 }

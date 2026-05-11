@@ -10,6 +10,9 @@ import 'package:sinait/core/constants/app_routes.dart';
 import 'package:sinait/core/theme/app_theme.dart';
 import 'package:sinait/firebase_options.dart';
 
+// Cache offline
+import 'package:sinait/data/cache/map_cache_service.dart';
+
 // Providers
 import 'package:sinait/data/providers/navigation_provider.dart';
 
@@ -39,6 +42,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // 2.5. Inicializar Hive y sembrar la caché offline de mapas
+  await MapCacheService.initialize();
   
   // 3. Bloquear la orientación del teléfono en vertical (Portrait)
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);

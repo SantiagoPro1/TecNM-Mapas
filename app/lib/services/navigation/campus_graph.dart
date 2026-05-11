@@ -1,13 +1,19 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:sinait/data/models/campus_node.dart';
 import 'package:sinait/data/models/campus_edge.dart';
+import 'package:sinait/data/cache/map_cache_service.dart';
 import 'package:sinait/services/navigation/dijkstra.dart';
 
 /// Carga y gestiona el grafo del campus desde el JSON en assets.
 ///
 /// Convierte el JSON en una lista de adyacencia bidireccional y expone
 /// un motor [Dijkstra] listo para pathfinding.
+///
+/// Estrategia de carga offline-first:
+///  1. Intenta leer desde la caché Hive (funciona sin internet).
+///  2. Si la caché falla, lee directamente de los assets como fallback.
 class CampusGraph {
   /// Todos los nodos del campus, indexados por id.
   final Map<String, CampusNode> nodes;
@@ -29,8 +35,31 @@ class CampusGraph {
     dijkstra = Dijkstra(adjacency: adjacency, nodes: nodes);
   }
 
-  /// Carga el grafo desde todos los mapas disponibles en assets.
+  /// Carga el grafo con estrategia offline-first:
+  ///  1. Caché Hive (instantáneo, funciona offline)
+  ///  2. Assets originales (fallback)
   static Future<CampusGraph> load() async {
+    // 1. Intentar desde caché Hive
+    try {
+      final cachedData = await MapCacheService.loadCachedMapData();
+      if (cachedData != null) {
+        final nodes = cachedData['nodes'] as List<dynamic>? ?? [];
+        if (nodes.isNotEmpty) {
+          debugPrint('CampusGraph: cargado desde caché Hive ✓');
+          return CampusGraph.fromJson(cachedData);
+        }
+      }
+    } catch (e) {
+      debugPrint('CampusGraph: error leyendo caché → $e');
+    }
+
+    // 2. Fallback: leer directamente de assets
+    debugPrint('CampusGraph: leyendo desde assets (fallback)');
+    return _loadFromAssets();
+  }
+
+  /// Lee los archivos JSON directamente de los assets.
+  static Future<CampusGraph> _loadFromAssets() async {
     final mapFiles = [
       'assets/maps/tec_colima_map.json',
       'assets/maps/sendera_map.json',

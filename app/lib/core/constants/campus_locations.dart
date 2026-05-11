@@ -68,4 +68,33 @@ class CampusLocations {
     }
     return null;
   }
+
+  // ─── Perímetros de Geofencing ───────────────────────────────────────────────
+  // Cada zona se define con coordenadas centrales (lat, lng) y un radio
+  // de alcance en metros. Estos valores alimentan al ZoneNotifier para
+  // determinar en qué zona se encuentra el usuario.
+
+  /// TecNM Colima — centro del campus.
+  static const double escolarLat    = 19.2628;
+  static const double escolarLng    = -103.7233;
+  static const double escolarRadius = 350.0; // metros
+
+  /// Plaza Sendera — centro aproximado de la plaza.
+  static const double senderaLat    = 19.2457;
+  static const double senderaLng    = -103.7250;
+  static const double senderaRadius = 250.0; // metros
+
+  /// Plaza Zentralia — centro aproximado de la plaza.
+  static const double zentraliaLat    = 19.2530;
+  static const double zentraliaLng    = -103.7140;
+  static const double zentraliaRadius = 300.0; // metros
+
+  /// Lista tipada con todas las zonas para iteración en el ZoneNotifier.
+  /// Cada entrada: (AppZone, lat, lng, radio).
+  /// NOTA: Requiere import de [AppZone] desde app_zone.dart.
+  static const List<(double lat, double lng, double radius)> zonePerimeters = [
+    (escolarLat,   escolarLng,   escolarRadius),   // index 0 → escolar
+    (senderaLat,   senderaLng,   senderaRadius),   // index 1 → sendera
+    (zentraliaLat, zentraliaLng, zentraliaRadius),  // index 2 → zentralia
+  ];
 }

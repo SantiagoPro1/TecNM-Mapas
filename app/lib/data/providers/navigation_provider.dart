@@ -1,3 +1,4 @@
+import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sinait/data/models/campus_node.dart';
 import 'package:sinait/data/models/nav_route.dart';
@@ -16,7 +17,7 @@ enum NavStatus {
 }
 
 /// Estado inmutable de la navegación.
-class NavigationState {
+class NavigationState extends Equatable {
   final NavStatus status;
   final CampusNode? currentNode;
   final NavRoute? activeRoute;
@@ -68,6 +69,16 @@ class NavigationState {
       errorMessage: errorMessage,
     );
   }
+
+  @override
+  List<Object?> get props => [
+        status,
+        currentNode,
+        activeRoute,
+        currentStepIndex,
+        accessibleOnly,
+        errorMessage,
+      ];
 }
 
 // ─── StateNotifier ────────────────────────────────────────────

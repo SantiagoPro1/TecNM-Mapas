@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sinait/core/constants/app_routes.dart';
-import 'package:sinait/core/theme/app_theme.dart';
-import 'package:sinait/data/providers/auth_provider.dart';
+import 'package:navia/core/constants/app_routes.dart';
+import 'package:navia/data/providers/auth_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -10,6 +9,8 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     return PopScope(
       canPop: false,
@@ -18,19 +19,21 @@ class ProfileScreen extends ConsumerWidget {
         Navigator.pushReplacementNamed(context, AppRoutes.home);
       },
       child: Scaffold(
-        backgroundColor: AppTheme.background,
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
           title: const Text('PERFIL ESTUDIANTIL'),
           backgroundColor: Colors.transparent,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded),
-            onPressed: () => Navigator.pushReplacementNamed(context, AppRoutes.home),
+            onPressed: () =>
+                Navigator.pushReplacementNamed(context, AppRoutes.home),
           ),
         ),
         body: authState.isLoading
-            ? const Center(child: CircularProgressIndicator(color: AppTheme.accent))
+            ? Center(child: CircularProgressIndicator(color: cs.primary))
             : SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 child: authState.isAuthenticated
                     ? _buildProfileState(context, ref, authState)
                     : _buildLoginState(context, ref, authState),
@@ -39,42 +42,58 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLoginState(BuildContext context, WidgetRef ref, AuthState authState) {
+  Widget _buildLoginState(
+      BuildContext context, WidgetRef ref, AuthState authState) {
+    final cs = Theme.of(context).colorScheme;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         const SizedBox(height: 60),
         Container(
           padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.02), shape: BoxShape.circle),
-          child: Icon(Icons.account_circle_rounded, size: 100, color: Colors.white.withValues(alpha: 0.1)),
+          decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.02),
+              shape: BoxShape.circle),
+          child: Icon(Icons.account_circle_rounded,
+              size: 100, color: cs.onSurface.withValues(alpha: 0.1)),
         ),
         const SizedBox(height: 32),
-        const Text(
+        Text(
           'IDENTIDAD INSTITUCIONAL',
-          style: TextStyle(color: AppTheme.accent, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2.0),
+          style: TextStyle(
+              color: cs.primary,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2.0),
         ),
         const SizedBox(height: 12),
         Text(
           'Inicia sesión para acceder a tu credencial y sincronizar tu progreso en el campus.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 15, height: 1.5),
+          style: TextStyle(
+              color: cs.onSurface.withValues(alpha: 0.5),
+              fontSize: 15,
+              height: 1.5),
         ),
         if (authState.errorMessage != null) ...[
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.error.withValues(alpha: 0.1),
+              color: cs.error.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.error.withValues(alpha: 0.2)),
+              border: Border.all(color: cs.error.withValues(alpha: 0.2)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.error_rounded, color: AppTheme.error, size: 20),
+                Icon(Icons.error_rounded, color: cs.error, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(authState.errorMessage!, style: const TextStyle(color: AppTheme.error, fontSize: 13, fontWeight: FontWeight.w500)),
+                  child: Text(authState.errorMessage!,
+                      style: TextStyle(
+                          color: cs.error,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500)),
                 ),
               ],
             ),
@@ -84,17 +103,21 @@ class ProfileScreen extends ConsumerWidget {
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            gradient: const LinearGradient(colors: [Color(0xFF00E5FF), Color(0xFF0091EA)]),
+            gradient: LinearGradient(colors: [cs.primary, cs.secondary]),
           ),
           child: ElevatedButton.icon(
             onPressed: () => ref.read(authProvider.notifier).signInWithGoogle(),
-            icon: const Icon(Icons.g_mobiledata_rounded, size: 36, color: Color(0xFF0D1B2A)),
-            label: const Text('INGRESAR CON GOOGLE', style: TextStyle(color: Color(0xFF0D1B2A), fontWeight: FontWeight.w900)),
+            icon:
+                Icon(Icons.g_mobiledata_rounded, size: 36, color: cs.onPrimary),
+            label: Text('INGRESAR CON GOOGLE',
+                style: TextStyle(
+                    color: cs.onPrimary, fontWeight: FontWeight.w900)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.transparent,
               shadowColor: Colors.transparent,
               minimumSize: const Size(double.infinity, 64),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
             ),
           ),
         ),
@@ -102,7 +125,9 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileState(BuildContext context, WidgetRef ref, AuthState authState) {
+  Widget _buildProfileState(
+      BuildContext context, WidgetRef ref, AuthState authState) {
+    final cs = Theme.of(context).colorScheme;
     return Column(
       children: [
         _AvatarSection(authState: authState),
@@ -130,14 +155,18 @@ class ProfileScreen extends ConsumerWidget {
           width: double.infinity,
           child: TextButton.icon(
             onPressed: () => ref.read(authProvider.notifier).signOut(),
-            icon: const Icon(Icons.logout_rounded, color: AppTheme.error, size: 20),
-            label: const Text('CERRAR SESIÓN', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+            icon: Icon(Icons.logout_rounded, color: cs.error, size: 20),
+            label: Text('CERRAR SESIÓN',
+                style: TextStyle(
+                    color: cs.error,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.0)),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 18),
-              backgroundColor: AppTheme.error.withValues(alpha: 0.05),
+              backgroundColor: cs.error.withValues(alpha: 0.05),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: AppTheme.error.withValues(alpha: 0.2)),
+                side: BorderSide(color: cs.error.withValues(alpha: 0.2)),
               ),
             ),
           ),
@@ -153,6 +182,7 @@ class _AvatarSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Column(
       children: [
         Stack(
@@ -162,20 +192,32 @@ class _AvatarSection extends StatelessWidget {
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: const LinearGradient(colors: [Color(0xFF00E5FF), Color(0xFF0091EA)]),
-                boxShadow: [BoxShadow(color: AppTheme.accent.withValues(alpha: 0.2), blurRadius: 20, spreadRadius: 5)],
+                gradient: LinearGradient(colors: [cs.primary, cs.secondary]),
+                boxShadow: [
+                  BoxShadow(
+                      color: cs.primary.withValues(alpha: 0.2),
+                      blurRadius: 20,
+                      spreadRadius: 5)
+                ],
               ),
               child: CircleAvatar(
                 radius: 56,
-                backgroundColor: AppTheme.surface,
-                backgroundImage: authState.photoUrl != null ? NetworkImage(authState.photoUrl!) : null,
-                child: authState.photoUrl == null ? const Icon(Icons.person_rounded, size: 64, color: Colors.white24) : null,
+                backgroundColor: cs.surface,
+                backgroundImage: authState.photoUrl != null
+                    ? NetworkImage(authState.photoUrl!)
+                    : null,
+                child: authState.photoUrl == null
+                    ? const Icon(Icons.person_rounded,
+                        size: 64, color: Colors.white24)
+                    : null,
               ),
             ),
             Container(
               padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(color: AppTheme.success, shape: BoxShape.circle),
-              child: const Icon(Icons.verified_rounded, size: 18, color: Colors.white),
+              decoration:
+                  BoxDecoration(color: cs.tertiary, shape: BoxShape.circle),
+              child: const Icon(Icons.verified_rounded,
+                  size: 18, color: Colors.white),
             ),
           ],
         ),
@@ -183,7 +225,11 @@ class _AvatarSection extends StatelessWidget {
         Text(
           authState.displayName.toUpperCase(),
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+          style: TextStyle(
+              color: cs.onSurface,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5),
         ),
       ],
     );
@@ -198,31 +244,45 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(color: AppTheme.accent, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2.0),
+            style: TextStyle(
+                color: cs.primary,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 2.0),
           ),
           const SizedBox(height: 20),
           ...items.map((item) => Padding(
                 padding: const EdgeInsets.only(bottom: 18),
                 child: Row(
                   children: [
-                    Icon(item.$1, color: Colors.white.withValues(alpha: 0.3), size: 20),
+                    Icon(item.$1,
+                        color: cs.onSurface.withValues(alpha: 0.3), size: 20),
                     const SizedBox(width: 14),
-                    Text(item.$2, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12, fontWeight: FontWeight.w700)),
+                    Text(item.$2,
+                        style: TextStyle(
+                            color: cs.onSurface.withValues(alpha: 0.4),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700)),
                     const Spacer(),
-                    Text(item.$3, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+                    Text(item.$3,
+                        style: TextStyle(
+                            color: cs.onSurface,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800)),
                   ],
                 ),
               )),

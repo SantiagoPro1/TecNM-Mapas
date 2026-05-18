@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "487588933269-k3vfnlies02mmv9fcdi3afm5ebn5bnf5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "mx.edu.tecnm.colima.sinait",
+            "certificate_hash": "80b93744cdb4fdb0f1af075a3d6d58f261dbece0"
+          }
+        },
+        {
           "client_id": "487588933269-l2vv8n35k524mtp0dmtj681gkdif1gn3.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

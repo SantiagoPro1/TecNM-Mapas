@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:sinait/core/theme/app_theme.dart';
 
 class CreditsScreen extends StatelessWidget {
   const CreditsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('CRÉDITOS'),
         backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
+        foregroundColor: cs.onSurface,
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
@@ -25,17 +27,19 @@ class CreditsScreen extends StatelessWidget {
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: AppTheme.accent.withValues(alpha: 0.1),
+                    color: cs.primary.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.accent.withValues(alpha: 0.4), width: 2),
+                    border: Border.all(
+                        color: cs.primary.withValues(alpha: 0.4), width: 2),
                   ),
-                  child: const Icon(Icons.school_rounded, color: AppTheme.accent, size: 36),
+                  child:
+                      Icon(Icons.school_rounded, color: cs.primary, size: 36),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'SINAIT',
+                Text(
+                  'NAVIA',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: cs.onSurface,
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 4,
@@ -45,7 +49,7 @@ class CreditsScreen extends StatelessWidget {
                 Text(
                   'InnovaTecNM 2026 · Campus Colima',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.4),
+                    color: cs.onSurface.withValues(alpha: 0.4),
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 1.2,
@@ -56,43 +60,65 @@ class CreditsScreen extends StatelessWidget {
           ),
 
           // Lead developer
-          const _SectionLabel('DESARROLLO & ARQUITECTURA'),
-          const _CreditCard(
-            name: 'Santiago G. García',
-            role: 'Arquitecto de Software · Lead Developer',
-            contributions: [
+          _SectionLabel('DIRECCIÓN & LIDERAZGO', accentColor: cs.primary),
+          _CreditCard(
+            name: 'Juanpablo E. Gómez D.',
+            role: 'Lead Developer · Backend Lead · Líder del Equipo',
+            contributions: const [
+              'Liderazgo estratégico del proyecto desde la conceptualización hasta la implementación',
+              'Diseño y documentación de la arquitectura técnica de 4 capas',
+              'Mentoría técnica del equipo: code review, decisiones de diseño, resolución de bloques',
+              'Gestión de repositorios, integración continua y control de versiones',
               'Diseño de la arquitectura completa de la aplicación (Clean Architecture + Riverpod)',
-              'Motor de navegación geoespacial: algoritmo Dijkstra y grafo topológico del campus',
-              'Sistema GPS en tiempo real con snap-to-node y posicionamiento indoor',
-              'Cartografía digital: mapeo milimétrico de TecNM, Plaza Sendera y Plaza Zentralia',
+              'Implementación de módulos de visión artificial y realidad aumentada (NAVIA AR)',
               'Diseño UI/UX premium: sistema visual, tema oscuro, animaciones y micro-interacciones',
-              'Integración de accesibilidad: Text-to-Speech, Speech-to-Text y modo alto contraste',
-              'Credencial digital dinámica con generación de QR y efecto Flip Card',
+              'Diseño de las 8 pantallas de la app en Figma bajo principios WCAG 2.1',
+              'Integración de Google ML Kit para reconocimiento visual de edificios',
+              'Implementación del sistema de códigos QR dinámicos con validación en tiempo real',
+              'Validación de accesibilidad: API de Semantics de Flutter para TalkBack/VoiceOver',
+              'Desarrollo del módulo de credencial digital con QR dinámico y Firebase Authentication',
               'Backend Node.js/Express con autenticación Firebase y validación de dominio institucional',
             ],
-            accentColor: AppTheme.accent,
-            icon: Icons.code_rounded,
+            accentColor: cs.primary,
+            icon: Icons.star_rounded,
           ),
           const SizedBox(height: 16),
 
-          const _SectionLabel('EQUIPO DE INGENIERÍA'),
+          _SectionLabel('EQUIPO DE INGENIERÍA Y SISTEMAS',
+              accentColor: cs.primary),
           const _CreditCard(
-            name: 'Juanpablo E. Gómez D.',
-            role: 'Ingeniería de Sistemas · Arquitectura en Nube',
+            name: 'Santiago G. García',
+            role: 'Ingeniería de Sistemas · Desarrollo y Arquitectura',
             contributions: [
-              'Configuración e integración del ecosistema Firebase',
-              'Gestión técnica y coordinación de infraestructura cloud',
+              'Motor de navegación geoespacial: algoritmo Dijkstra y grafo topológico del campus',
+              'Sistema GPS en tiempo real con snap-to-node y posicionamiento indoor',
+              'Integración de Google ML Kit Image Labeling para validación cruzada',
+              'Cartografía digital: mapeo milimétrico de TecNM, Plaza Sendera y Plaza Zentralia',
+              'Optimización de rendimiento en el renderizado de mapas interactivos',
+              'Documentación de la pipeline de ML: data → training → optimization → deployment',
+              'Pruebas de robustez del modelo: diferentes ángulos, iluminación, distancia',
+              'Análisis de errores: matrices de confusión y casos mal clasificados',
+              'Integración de accesibilidad: Text-to-Speech, Speech-to-Text y modo alto contraste',
             ],
             accentColor: Color(0xFF64B5F6),
-            icon: Icons.cloud_rounded,
+            icon: Icons.code_rounded,
           ),
           const SizedBox(height: 12),
           const _CreditCard(
             name: 'Juan J. Rosales C.',
             role: 'Ingeniería de Sistemas · Interfaces y APIs',
             contributions: [
-              'Apoyo en lógica de interfaces de usuario',
-              'Gestión e integración de APIs externas',
+              'Desarrollo de lógica en las interfaces de usuario interactivas',
+              'Gestión, integración y consumo de APIs de geolocalización',
+              'Documentación de patrones de UI y guía de estilos (Design System)',
+              'Implementación de dark mode / light mode respetando WCAG en ambos',
+              'Desarrollo del flujo de credencial digital con pantalla de QR dinámico',
+              'Implementación de la pantalla de configuración de preferencias de accesibilidad',
+              'Creación de animaciones suaves y transiciones respetando curvas de easing estándar',
+              'Integración de Hive para caché local de mapas y rutas sin conexión',
+              'Implementación de navegación por pestañas (bottom navigation) accesible',
+              'Creación de formularios interactivos con validación en tiempo real',
+              'Soporte técnico en la integración de accesibilidad y VoiceOver',
             ],
             accentColor: Color(0xFF81C784),
             icon: Icons.api_rounded,
@@ -102,21 +128,39 @@ class CreditsScreen extends StatelessWidget {
             name: 'Brisa A. Rosas O.',
             role: 'Ingeniería de Sistemas · QA & Seguridad',
             contributions: [
-              'Aseguramiento de calidad y pruebas funcionales',
-              'Revisión de seguridad y cumplimiento de datos',
+              'Diseño de la estrategia de testing para toda la app',
+              'Implementación de pruebas unitarias para módulos críticos (algoritmo Dijkstra, STT, TTS)',
+              'Implementación de pruebas de integración: Backend ↔ Frontend ↔ Firebase',
+              'Creación de pruebas end-to-end simulando flujos de usuario reales',
+              'Configuración de GitHub Actions para ejecutar tests en cada commit',
+              'Análisis de seguridad de Firebase Rules: validación de acceso por rol',
+              'Auditoría de vulnerabilidades: dependencias, inyección SQL, XSS (N/A aquí pero verificado)',
+              'Implementación de encriptación de datos sensibles (historial de rutas, ubicación)',
+              'Aseguramiento de calidad, testing automatizado y pruebas funcionales',
+              'Revisión de vulnerabilidades y cumplimiento en protección de datos',
+              'Despliegue y configuración de servicios en el ecosistema Firebase',
             ],
             accentColor: Color(0xFFFFB74D),
             icon: Icons.shield_rounded,
           ),
           const SizedBox(height: 16),
 
-          const _SectionLabel('GESTIÓN EMPRESARIAL'),
+          _SectionLabel('GESTIÓN EMPRESARIAL', accentColor: cs.primary),
           const _CreditCard(
             name: 'Aylen Y. González C.',
             role: 'Gestión Empresarial · Estrategia y Legal',
             contributions: [
-              'Modelo de negocio y análisis de viabilidad del proyecto',
-              'Marco legal, ético y de privacidad de datos',
+              'Diseño del modelo de negocio y análisis de viabilidad técnica-financiera',
+              'Estructuración del marco legal, ético y de privacidad de datos',
+              'Planificación estratégica, gestión de recursos y cronograma del proyecto',
+              'Investigación de mercado inicial: identificación de 3 segmentos de clientes',
+              'Diseño del Business Model Canvas (Value Proposition, Customer Segments, Revenue Streams)',
+              'Estructuración del modelo de ingresos B2B2C con 5 fuentes',
+              'Análisis de viabilidad financiera: inversión inicial, costos operacionales, punto de equilibrio',
+              'Identificación de clientes potenciales en TecNM y segmento de recintos comerciales',
+              'Análisis de competencia: comparativa con Google Maps, apps de campus existentes',
+              'Estructura de costos detallada: Firebase, servidor, soporte técnico, dominio',
+              'Documento de Propiedad Intelectual: plan de registro INDAUTOR y IMPI',
             ],
             accentColor: Color(0xFFCE93D8),
             icon: Icons.business_center_rounded,
@@ -127,16 +171,16 @@ class CreditsScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.surface,
+              color: cs.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
             ),
             child: Column(
               children: [
                 Text(
                   'TecNM Campus Colima',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: cs.onSurface.withValues(alpha: 0.5),
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.5,
@@ -147,7 +191,7 @@ class CreditsScreen extends StatelessWidget {
                   'Tecnología con sentido humano.\nMovilidad accesible para todos.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.25),
+                    color: cs.onSurface.withValues(alpha: 0.25),
                     fontSize: 12,
                     height: 1.6,
                   ),
@@ -163,7 +207,8 @@ class CreditsScreen extends StatelessWidget {
 
 class _SectionLabel extends StatelessWidget {
   final String text;
-  const _SectionLabel(this.text);
+  final Color accentColor;
+  const _SectionLabel(this.text, {required this.accentColor});
 
   @override
   Widget build(BuildContext context) {
@@ -171,8 +216,8 @@ class _SectionLabel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(4, 0, 0, 14),
       child: Text(
         text,
-        style: const TextStyle(
-          color: AppTheme.accent,
+        style: TextStyle(
+          color: accentColor,
           fontSize: 11,
           fontWeight: FontWeight.w900,
           letterSpacing: 2.0,
@@ -199,10 +244,11 @@ class _CreditCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: accentColor.withValues(alpha: 0.15)),
         boxShadow: [
@@ -233,8 +279,8 @@ class _CreditCard extends StatelessWidget {
                   children: [
                     Text(
                       name,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: cs.onSurface,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
@@ -256,7 +302,7 @@ class _CreditCard extends StatelessWidget {
           ),
           if (contributions.isNotEmpty) ...[
             const SizedBox(height: 16),
-            Container(height: 1, color: Colors.white.withValues(alpha: 0.05)),
+            Container(height: 1, color: cs.onSurface.withValues(alpha: 0.05)),
             const SizedBox(height: 14),
             ...contributions.map(
               (c) => Padding(
@@ -278,7 +324,7 @@ class _CreditCard extends StatelessWidget {
                       child: Text(
                         c,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.55),
+                          color: cs.onSurface.withValues(alpha: 0.55),
                           fontSize: 13,
                           height: 1.5,
                         ),

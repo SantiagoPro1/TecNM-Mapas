@@ -1,6 +1,6 @@
 import 'dart:collection';
-import 'package:sinait/data/models/campus_node.dart';
-import 'package:sinait/data/models/campus_edge.dart';
+import 'package:navia/data/models/campus_node.dart';
+import 'package:navia/data/models/campus_edge.dart';
 
 /// Implementación del algoritmo de Dijkstra adaptada para el grafo del campus.
 ///

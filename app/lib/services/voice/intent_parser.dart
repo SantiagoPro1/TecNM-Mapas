@@ -67,42 +67,54 @@ class IntentParser {
   // ─── Patrones de navegación ─────────────────────────────────
   static final _navigatePatterns = [
     // "llévame a [destino]"
-    RegExp(r'(?:ll[eé]vame|navega|nav[eé]game|gu[ií]ame|dir[ií]geme)\s+(?:a|al|a\s+la|al\s+la|hacia)\s+(.+)', caseSensitive: false),
+    RegExp(
+        r'(?:ll[eé]vame|navega|nav[eé]game|gu[ií]ame|dir[ií]geme)\s+(?:a|al|a\s+la|al\s+la|hacia)\s+(.+)',
+        caseSensitive: false),
     // "ir a [destino]"
-    RegExp(r'(?:ir|ve|vamos|quiero\s+ir)\s+(?:a|al|a\s+la|hacia)\s+(.+)', caseSensitive: false),
+    RegExp(r'(?:ir|ve|vamos|quiero\s+ir)\s+(?:a|al|a\s+la|hacia)\s+(.+)',
+        caseSensitive: false),
     // "cómo llego a [destino]"
-    RegExp(r'(?:c[oó]mo\s+(?:llego|voy))\s+(?:a|al|a\s+la)\s+(.+)', caseSensitive: false),
+    RegExp(r'(?:c[oó]mo\s+(?:llego|voy))\s+(?:a|al|a\s+la)\s+(.+)',
+        caseSensitive: false),
     // "ruta a [destino]"
-    RegExp(r'(?:ruta|camino|direcci[oó]n)\s+(?:a|al|a\s+la|hacia|para)\s+(.+)', caseSensitive: false),
+    RegExp(r'(?:ruta|camino|direcci[oó]n)\s+(?:a|al|a\s+la|hacia|para)\s+(.+)',
+        caseSensitive: false),
     // "a [destino]" (comando corto)
     RegExp(r'^(?:a|al|a\s+la)\s+(.+)$', caseSensitive: false),
   ];
 
   // ─── Patrones de "¿dónde está?" ────────────────────────────
   static final _whereIsPatterns = [
-    RegExp(r'(?:d[oó]nde\s+(?:est[aá]|queda|se\s+encuentra))\s+(?:el|la|los|las)?\s*(.+)', caseSensitive: false),
-    RegExp(r'(?:ubicaci[oó]n\s+(?:de|del|de\s+la))\s+(.+)', caseSensitive: false),
-    RegExp(r'(?:buscar?|encontrar?)\s+(?:el|la|los|las)?\s*(.+)', caseSensitive: false),
+    RegExp(
+        r'(?:d[oó]nde\s+(?:est[aá]|queda|se\s+encuentra))\s+(?:el|la|los|las)?\s*(.+)',
+        caseSensitive: false),
+    RegExp(r'(?:ubicaci[oó]n\s+(?:de|del|de\s+la))\s+(.+)',
+        caseSensitive: false),
+    RegExp(r'(?:buscar?|encontrar?)\s+(?:el|la|los|las)?\s*(.+)',
+        caseSensitive: false),
   ];
 
   // ─── Patrones de "¿dónde estoy?" ───────────────────────────
   static final _whereAmIPatterns = [
     RegExp(r'd[oó]nde\s+estoy', caseSensitive: false),
     RegExp(r'mi\s+(?:ubicaci[oó]n|posici[oó]n)', caseSensitive: false),
-    RegExp(r'(?:cu[aá]l|qu[eé])\s+es\s+mi\s+(?:ubicaci[oó]n|posici[oó]n)', caseSensitive: false),
+    RegExp(r'(?:cu[aá]l|qu[eé])\s+es\s+mi\s+(?:ubicaci[oó]n|posici[oó]n)',
+        caseSensitive: false),
     RegExp(r'posici[oó]n\s+actual', caseSensitive: false),
   ];
 
   // ─── Patrones de repetir ────────────────────────────────────
   static final _repeatPatterns = [
-    RegExp(r'^(?:repite|repetir|otra\s+vez|de\s+nuevo|qu[eé]\s+dijiste)$', caseSensitive: false),
+    RegExp(r'^(?:repite|repetir|otra\s+vez|de\s+nuevo|qu[eé]\s+dijiste)$',
+        caseSensitive: false),
     RegExp(r'rep[ií]teme', caseSensitive: false),
     RegExp(r'no\s+(?:escuch[eé]|entend[ií]|o[ií])', caseSensitive: false),
   ];
 
   // ─── Patrones de detener ────────────────────────────────────
   static final _stopPatterns = [
-    RegExp(r'^(?:detener|parar|para|stop|cancelar|alto|basta)$', caseSensitive: false),
+    RegExp(r'^(?:detener|parar|para|stop|cancelar|alto|basta)$',
+        caseSensitive: false),
     RegExp(r'cancelar?\s+(?:navegaci[oó]n|ruta)', caseSensitive: false),
     RegExp(r'detener?\s+(?:navegaci[oó]n|gu[ií]a)', caseSensitive: false),
   ];
@@ -117,8 +129,10 @@ class IntentParser {
 
   // ─── Patrones de cercanos ───────────────────────────────────
   static final _nearbyPatterns = [
-    RegExp(r'qu[eé]\s+hay\s+(?:cerca|aqu[ií]|por\s+aqu[ií])', caseSensitive: false),
-    RegExp(r'(?:destinos?|lugares?|edificios?)\s+cerca(?:nos?)?', caseSensitive: false),
+    RegExp(r'qu[eé]\s+hay\s+(?:cerca|aqu[ií]|por\s+aqu[ií])',
+        caseSensitive: false),
+    RegExp(r'(?:destinos?|lugares?|edificios?)\s+cerca(?:nos?)?',
+        caseSensitive: false),
     RegExp(r'(?:cerca|cercanos?|pr[oó]ximos?)$', caseSensitive: false),
     RegExp(r'alrededor', caseSensitive: false),
   ];

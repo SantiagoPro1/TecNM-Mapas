@@ -1,15 +1,22 @@
-import 'dart:convert';
+import 'dart:async';
+
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:sinait/core/constants/campus_locations.dart';
-import 'package:sinait/core/theme/app_theme.dart';
-import 'package:sinait/data/providers/navigation_provider.dart';
-import 'package:sinait/data/providers/voice_provider.dart';
-import 'package:sinait/data/providers/feed_provider.dart';
-import 'package:sinait/presentation/widgets/bottom_nav.dart';
-import 'package:sinait/data/models/campus_node.dart';
+import 'package:navia/data/providers/vision_provider.dart';
+import 'package:navia/data/providers/voice_provider.dart';
+import 'package:navia/data/providers/navigation_provider.dart';
+import 'package:navia/presentation/widgets/bottom_nav.dart';
+import 'package:navia/services/vision/camera_feed_handler.dart';
+import 'package:navia/services/vision/ml_vision_service.dart';
+import 'package:navia/services/vision/model_manager_service.dart';
+import 'package:navia/services/vision/marker_recognizer.dart';
+import 'package:navia/services/vision/models/detected_object.dart';
+
+// ---------------------------------------------------------------------------
+// ScannerScreen - NAVIA AR con pipeline TFLite completo
+// ---------------------------------------------------------------------------
 
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
@@ -19,473 +26,403 @@ class ScannerScreen extends ConsumerStatefulWidget {
 }
 
 class _ScannerScreenState extends ConsumerState<ScannerScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animController;
-  late Animation<double> _scanAnimation;
-  bool _scanned = false;
-  bool _isCameraActive = false;
-  String? _result;
-  String? _scannedNodeId;
-  final MobileScannerController _scannerController = MobileScannerController();
+    with WidgetsBindingObserver {
+  // --- Pipeline de vision ---
+  CameraFeedHandler? _feedHandler;
+  TfliteObstacleDetector? _detector;
+  bool _isPipelineReady = false;
+  String? _pipelineError;
+  bool _isInitializing = false;
+
+  // --- Cooldown de voz ---
+  DateTime _lastVoiceAt = DateTime(2000);
+  static const Duration _kVoiceCooldown = Duration(seconds: 3);
+
+  // --- Demo ---
+  static const List<_DemoPlace> _kDemoPlaces = [
+    _DemoPlace('BIBLIOTECA', 'Biblioteca', Icons.menu_book_rounded),
+    _DemoPlace('EDIFICIO-H', 'Centro de Computo', Icons.computer_rounded),
+    _DemoPlace('CAFETERIA-NORTE', 'Cafeteria Norte', Icons.restaurant_rounded),
+    _DemoPlace('CAFETERIA-SUR', 'Cafeteria Sur', Icons.local_cafe_rounded),
+    _DemoPlace('EDIFICIO-D', 'Edificio D - Aulas', Icons.school_rounded),
+    _DemoPlace('EDIFICIO-A', 'Edificio A - Direccion', Icons.business_rounded),
+    _DemoPlace(
+        'EDIFICIO-R', 'Sistemas y Computacion', Icons.developer_board_rounded),
+    _DemoPlace('ENTRADA', 'Acceso Principal', Icons.door_front_door_rounded),
+  ];
+
+  CameraController? get _cameraController => _feedHandler?.controller;
+
+  // --- Lifecycle ---
 
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-    _scanAnimation =
-        Tween<double>(begin: 0.0, end: 1.0).animate(_animController);
+    WidgetsBinding.instance.addObserver(this);
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    _initPipeline();
   }
 
   @override
   void dispose() {
-    _animController.dispose();
-    _scannerController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    _disposePipeline();
     super.dispose();
   }
 
-  void _onDetect(BarcodeCapture capture) {
-    if (_scanned) return;
-
-    final List<Barcode> barcodes = capture.barcodes;
-    if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
-      final String code = barcodes.first.rawValue!;
-      String? nodeId;
-
-      // Intentar parsear como SINAIT:ID o JSON {"node_id": "ID"}
-      if (code.startsWith('SINAIT:')) {
-        nodeId = CampusLocations.parseQrCode(code);
-      } else {
-        try {
-          final data = jsonDecode(code);
-          nodeId = data['node_id'];
-        } catch (_) {}
-      }
-
-      if (nodeId != null) {
-        setState(() => _isCameraActive = false);
-        _simulateScan(nodeId);
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      _feedHandler?.stopStream();
+      ref.read(visionProvider.notifier).pause();
+    } else if (state == AppLifecycleState.resumed) {
+      if (_isPipelineReady) {
+        _feedHandler?.startStream();
+        ref.read(visionProvider.notifier).resume();
       }
     }
   }
 
-  void _simulateScan(String nodeId) {
-    final parsedId = CampusLocations.parseQrCode('SINAIT:$nodeId') ?? nodeId;
-    final navNotifier = ref.read(navigationProvider.notifier);
-    navNotifier.setPosition(parsedId);
-    final navState = ref.read(navigationProvider);
+  // --- Pipeline init ---
 
-    if (navState.currentNode != null) {
-      setState(() {
-        _scanned = true;
-        _scannedNodeId = parsedId;
-        _result =
-            '${navState.currentNode!.name}\n${navState.currentNode!.description}';
-      });
+  Future<void> _initPipeline() async {
+    if (_isInitializing || !mounted) return;
+    _isInitializing = true;
 
-      ref.read(feedProvider.notifier).loadForZone(parsedId);
-      ref.read(voiceProvider.notifier).speakAnnouncement(
-            'Posición confirmada: ${navState.currentNode!.name}.',
-          );
-    } else {
-      setState(() {
-        _scanned = true;
-        _result = 'Ubicación no reconocida: $parsedId';
-      });
+    // Limpiar pipeline anterior si existe (fix: multiples clicks en NAVIA AR)
+    await _disposePipeline();
+    if (!mounted) {
+      _isInitializing = false;
+      return;
     }
-  }
 
-  void _resetScan() {
+    ref.read(visionProvider.notifier).reset();
+
     setState(() {
-      _scanned = false;
-      _result = null;
-      _scannedNodeId = null;
+      _isPipelineReady = false;
+      _pipelineError = null;
     });
+
+    try {
+      // 1. Obtener camara trasera
+      final cameras = await availableCameras();
+      if (!mounted) {
+        _isInitializing = false;
+        return;
+      }
+      if (cameras.isEmpty) {
+        setState(() => _pipelineError = 'No se encontro camara disponible.');
+        _isInitializing = false;
+        return;
+      }
+      final backCamera = cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
+
+      // 2. Crear detector TFLite
+      final detector = TfliteObstacleDetector(
+        onResult: (objects) {
+          if (mounted) {
+            ref
+                .read(visionProvider.notifier)
+                .updateDetections(objects: objects);
+          }
+        },
+        onError: (msg) {
+          if (mounted) {
+            ref.read(visionProvider.notifier).activateVoiceOnlyFallback(msg);
+            ref.read(voiceProvider.notifier).speakAnnouncement(
+                  'Modo de asistencia activado. Usando guia de voz.',
+                );
+          }
+        },
+      );
+
+      // 3. Cargar modelo TFLite
+      final modelManager = ref.read(modelManagerServiceProvider);
+      final modelLoaded = await detector.initialize(modelManager);
+      if (!mounted) {
+        _isInitializing = false;
+        return;
+      }
+
+      if (!modelLoaded) {
+        setState(() =>
+            _pipelineError = 'Modelo no disponible. Modo Solo Voz activo.');
+      }
+
+      // 4. Crear CameraFeedHandler
+      final feedHandler = CameraFeedHandler(
+        camera: backCamera,
+        isDetectionActive: () =>
+            _isPipelineReady || ref.read(visionProvider).isActive,
+        mlService: modelLoaded ? detector : null,
+      );
+
+      await feedHandler.initialize();
+      if (!mounted) {
+        await feedHandler.dispose();
+        _isInitializing = false;
+        return;
+      }
+
+      // 5. Guardar referencias
+      _detector = detector;
+      _feedHandler = feedHandler;
+
+      // 6. Marcar pipeline listo
+      ref.read(visionProvider.notifier).markReady();
+      setState(() {
+        _isPipelineReady = true;
+        _pipelineError = null;
+      });
+
+      // 7. Arrancar stream
+      feedHandler.startStream();
+
+      // 8. Anuncio de voz
+      if (mounted) {
+        await Future.delayed(const Duration(milliseconds: 400));
+        if (mounted) {
+          ref.read(voiceProvider.notifier).speakAnnouncement(
+                'INICIANDO NAVIA AR. NAVIA AR funcionando correctamente. Elige destino.',
+              );
+        }
+      }
+
+      debugPrint('ScannerScreen: pipeline NAVIA AR iniciado correctamente.');
+    } catch (e) {
+      debugPrint('ScannerScreen: error pipeline - $e');
+      if (mounted) {
+        setState(() => _pipelineError = 'Error al iniciar la camara: $e');
+      }
+    } finally {
+      _isInitializing = false;
+    }
   }
+
+  Future<void> _disposePipeline() async {
+    _detector?.dispose();
+    _detector = null;
+    await _feedHandler?.dispose();
+    _feedHandler = null;
+    _isPipelineReady = false;
+  }
+
+  // --- Voz con cooldown ---
+
+  void _announceObstacle(List<DetectedObject> objects) {
+    if (objects.isEmpty) return;
+    final now = DateTime.now();
+    if (now.difference(_lastVoiceAt) < _kVoiceCooldown) return;
+    _lastVoiceAt = now;
+
+    final closest = objects.first;
+    final distanceStr = _distanceToMeters(closest.distance);
+    final labelName = closest.label.toUpperCase();
+    final article = _getArticle(labelName);
+
+    String announcement = '';
+
+    if (labelName == 'ESCALERAS' || labelName == 'ESCALONES') {
+      announcement = 'PRECAUCION, EN $distanceStr HAY ESCALONES o ESCALERAS';
+    } else if (labelName == 'BARDAS') {
+      announcement = 'CUIDADO, EN $distanceStr HAY UNAS BARDAS';
+    } else if (closest.distance == 'inmediato') {
+      announcement = 'CUIDADO A $distanceStr ESTA $article $labelName';
+    } else if (closest.distance == 'cercano') {
+      announcement = 'PRECAUCION, EN $distanceStr HAY $article $labelName';
+    } else {
+      announcement = 'EN $distanceStr ESTA $article $labelName FRENTE A TI';
+    }
+
+    ref.read(voiceProvider.notifier).speakAnnouncement(announcement);
+  }
+
+  String _getArticle(String label) {
+    if (label == 'PARED' || label.endsWith('A')) return 'UNA';
+    if (label == 'BARDAS') return 'UNAS';
+    return 'UN';
+  }
+
+  String _distanceToMeters(String distance) {
+    switch (distance) {
+      case 'inmediato':
+        return '1 METRO';
+      case 'cercano':
+        return '2 METROS';
+      case 'medio':
+        return '3 METROS';
+      case 'lejano':
+        return '5 METROS';
+      default:
+        return 'UNOS METROS';
+    }
+  }
+
+  // --- Demo BottomSheet ---
+
+  void _showDemoSheet() {
+    final cs = Theme.of(context).colorScheme;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _DemoBottomSheet(
+        places: _kDemoPlaces,
+        onSelected: (place) {
+          Navigator.of(context).pop();
+          final recognizer = ref.read(markerRecognizerProvider);
+          recognizer.simulateMarkerDetection(place.markerId, ref);
+        },
+        colorScheme: cs,
+      ),
+    );
+  }
+
+  // --- Build ---
 
   @override
   Widget build(BuildContext context) {
-    final navState = ref.watch(navigationProvider);
+    final visionState = ref.watch(visionProvider);
+    final detectedObjects = visionState.detectedObjects;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
-    ref.listen<NavigationState>(navigationProvider, (previous, next) {
-      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.errorMessage!),
-            backgroundColor: AppTheme.error,
-          ),
-        );
-      }
+    // Disparar voz post-frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _announceObstacle(detectedObjects);
     });
+
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Colors.black,
       bottomNavigationBar: const BottomNav(currentIndex: 2),
-      appBar: AppBar(
-        title: const Text('POSICIONAMIENTO'),
-        backgroundColor: Colors.transparent,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          child: Column(
-            children: [
-              Text(
-                'Confirma tu posición escaneando el código QR más cercano',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 1. Camera Preview
+          _buildCameraPreview(),
+
+          // 2. Bounding Boxes
+          if (_isPipelineReady && detectedObjects.isNotEmpty)
+            CustomPaint(
+              painter: _BoundingBoxPainter(
+                objects: detectedObjects,
+                frameWidth: _cameraController?.value.previewSize?.height ?? 480,
+                frameHeight: _cameraController?.value.previewSize?.width ?? 640,
               ),
-              const SizedBox(height: 40),
-              _ScanViewport(
-                animation: _scanAnimation,
-                scanned: _scanned,
-                isCameraActive: _isCameraActive,
-                controller: _scannerController,
-                onDetect: _onDetect,
-                onTap: () => setState(() => _isCameraActive = !_isCameraActive),
-              ),
-              const SizedBox(height: 32),
-              // El botón _PremiumScanButton ha sido eliminado para evitar duplicidad
-              const SizedBox(height: 16),
-              if (_scanned && _result != null) ...[
-                _ResultCard(
-                  result: _result!,
-                  nodeId: _scannedNodeId,
-                  onNavigate: _scannedNodeId != null
-                      ? () => _showNavigateDialog(context)
-                      : null,
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _resetScan,
-                    icon: const Icon(Icons.refresh_rounded, size: 20),
-                    label: const Text('REINTENTAR ESCANEO'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.accent,
-                      side: BorderSide(color: AppTheme.accent.withValues(alpha: 0.5)),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                    ),
-                  ),
-                ),
-              ] else
-                TextButton.icon(
-                  onPressed: () => _showDemoSelector(context),
-                  icon: const Icon(Icons.touch_app_rounded,
-                      color: AppTheme.accent),
-                  label: const Text('¿No puedes escanear? Selecciona dónde estás',
-                      style: TextStyle(
-                          color: AppTheme.accent, fontWeight: FontWeight.w800)),
-                ),
-              if (navState.currentNode != null && !_scanned) ...[
-                const SizedBox(height: 40),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surface,
-                    borderRadius: BorderRadius.circular(24),
-                    border:
-                        Border.all(color: AppTheme.success.withValues(alpha: 0.1)),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black12, blurRadius: 10)
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppTheme.success.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.location_on_rounded,
-                            color: AppTheme.success, size: 24),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('UBICACIÓN ACTUAL',
-                                style: TextStyle(
-                                    color: AppTheme.success,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 1.0)),
-                            const SizedBox(height: 4),
-                            Text(navState.currentNode!.name,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _useGpsPosition() async {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Buscando señal GPS...')),
-    );
-
-    try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Activa el GPS en tu dispositivo.'),
-            backgroundColor: AppTheme.error,
-          ),
-        );
-        return;
-      }
-
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.deniedForever ||
-          permission == LocationPermission.denied) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Permiso de GPS denegado.'),
-            backgroundColor: AppTheme.error,
-          ),
-        );
-        return;
-      }
-
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      if (!mounted) return;
-      ref.read(navigationProvider.notifier).setPositionByCoordinates(pos.latitude, pos.longitude);
-
-      final navState = ref.read(navigationProvider);
-      if (navState.currentNode != null) {
-        messenger.showSnackBar(
-          SnackBar(content: Text('Ubicación: ${navState.currentNode!.name}')),
-        );
-      } else {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('No se encontró un punto de navegación cercano.'),
-            backgroundColor: AppTheme.error,
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('No se pudo obtener el GPS. Verifica permisos.'),
-          backgroundColor: AppTheme.error,
-        ),
-      );
-    }
-  }
-
-  void _showDemoSelector(BuildContext context) {
-    final navNotifier = ref.read(navigationProvider.notifier);
-    final allNodes = navNotifier.allDestinations;
-
-    // Agrupar nodos por venue (insensible a mayúsculas/minúsculas)
-    final tecNodes = allNodes.where((n) {
-      final id = n.id.toLowerCase();
-      return !id.contains('sendera') && !id.contains('zentralia');
-    }).toList();
-    
-    final senderaNodes = allNodes.where((n) {
-      final id = n.id.toLowerCase();
-      return id.contains('sendera');
-    }).toList();
-    
-    final zentraliaNodes = allNodes.where((n) {
-      final id = n.id.toLowerCase();
-      return id.contains('zentralia');
-    }).toList();
-
-    // Ordenar alfabéticamente
-    tecNodes.sort((a, b) => a.name.compareTo(b.name));
-    senderaNodes.sort((a, b) => a.name.compareTo(b.name));
-    zentraliaNodes.sort((a, b) => a.name.compareTo(b.name));
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.background,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.75,
-        maxChildSize: 0.95,
-        minChildSize: 0.5,
-        expand: false,
-        builder: (_, scrollController) => Container(
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-          child: Column(
-            children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10))),
-              const SizedBox(height: 24),
-              const Text('SELECCIONA TU UBICACIÓN ACTUAL', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 20),
-              Expanded(
-                child: ListView(
-                  controller: scrollController,
-                  children: [
-                    _buildVenueSection('SISTEMA GPS', [
-                      (null, '📍 Usar mi ubicación real (GPS)', Icons.my_location_rounded, Colors.blueAccent)
-                    ], isGps: true),
-                    if (tecNodes.isNotEmpty)
-                      _buildVenueSection('TECNM CAMPUS COLIMA', tecNodes.map((n) => (n.id, n.name, _getIconForType(n.type))).toList(), color: const Color(0xFF00E5FF)),
-                    if (senderaNodes.isNotEmpty)
-                      _buildVenueSection('PLAZA SENDERA', senderaNodes.map((n) => (n.id, n.name, _getIconForType(n.type))).toList(), color: const Color(0xFFFF9800)),
-                    if (zentraliaNodes.isNotEmpty)
-                      _buildVenueSection('PLAZA ZENTRALIA', zentraliaNodes.map((n) => (n.id, n.name, _getIconForType(n.type))).toList(), color: const Color(0xFFE040FB)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  IconData _getIconForType(NodeType type) {
-    switch (type) {
-      case NodeType.building: return Icons.business_rounded;
-      case NodeType.entrance: return Icons.door_front_door_rounded;
-      case NodeType.area: return Icons.park_rounded;
-      case NodeType.corridor: return Icons.directions_walk_rounded;
-      default: return Icons.location_on_rounded;
-    }
-  }
-
-  Widget _buildVenueSection(String title, List<dynamic> locations, {Color color = Colors.white24, bool isGps = false, bool isDestination = false}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-          child: Text(title, style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-        ),
-        ...locations.map((loc) {
-          final id = loc.$1 as String?;
-          final name = loc.$2 as String;
-          final icon = loc.$3 as IconData;
-          final iconColor = isGps ? (loc.$4 as Color) : color;
-
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: ListTile(
-              onTap: () {
-                Navigator.pop(context);
-                if (isGps) {
-                  _useGpsPosition();
-                } else if (isDestination) {
-                  final navNotifier = ref.read(navigationProvider.notifier);
-                  navNotifier.navigateTo(name);
-                  final navState = ref.read(navigationProvider);
-                  if (navState.activeRoute != null) {
-                    ref.read(voiceProvider.notifier).speakAnnouncement(navState.activeRoute!.voiceSummary);
-                  }
-                  Navigator.pushReplacementNamed(context, '/home');
-                } else {
-                  _simulateScan(id!);
-                }
-              },
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                child: Icon(icon, color: iconColor, size: 22),
-              ),
-              title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
-              subtitle: id != null ? Text('ID: ${id.toUpperCase()}', style: const TextStyle(color: Colors.white24, fontSize: 9, fontWeight: FontWeight.w800)) : null,
-              tileColor: AppTheme.surface,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
+              child: const SizedBox.expand(),
             ),
-          );
-        }),
-        const SizedBox(height: 16),
-      ],
+
+          // 3. HUD superior
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _HudBar(visionState: visionState, colorScheme: cs),
+          ),
+
+          // 4. Barra de obstaculo cercano
+          if (detectedObjects.isNotEmpty)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _BottomObstacleBar(
+                closest: detectedObjects.first,
+                accentColor: cs.primary,
+              ),
+            ),
+
+          // 5. Nav status
+          if (detectedObjects.isEmpty)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _NavStatusBar(colorScheme: cs),
+            ),
+
+          // 6. Boton demo
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            right: 8,
+            child: GestureDetector(
+              onTap: _showDemoSheet,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: 48,
+                height: 48,
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.help_outline_rounded,
+                  color: Colors.white.withValues(alpha: 0.5),
+                  size: 26,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  void _showNavigateDialog(BuildContext context) {
-    final navNotifier = ref.read(navigationProvider.notifier);
-    final allNodes = navNotifier.allDestinations.where((d) => d.id != _scannedNodeId).toList();
-
-    // Agrupar nodos por venue (insensible a mayúsculas/minúsculas)
-    final tecNodes = allNodes.where((n) {
-      final id = n.id.toLowerCase();
-      return !id.contains('sendera') && !id.contains('zentralia');
-    }).toList();
-    
-    final senderaNodes = allNodes.where((n) {
-      final id = n.id.toLowerCase();
-      return id.contains('sendera');
-    }).toList();
-    
-    final zentraliaNodes = allNodes.where((n) {
-      final id = n.id.toLowerCase();
-      return id.contains('zentralia');
-    }).toList();
-
-    // Ordenar alfabéticamente
-    tecNodes.sort((a, b) => a.name.compareTo(b.name));
-    senderaNodes.sort((a, b) => a.name.compareTo(b.name));
-    zentraliaNodes.sort((a, b) => a.name.compareTo(b.name));
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.background,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.75,
-        maxChildSize: 0.95,
-        minChildSize: 0.5,
-        expand: false,
-        builder: (_, scrollController) => Container(
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+  Widget _buildCameraPreview() {
+    if (_pipelineError != null && !_isPipelineReady) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10))),
-              const SizedBox(height: 24),
-              const Text('SELECCIONA DESTINO', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+              const Icon(Icons.videocam_off_rounded,
+                  color: Colors.white54, size: 64),
+              const SizedBox(height: 16),
+              Text(_pipelineError!,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  textAlign: TextAlign.center),
               const SizedBox(height: 20),
-              Expanded(
-                child: ListView(
-                  controller: scrollController,
-                  children: [
-                    if (tecNodes.isNotEmpty)
-                      _buildVenueSection('TECNM CAMPUS COLIMA', tecNodes.map((n) => (n.id, n.name, _getIconForType(n.type))).toList(), color: const Color(0xFF00E5FF), isDestination: true),
-                    if (senderaNodes.isNotEmpty)
-                      _buildVenueSection('PLAZA SENDERA', senderaNodes.map((n) => (n.id, n.name, _getIconForType(n.type))).toList(), color: const Color(0xFFFF9800), isDestination: true),
-                    if (zentraliaNodes.isNotEmpty)
-                      _buildVenueSection('PLAZA ZENTRALIA', zentraliaNodes.map((n) => (n.id, n.name, _getIconForType(n.type))).toList(), color: const Color(0xFFE040FB), isDestination: true),
-                  ],
-                ),
+              ElevatedButton.icon(
+                onPressed: _initPipeline,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Reintentar'),
               ),
             ],
+          ),
+        ),
+      );
+    }
+
+    final controller = _cameraController;
+    if (!_isPipelineReady ||
+        controller == null ||
+        !controller.value.isInitialized) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: Colors.white54),
+            SizedBox(height: 16),
+            Text('Iniciando NAVIA AR...',
+                style: TextStyle(color: Colors.white54, fontSize: 16)),
+          ],
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (_, constraints) => SizedBox(
+        width: constraints.maxWidth,
+        height: constraints.maxHeight,
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: controller.value.previewSize?.height ?? constraints.maxWidth,
+            height:
+                controller.value.previewSize?.width ?? constraints.maxHeight,
+            child: CameraPreview(controller),
           ),
         ),
       ),
@@ -493,235 +430,491 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   }
 }
 
-class _ScanViewport extends StatelessWidget {
-  final Animation<double> animation;
-  final bool scanned;
-  final bool isCameraActive;
-  final MobileScannerController controller;
-  final Function(BarcodeCapture) onDetect;
-  final VoidCallback onTap;
+// ---------------------------------------------------------------------------
+// BoundingBoxPainter
+// ---------------------------------------------------------------------------
 
-  const _ScanViewport({
-    required this.animation,
-    required this.scanned,
-    required this.isCameraActive,
-    required this.controller,
-    required this.onDetect,
-    required this.onTap,
+class _BoundingBoxPainter extends CustomPainter {
+  final List<DetectedObject> objects;
+  final double frameWidth;
+  final double frameHeight;
+
+  _BoundingBoxPainter({
+    required this.objects,
+    required this.frameWidth,
+    required this.frameHeight,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: scanned ? null : onTap,
-      child: Container(
-        width: 320,
-        height: 320,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: scanned ? AppTheme.success.withValues(alpha: 0.05) : const Color(0xFF0D1B2A).withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(40),
-          border: Border.all(
-            color: scanned ? AppTheme.success : const Color(0xFF00E5FF).withValues(alpha: 0.3),
-            width: 2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: (scanned ? AppTheme.success : const Color(0xFF00E5FF)).withValues(alpha: 0.15),
-              blurRadius: 30,
-              spreadRadius: 2,
-            )
-          ],
+  void paint(Canvas canvas, Size size) {
+    for (final obj in objects) {
+      final color = _colorForDistance(obj.distance);
+
+      final scaleX = size.width / frameWidth;
+      final scaleY = size.height / frameHeight;
+
+      final scaledRect = Rect.fromLTRB(
+        obj.boundingBox.left * scaleX,
+        obj.boundingBox.top * scaleY,
+        obj.boundingBox.right * scaleX,
+        obj.boundingBox.bottom * scaleY,
+      );
+
+      // Fill
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(scaledRect, const Radius.circular(8)),
+        Paint()
+          ..color = color.withValues(alpha: 0.15)
+          ..style = PaintingStyle.fill,
+      );
+
+      // Stroke
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(scaledRect, const Radius.circular(8)),
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5,
+      );
+
+      // Label
+      final pct = (obj.confidence * 100).round();
+      final textSpan = TextSpan(
+        text: '${obj.label}  ${obj.distance}  $pct%',
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
         ),
-        child: scanned
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                        color: AppTheme.success.withValues(alpha: 0.1),
-                        shape: BoxShape.circle),
-                    child: const Icon(Icons.check_circle_rounded,
-                        color: AppTheme.success, size: 64),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text('CONFIRMADO',
-                      style: TextStyle(
-                          color: AppTheme.success,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 2.0)),
-                ],
-              )
-            : isCameraActive
-                ? MobileScanner(
-                    controller: controller,
-                    onDetect: onDetect,
-                  )
-                : Stack(
-                    children: [
-                      // Center circle with QR icon
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.2), width: 1),
-                                color: const Color(0xFF00E5FF).withValues(alpha: 0.05),
-                              ),
-                              child: const Icon(Icons.qr_code_2_rounded, size: 48, color: Color(0xFF00E5FF)),
-                            ),
-                            const SizedBox(height: 32),
-                            const Text(
-                              'Haz click aquí',
-                              style: TextStyle(
-                                color: Color(0xFF00E5FF),
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'PARA ESCANEAR EL QR DE LAS AULAS',
-                              style: TextStyle(
-                                color: const Color(0xFF00E5FF).withValues(alpha: 0.4),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Corner markers
-                      const _ScannerCorners(),
-                    ],
-                  ),
-      ),
-    );
-  }
-}
+      );
+      final tp = TextPainter(text: textSpan, textDirection: TextDirection.ltr)
+        ..layout(maxWidth: scaledRect.width.clamp(50, size.width));
 
-class _ScannerCorners extends StatelessWidget {
-  const _ScannerCorners();
+      final labelBg = Rect.fromLTWH(
+        scaledRect.left,
+        scaledRect.top - 20,
+        tp.width + 8,
+        20,
+      );
+      canvas.drawRect(labelBg, Paint()..color = const Color(0xCC000000));
+      tp.paint(canvas, Offset(scaledRect.left + 4, scaledRect.top - 18));
+    }
+  }
+
+  Color _colorForDistance(String distance) {
+    switch (distance) {
+      case 'inmediato':
+        return const Color(0xFFFF1744);
+      case 'cercano':
+        return const Color(0xFFFF6D00);
+      case 'medio':
+        return const Color(0xFFFFD600);
+      case 'lejano':
+        return const Color(0xFF00E676);
+      default:
+        return const Color(0xFF00E5FF);
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
-    return const Stack(
-      children: [
-        Positioned(top: 30, left: 30, child: _Corner(quarterTurns: 0)),
-        Positioned(top: 30, right: 30, child: _Corner(quarterTurns: 1)),
-        Positioned(bottom: 30, left: 30, child: _Corner(quarterTurns: 3)),
-        Positioned(bottom: 30, right: 30, child: _Corner(quarterTurns: 2)),
-      ],
-    );
-  }
+  bool shouldRepaint(_BoundingBoxPainter old) => objects != old.objects;
 }
 
-class _Corner extends StatelessWidget {
-  final int quarterTurns;
-  const _Corner({required this.quarterTurns});
-  @override
-  Widget build(BuildContext context) {
-    return RotatedBox(
-      quarterTurns: quarterTurns,
-      child: Container(
-        width: 35,
-        height: 35,
-        decoration: const BoxDecoration(
-          border: Border(
-            top: BorderSide(color: Color(0xFF00E5FF), width: 3),
-            left: BorderSide(color: Color(0xFF00E5FF), width: 3),
-          ),
-        ),
-      ),
-    );
-  }
-}
+// ---------------------------------------------------------------------------
+// HUD superior
+// ---------------------------------------------------------------------------
 
-class _ResultCard extends StatelessWidget {
-  final String result;
-  final String? nodeId;
-  final VoidCallback? onNavigate;
-  const _ResultCard({required this.result, this.nodeId, this.onNavigate});
+class _HudBar extends StatelessWidget {
+  final VisionState visionState;
+  final ColorScheme colorScheme;
+  const _HudBar({required this.visionState, required this.colorScheme});
 
   @override
   Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+
+    Color statusColor;
+    String statusLabel;
+    IconData statusIcon;
+
+    switch (visionState.status) {
+      case VisionStatus.processing:
+        statusColor = const Color(0xFF00E5FF);
+        statusLabel = 'DETECTANDO';
+        statusIcon = Icons.remove_red_eye_rounded;
+      case VisionStatus.ready:
+        statusColor = Colors.greenAccent;
+        statusLabel = 'LISTO';
+        statusIcon = Icons.check_circle_outline_rounded;
+      case VisionStatus.paused:
+        statusColor = Colors.amber;
+        statusLabel = 'PAUSADO';
+        statusIcon = Icons.pause_circle_outline_rounded;
+      case VisionStatus.error:
+        statusColor = colorScheme.error;
+        statusLabel = 'ERROR';
+        statusIcon = Icons.error_outline_rounded;
+      case VisionStatus.voiceOnlyFallback:
+        statusColor = Colors.orange;
+        statusLabel = 'SOLO VOZ';
+        statusIcon = Icons.volume_up_rounded;
+      case VisionStatus.uninitialized:
+        statusColor = Colors.white54;
+        statusLabel = 'INICIANDO';
+        statusIcon = Icons.hourglass_empty_rounded;
+    }
+
+    final count = visionState.detectedObjects.length;
+
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(24),
-        border:
-            Border.all(color: AppTheme.success.withValues(alpha: 0.3), width: 1.5),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, 5))
+      padding: EdgeInsets.fromLTRB(16, topPad + 8, 56, 12),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xCC000000), Colors.transparent],
+        ),
+      ),
+      child: Row(
+        children: [
+          const Text('NAVIA  AR',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2)),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: statusColor.withValues(alpha: 0.5)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(statusIcon, color: statusColor, size: 14),
+                const SizedBox(width: 4),
+                Text(statusLabel,
+                    style: TextStyle(
+                        color: statusColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2)),
+                if (count > 0) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                        color: statusColor,
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Text('$count',
+                        style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900)),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Barra inferior de obstaculo
+// ---------------------------------------------------------------------------
+
+class _BottomObstacleBar extends StatelessWidget {
+  final DetectedObject closest;
+  final Color accentColor;
+  const _BottomObstacleBar({required this.closest, required this.accentColor});
+
+  @override
+  Widget build(BuildContext context) {
+    final isUrgent =
+        closest.distance == 'inmediato' || closest.distance == 'cercano';
+    final barColor = isUrgent ? const Color(0xFFFF1744) : accentColor;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.75),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: barColor.withValues(alpha: 0.5), width: 1.5),
+      ),
+      child: Row(
+        children: [
+          Icon(
+              isUrgent
+                  ? Icons.warning_amber_rounded
+                  : Icons.remove_red_eye_rounded,
+              color: barColor,
+              size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(closest.label.toUpperCase(),
+                    style: TextStyle(
+                        color: barColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5)),
+                const SizedBox(height: 2),
+                Text(_distLabel(closest.distance),
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 13)),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+                color: barColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12)),
+            child: Text('${(closest.confidence * 100).toStringAsFixed(0)}%',
+                style: TextStyle(
+                    color: barColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _distLabel(String d) {
+    switch (d) {
+      case 'inmediato':
+        return 'MUY CERCA - Precaucion';
+      case 'cercano':
+        return 'A pocos metros';
+      case 'medio':
+        return 'Distancia media';
+      case 'lejano':
+        return 'A lo lejos';
+      default:
+        return 'Detectado';
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Barra inferior de navegacion
+// ---------------------------------------------------------------------------
+
+class _NavStatusBar extends ConsumerWidget {
+  final ColorScheme colorScheme;
+  const _NavStatusBar({required this.colorScheme});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final navState = ref.watch(navigationProvider);
+    final cs = colorScheme;
+
+    if (navState.currentNode == null && navState.activeRoute == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.75),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.location_on_rounded,
-                  color: AppTheme.success, size: 20),
-              const SizedBox(width: 8),
-              Text('ESTÁS EN:',
+          if (navState.currentNode != null) ...[
+            Row(children: [
+              Icon(Icons.location_on_rounded, color: cs.primary, size: 16),
+              const SizedBox(width: 6),
+              Text('UBICACION ACTUAL',
                   style: TextStyle(
-                      color: AppTheme.success.withValues(alpha: 0.8),
-                      fontSize: 10,
+                      color: cs.primary,
+                      fontSize: 9,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1.5)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            result,
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                height: 1.4),
-          ),
-          if (onNavigate != null) ...[
-            const SizedBox(height: 24),
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
-                    colors: [Color(0xFF00E5FF), Color(0xFF0091EA)]),
-                boxShadow: [
-                  BoxShadow(
-                      color: AppTheme.accent.withValues(alpha: 0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4))
-                ],
-              ),
-              child: ElevatedButton.icon(
-                onPressed: onNavigate,
-                icon: const Icon(Icons.directions_walk_rounded,
-                    size: 22, color: Color(0xFF0D1B2A)),
-                label: const Text('SELECCIONAR DESTINO',
-                    style: TextStyle(
-                        color: Color(0xFF0D1B2A),
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  minimumSize: const Size(double.infinity, 56),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-            ),
+            ]),
+            const SizedBox(height: 4),
+            Text(navState.currentNode!.name,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800)),
+          ],
+          if (navState.activeRoute != null &&
+              navState.currentInstruction != null) ...[
+            const SizedBox(height: 8),
+            const Divider(color: Colors.white12, height: 1),
+            const SizedBox(height: 8),
+            Row(children: [
+              const Icon(Icons.directions_walk_rounded,
+                  color: Colors.white70, size: 16),
+              const SizedBox(width: 6),
+              Expanded(
+                  child: Text(navState.currentInstruction!,
+                      style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600))),
+            ]),
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Demo BottomSheet
+// ---------------------------------------------------------------------------
+
+class _DemoPlace {
+  final String markerId;
+  final String displayName;
+  final IconData icon;
+  const _DemoPlace(this.markerId, this.displayName, this.icon);
+}
+
+class _DemoBottomSheet extends StatelessWidget {
+  final List<_DemoPlace> places;
+  final void Function(_DemoPlace) onSelected;
+  final ColorScheme colorScheme;
+  const _DemoBottomSheet(
+      {required this.places,
+      required this.onSelected,
+      required this.colorScheme});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = colorScheme;
+    return DraggableScrollableSheet(
+      initialChildSize: 0.65,
+      maxChildSize: 0.92,
+      minChildSize: 0.4,
+      expand: false,
+      builder: (_, scrollController) => Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.92),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Column(children: [
+          const SizedBox(height: 12),
+          Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(10))),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                    color: cs.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10)),
+                child: Icon(Icons.place_rounded, color: cs.primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('MODO DEMO',
+                    style: TextStyle(
+                        color: cs.primary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5)),
+                const Text('Simular llegada a...',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800)),
+              ]),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          const Divider(color: Colors.white10, height: 1),
+          Expanded(
+            child: ListView.builder(
+              controller: scrollController,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              itemCount: places.length,
+              itemBuilder: (_, i) {
+                final place = places[i];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => onSelected(place),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.08)),
+                        ),
+                        child: Row(children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                                color: cs.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12)),
+                            child:
+                                Icon(place.icon, color: cs.primary, size: 22),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(place.displayName,
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 2),
+                                  Text('ID: ${place.markerId}',
+                                      style: TextStyle(
+                                          color: Colors.white
+                                              .withValues(alpha: 0.3),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0.8)),
+                                ]),
+                          ),
+                          Icon(Icons.chevron_right_rounded,
+                              color: Colors.white.withValues(alpha: 0.3),
+                              size: 22),
+                        ]),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ]),
       ),
     );
   }

@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sinait/data/models/announcement.dart';
-import 'package:sinait/services/feed/feed_service.dart';
-import 'package:sinait/data/providers/navigation_provider.dart';
+import 'package:navia/data/models/announcement.dart';
+import 'package:navia/services/feed/feed_service.dart';
+import 'package:navia/data/providers/navigation_provider.dart';
 
 // ─── Estado del Feed ──────────────────────────────────────────
 
@@ -70,9 +70,8 @@ class FeedNotifier extends StateNotifier<FeedState> {
   /// Descarta un aviso del feed local.
   void dismiss(String announcementId) {
     state = state.copyWith(
-      announcements: state.announcements
-          .where((a) => a.id != announcementId)
-          .toList(),
+      announcements:
+          state.announcements.where((a) => a.id != announcementId).toList(),
     );
   }
 }

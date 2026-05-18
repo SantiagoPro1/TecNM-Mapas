@@ -4,7 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    hostedDomain: 'colima.tecnm.mx', 
+    hostedDomain: 'colima.tecnm.mx',
   );
 
   Future<User?> signInWithGoogle() async {
@@ -19,13 +19,15 @@ class AuthService {
       }
       // ----------------------------
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final UserCredential userCredential =
+          await _auth.signInWithCredential(credential);
       return userCredential.user;
     } catch (e) {
       rethrow; // Lanzamos el error para que la pantalla lo atrape y lo muestre

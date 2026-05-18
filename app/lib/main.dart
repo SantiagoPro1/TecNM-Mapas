@@ -6,31 +6,40 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // Configuración y Tema
-import 'package:sinait/core/constants/app_routes.dart';
-import 'package:sinait/core/theme/app_theme.dart';
-import 'package:sinait/firebase_options.dart';
+import 'package:navia/core/constants/app_routes.dart';
+import 'package:navia/core/theme/app_theme.dart';
+import 'package:navia/firebase_options.dart';
 
-// Cache offline
-import 'package:sinait/data/cache/map_cache_service.dart';
+// Cache offline y modo sin conexión
+import 'package:navia/data/cache/map_cache_service.dart';
+import 'package:navia/services/offline/offline_manager.dart';
+
+// Precarga de SVGs del mapa
+import 'package:navia/utils/svg_marker_helper.dart';
 
 // Providers
-import 'package:sinait/data/providers/navigation_provider.dart';
+import 'package:navia/data/providers/navigation_provider.dart';
 
 // Pantallas
-import 'package:sinait/presentation/screens/onboarding/onboarding_screen.dart';
-import 'package:sinait/presentation/screens/navigation/home_screen.dart';
-import 'package:sinait/presentation/screens/navigation/scanner_screen.dart';
-import 'package:sinait/presentation/screens/navigation/history_screen.dart';
-import 'package:sinait/presentation/screens/map/map_screen.dart';
-import 'package:sinait/presentation/screens/credential/credential_screen.dart';
-import 'package:sinait/presentation/screens/settings/settings_screen.dart';
-import 'package:sinait/presentation/screens/settings/profile_screen.dart';
+import 'package:navia/presentation/screens/splash/splash_screen.dart';
+import 'package:navia/presentation/screens/onboarding/onboarding_screen.dart';
+import 'package:navia/presentation/screens/navigation/home_screen.dart';
+import 'package:navia/presentation/screens/navigation/scanner_screen.dart';
+import 'package:navia/presentation/screens/navigation/history_screen.dart';
+import 'package:navia/presentation/screens/map/map_screen.dart';
+import 'package:navia/presentation/screens/credential/credential_screen.dart';
+import 'package:navia/presentation/screens/settings/settings_screen.dart';
+import 'package:navia/presentation/screens/settings/profile_screen.dart';
 
 void main() async {
   // 1. Asegura que los bindings de Flutter estén listos
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // 2. Carga robusta del archivo .env (no bloquea el arranque si no existe)
+
+  // 2. Mostrar el splash screen Flutter inmediatamente para una transición
+  //    suave desde el splash nativo Android
+  runApp(const _SplashWrapper());
+
+  // 3. Inicializar todos los servicios en background
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
@@ -43,37 +52,57 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 2.5. Inicializar Hive y sembrar la caché offline de mapas
+  // 3.1. Inicializar Hive y sembrar la caché offline de mapas
   await MapCacheService.initialize();
-  
-  // 3. Bloquear la orientación del teléfono en vertical (Portrait)
+
+  // 3.2. Inicializar sistema offline (conectividad + posición guardada)
+  await OfflineManager.initialize();
+
+  // 3.3. Precarga de iconos SVG del mapa para evitar parpadeos
+  await PrecacheSvg.precacheAll();
+
+  // 3.4. Bloquear la orientación del teléfono en vertical (Portrait)
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   // 4. Revisar si debemos mostrar el Onboarding (Términos y Condiciones)
   final prefs = await SharedPreferences.getInstance();
   final bool showOnboarding = prefs.getBool('showOnboarding') ?? true;
-  
-  // 5. Lanzamos la App envuelta en ProviderScope (Riverpod)
+
+  // 5. Una vez listos todos los servicios, reemplazar el splash con la app real
   runApp(
     ProviderScope(
-      child: SinaitApp(showOnboarding: showOnboarding),
+      child: NaviaApp(showOnboarding: showOnboarding),
     ),
   );
 }
 
-class SinaitApp extends ConsumerStatefulWidget {
+/// Widget temporal que muestra el [SplashScreen] mientras [main] inicializa
+/// los servicios. Se reemplaza con [NaviaApp] una vez que todo está listo.
+class _SplashWrapper extends StatelessWidget {
+  const _SplashWrapper();
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: SplashScreen(),
+    );
+  }
+}
+
+class NaviaApp extends ConsumerStatefulWidget {
   final bool showOnboarding;
 
-  const SinaitApp({
-    super.key, 
+  const NaviaApp({
+    super.key,
     required this.showOnboarding,
   });
 
   @override
-  ConsumerState<SinaitApp> createState() => _SinaitAppState();
+  ConsumerState<NaviaApp> createState() => _NaviaAppState();
 }
 
-class _SinaitAppState extends ConsumerState<SinaitApp> {
+class _NaviaAppState extends ConsumerState<NaviaApp> {
   @override
   void initState() {
     super.initState();
@@ -85,14 +114,16 @@ class _SinaitAppState extends ConsumerState<SinaitApp> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = ref.watch(themeProvider);
     return MaterialApp(
-      title: 'SINAIT',
+      title: 'NAVIA',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
-      
+      theme: theme,
+
       // Lógica de inicio: Si es nuevo va a onboarding, si no, al home
-      initialRoute: widget.showOnboarding ? AppRoutes.onboarding : AppRoutes.home,
-      
+      initialRoute:
+          widget.showOnboarding ? AppRoutes.onboarding : AppRoutes.home,
+
       // Mapa de rutas nativo (Navigator 1.0)
       routes: {
         AppRoutes.onboarding: (context) => const OnboardingScreen(),

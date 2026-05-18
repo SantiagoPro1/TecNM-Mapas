@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:sinait/data/cache/map_cache_service.dart';
-import 'package:sinait/data/models/place_node.dart';
+import 'package:navia/data/cache/map_cache_service.dart';
+import 'package:navia/data/models/place_node.dart';
 
 class PlaceRepository {
   final FirebaseFirestore _firestore;
@@ -29,7 +29,8 @@ class PlaceRepository {
       if (cachedData != null) {
         final places = _parseNodesFromMapData(cachedData);
         if (places.isNotEmpty) {
-          debugPrint('PlaceRepository: ${places.length} POIs cargados desde caché Hive ✓');
+          debugPrint(
+              'PlaceRepository: ${places.length} POIs cargados desde caché Hive ✓');
           return places;
         }
       }
@@ -48,22 +49,21 @@ class PlaceRepository {
     return nodes
         .where((n) => (n as Map<String, dynamic>)['type'] != 'corridor')
         .map((n) {
-          final node = n as Map<String, dynamic>;
-          return PlaceNode(
-            id: (node['id'] as String?) ?? '',
-            name: (node['name'] as String?) ?? '',
-            latitude: (node['lat'] as num?)?.toDouble() ?? 0.0,
-            longitude: (node['lng'] as num?)?.toDouble() ?? 0.0,
-            type: _resolveType(
-              (node['id'] as String?) ?? '',
-              (node['type'] as String?) ?? '',
-            ),
-            accessibilityLevel:
-                (node['accessible'] as bool? ?? true) ? 'alto' : 'medio',
-            letter: node['letter'] as String?,
-          );
-        })
-        .toList();
+      final node = n as Map<String, dynamic>;
+      return PlaceNode(
+        id: (node['id'] as String?) ?? '',
+        name: (node['name'] as String?) ?? '',
+        latitude: (node['lat'] as num?)?.toDouble() ?? 0.0,
+        longitude: (node['lng'] as num?)?.toDouble() ?? 0.0,
+        type: _resolveType(
+          (node['id'] as String?) ?? '',
+          (node['type'] as String?) ?? '',
+        ),
+        accessibilityLevel:
+            (node['accessible'] as bool? ?? true) ? 'alto' : 'medio',
+        letter: node['letter'] as String?,
+      );
+    }).toList();
   }
 
   /// Lee los JSONs directamente de los assets (semilla original).
@@ -84,19 +84,19 @@ class PlaceRepository {
         final places = nodes
             .where((n) => (n as Map<String, dynamic>)['type'] != 'corridor')
             .map((n) {
-              final node = n as Map<String, dynamic>;
-              return PlaceNode(
-                  id: (node['id'] as String?) ?? '',
-                  name: (node['name'] as String?) ?? '',
-                  latitude: (node['lat'] as num?)?.toDouble() ?? 0.0,
-                  longitude: (node['lng'] as num?)?.toDouble() ?? 0.0,
-                  type: _resolveType((node['id'] as String?) ?? '', (node['type'] as String?) ?? ''),
-                  accessibilityLevel:
-                      (node['accessible'] as bool? ?? true) ? 'alto' : 'medio',
-                  letter: node['letter'] as String?,
-                );
-            })
-            .toList();
+          final node = n as Map<String, dynamic>;
+          return PlaceNode(
+            id: (node['id'] as String?) ?? '',
+            name: (node['name'] as String?) ?? '',
+            latitude: (node['lat'] as num?)?.toDouble() ?? 0.0,
+            longitude: (node['lng'] as num?)?.toDouble() ?? 0.0,
+            type: _resolveType(
+                (node['id'] as String?) ?? '', (node['type'] as String?) ?? ''),
+            accessibilityLevel:
+                (node['accessible'] as bool? ?? true) ? 'alto' : 'medio',
+            letter: node['letter'] as String?,
+          );
+        }).toList();
         allPlaces.addAll(places);
       } catch (e) {
         // Si un archivo falla, continúa con los demás
@@ -126,7 +126,8 @@ class PlaceRepository {
         "longitude": -103.7037,
         "type": "Edificio",
         "accessibilityLevel": "alto",
-        "audioDescription": "Edificio P. Cuenta con rampas de acceso y pasillos amplios."
+        "audioDescription":
+            "Edificio P. Cuenta con rampas de acceso y pasillos amplios."
       },
       {
         "id": "tec_a",
@@ -135,7 +136,8 @@ class PlaceRepository {
         "longitude": -103.7035,
         "type": "Edificio",
         "accessibilityLevel": "alto",
-        "audioDescription": "Edificio A. Oficinas administrativas con acceso nivelado."
+        "audioDescription":
+            "Edificio A. Oficinas administrativas con acceso nivelado."
       },
       {
         "id": "tec_biblioteca",
@@ -144,7 +146,8 @@ class PlaceRepository {
         "longitude": -103.7039,
         "type": "Edificio",
         "accessibilityLevel": "alto",
-        "audioDescription": "Biblioteca Central. Punto de referencia con elevador y rampas."
+        "audioDescription":
+            "Biblioteca Central. Punto de referencia con elevador y rampas."
       },
       {
         "id": "tec_cafeteria",
@@ -153,7 +156,8 @@ class PlaceRepository {
         "longitude": -103.7042,
         "type": "Cafetería",
         "accessibilityLevel": "medio",
-        "audioDescription": "Cafetería Norte. Acceso lateral recomendado para sillas de ruedas."
+        "audioDescription":
+            "Cafetería Norte. Acceso lateral recomendado para sillas de ruedas."
       },
       {
         "id": "tec_computo",
@@ -162,7 +166,8 @@ class PlaceRepository {
         "longitude": -103.7035,
         "type": "Edificio",
         "accessibilityLevel": "alto",
-        "audioDescription": "Centro de Cómputo. Instalaciones modernas y accesibles."
+        "audioDescription":
+            "Centro de Cómputo. Instalaciones modernas y accesibles."
       },
       {
         "id": "tec_canchas",
@@ -171,7 +176,8 @@ class PlaceRepository {
         "longitude": -103.7040,
         "type": "Parque",
         "accessibilityLevel": "alto",
-        "audioDescription": "Área deportiva. Superficie plana ideal para tránsito libre."
+        "audioDescription":
+            "Área deportiva. Superficie plana ideal para tránsito libre."
       },
       {
         "id": "tec_direccion",
@@ -180,7 +186,8 @@ class PlaceRepository {
         "longitude": -103.7038,
         "type": "Servicios",
         "accessibilityLevel": "alto",
-        "audioDescription": "Dirección. Entrada principal con rampa reglamentaria."
+        "audioDescription":
+            "Dirección. Entrada principal con rampa reglamentaria."
       }
     ];
 

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sinait/core/constants/app_routes.dart';
-import 'package:sinait/core/theme/app_theme.dart';
+import 'package:navia/core/constants/app_routes.dart';
 
 class BottomNav extends StatelessWidget {
   final int currentIndex;
@@ -9,13 +8,15 @@ class BottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Semantics(
       label: 'Navegación principal',
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.background,
+          color: Theme.of(context).scaffoldBackgroundColor,
           border: Border(
-            top: BorderSide(color: AppTheme.accent.withValues(alpha: 0.08), width: 1.5),
+            top: BorderSide(
+                color: cs.primary.withValues(alpha: 0.08), width: 1.5),
           ),
           boxShadow: [
             BoxShadow(
@@ -35,31 +36,36 @@ class BottomNav extends StatelessWidget {
                   icon: Icons.home_rounded,
                   label: 'Inicio',
                   isActive: currentIndex == 0,
-                  onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.home),
+                  onTap: () =>
+                      Navigator.pushReplacementNamed(context, AppRoutes.home),
                 ),
                 _NavItem(
                   icon: Icons.map_rounded,
                   label: 'Mapa',
                   isActive: currentIndex == 1,
-                  onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.map),
+                  onTap: () =>
+                      Navigator.pushReplacementNamed(context, AppRoutes.map),
                 ),
                 _NavItem(
                   icon: Icons.qr_code_scanner_rounded,
-                  label: 'Escanear',
+                  label: 'NAVIA AR',
                   isActive: currentIndex == 2,
-                  onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.scanner),
+                  onTap: () => Navigator.pushReplacementNamed(
+                      context, AppRoutes.scanner),
                 ),
                 _NavItem(
                   icon: Icons.badge_rounded,
                   label: 'ID',
                   isActive: currentIndex == 3,
-                  onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.credential),
+                  onTap: () => Navigator.pushReplacementNamed(
+                      context, AppRoutes.credential),
                 ),
                 _NavItem(
                   icon: Icons.person_rounded,
                   label: 'Perfil',
                   isActive: currentIndex == 4,
-                  onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.profile),
+                  onTap: () => Navigator.pushReplacementNamed(
+                      context, AppRoutes.profile),
                 ),
               ],
             ),
@@ -85,6 +91,8 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final inactiveColor = cs.onSurface.withValues(alpha: 0.35);
     return Semantics(
       button: true,
       label: label,
@@ -97,7 +105,7 @@ class _NavItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: isActive
               ? BoxDecoration(
-                  color: AppTheme.accent.withValues(alpha: 0.12),
+                  color: cs.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 )
               : null,
@@ -106,14 +114,14 @@ class _NavItem extends StatelessWidget {
             children: [
               Icon(
                 icon,
-                color: isActive ? AppTheme.accent : AppTheme.textSecondary.withValues(alpha: 0.6),
+                color: isActive ? cs.primary : inactiveColor,
                 size: 26,
               ),
               const SizedBox(height: 4),
               Text(
                 label,
                 style: TextStyle(
-                  color: isActive ? AppTheme.accent : AppTheme.textSecondary.withValues(alpha: 0.6),
+                  color: isActive ? cs.primary : inactiveColor,
                   fontSize: 10,
                   fontWeight: isActive ? FontWeight.w900 : FontWeight.w500,
                   letterSpacing: 0.5,

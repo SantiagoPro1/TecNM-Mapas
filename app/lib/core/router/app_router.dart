@@ -1,13 +1,13 @@
 import 'package:go_router/go_router.dart';
-import 'package:sinait/core/constants/app_routes.dart';
-import 'package:sinait/presentation/screens/onboarding/onboarding_screen.dart';
-import 'package:sinait/presentation/screens/navigation/home_screen.dart';
-import 'package:sinait/presentation/screens/map/map_screen.dart';
-import 'package:sinait/presentation/screens/navigation/scanner_screen.dart';
-import 'package:sinait/presentation/screens/credential/credential_screen.dart';
-import 'package:sinait/presentation/screens/navigation/history_screen.dart';
-import 'package:sinait/presentation/screens/settings/settings_screen.dart';
-import 'package:sinait/presentation/screens/settings/profile_screen.dart';
+import 'package:navia/core/constants/app_routes.dart';
+import 'package:navia/presentation/screens/onboarding/onboarding_screen.dart';
+import 'package:navia/presentation/screens/navigation/home_screen.dart';
+import 'package:navia/presentation/screens/map/map_screen.dart';
+import 'package:navia/presentation/screens/navigation/scanner_screen.dart';
+import 'package:navia/presentation/screens/credential/credential_screen.dart';
+import 'package:navia/presentation/screens/navigation/history_screen.dart';
+import 'package:navia/presentation/screens/settings/settings_screen.dart';
+import 'package:navia/presentation/screens/settings/profile_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: AppRoutes.onboarding,

@@ -32,7 +32,9 @@ class CampusEdge extends Equatable {
       to: (json['to'] as String?) ?? '',
       distance: (json['distance'] as num?)?.toDouble() ?? 0.0,
       accessible: (json['accessible'] as bool?) ?? true,
-      direction: (json['direction'] as String?) ?? (json['description'] as String?) ?? '',
+      direction: (json['direction'] as String?) ??
+          (json['description'] as String?) ??
+          '',
     );
   }
 

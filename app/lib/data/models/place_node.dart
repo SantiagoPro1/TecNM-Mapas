@@ -51,5 +51,6 @@ class PlaceNode extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, name, latitude, longitude, type, accessibilityLevel, letter];
+  List<Object?> get props =>
+      [id, name, latitude, longitude, type, accessibilityLevel, letter];
 }

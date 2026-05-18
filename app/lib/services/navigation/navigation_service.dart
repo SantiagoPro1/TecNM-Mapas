@@ -1,8 +1,8 @@
-import 'package:sinait/data/models/campus_node.dart';
-import 'package:sinait/data/models/campus_edge.dart';
-import 'package:sinait/data/models/nav_route.dart';
-import 'package:sinait/services/navigation/campus_graph.dart';
-import 'package:sinait/services/navigation/dijkstra.dart';
+import 'package:navia/data/models/campus_node.dart';
+import 'package:navia/data/models/campus_edge.dart';
+import 'package:navia/data/models/nav_route.dart';
+import 'package:navia/services/navigation/campus_graph.dart';
+import 'package:navia/services/navigation/dijkstra.dart';
 
 /// Servicio principal de navegación del campus.
 ///
@@ -58,20 +58,20 @@ class NavigationService {
   /// Busca el nodo más cercano a las coordenadas dadas.
   CampusNode? setPositionByCoordinates(double lat, double lng) {
     if (_graph == null) return null;
-    
+
     // Si la posición fue fijada manualmente, ignoramos el GPS
     if (_isManualPosition) {
       return _graph!.nodes[_currentNodeId];
     }
-    
+
     // Aumentamos el radio de búsqueda inicial a 200m para mayor tolerancia
     var nearby = _graph!.nearbyNodes(lat, lng, radiusM: 200);
-    
+
     // Si no hay nodos a 200m, buscamos el más cercano absoluto en todo el grafo
     if (nearby.isEmpty) {
       CampusNode? absoluteNearest;
       double minDistance = double.infinity;
-      
+
       for (final node in _graph!.nodes.values) {
         final d = _approxDistMeters(lat, lng, node.lat, node.lng);
         if (d < minDistance) {
@@ -100,8 +100,10 @@ class NavigationService {
 
   /// Distancia aproximada en metros para distancias cortas.
   static double _approxDistMeters(
-    double lat1, double lng1,
-    double lat2, double lng2,
+    double lat1,
+    double lng1,
+    double lat2,
+    double lng2,
   ) {
     const metersPerDegLat = 111320.0;
     final avgLat = (lat1 + lat2) / 2;

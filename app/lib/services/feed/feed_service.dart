@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:sinait/data/models/announcement.dart';
+import 'package:navia/data/models/announcement.dart';
 
 /// Servicio de Feed Contextual.
 ///
@@ -77,16 +77,22 @@ class FeedService {
       Announcement(
         id: 'demo_1',
         title: 'Biblioteca: Horario extendido',
-        body: 'La biblioteca estará abierta hasta las 21:00 hrs esta semana por periodo de exámenes.',
+        body:
+            'La biblioteca estará abierta hasta las 21:00 hrs esta semana por periodo de exámenes.',
         type: AnnouncementType.info,
-        zoneNodeIds: const ['biblioteca', 'cruce_noreste', 'pasillo_central_norte'],
+        zoneNodeIds: const [
+          'biblioteca',
+          'cruce_noreste',
+          'pasillo_central_norte'
+        ],
         createdAt: now,
         priority: 7,
       ),
       Announcement(
         id: 'demo_2',
-        title: '⚠️ Piso mojado en Edificio B',
-        body: 'Precaución: Se está realizando limpieza en el pasillo del Edificio B, planta baja.',
+        title: 'Piso mojado en Edificio B',
+        body:
+            'Precaución: Se está realizando limpieza en el pasillo del Edificio B, planta baja.',
         type: AnnouncementType.warning,
         zoneNodeIds: const ['edificio_b', 'cruce_oeste'],
         createdAt: now,
@@ -95,25 +101,36 @@ class FeedService {
       Announcement(
         id: 'demo_3',
         title: 'Conferencia de IA en Auditorio',
-        body: 'Hoy a las 16:00 hrs: "Inteligencia Artificial aplicada a la accesibilidad". Entrada libre.',
+        body:
+            'Hoy a las 16:00 hrs: "Inteligencia Artificial aplicada a la accesibilidad". Entrada libre.',
         type: AnnouncementType.event,
-        zoneNodeIds: const ['auditorio', 'cruce_oeste', 'pasillo_central_medio'],
+        zoneNodeIds: const [
+          'auditorio',
+          'cruce_oeste',
+          'pasillo_central_medio'
+        ],
         createdAt: now,
         priority: 6,
       ),
       Announcement(
         id: 'demo_4',
         title: 'Cafetería: Menú especial',
-        body: 'Hoy tenemos menú especial por día del estudiante. ¡No te lo pierdas!',
+        body:
+            'Hoy tenemos menú especial por día del estudiante. ¡No te lo pierdas!',
         type: AnnouncementType.service,
-        zoneNodeIds: const ['cafeteria', 'cruce_sureste', 'pasillo_central_sur'],
+        zoneNodeIds: const [
+          'cafeteria',
+          'cruce_sureste',
+          'pasillo_central_sur'
+        ],
         createdAt: now,
         priority: 4,
       ),
       Announcement(
         id: 'demo_5',
         title: 'Mantenimiento en Lab. Electrónica',
-        body: 'El laboratorio de electrónica estará cerrado el viernes por mantenimiento de equipos.',
+        body:
+            'El laboratorio de electrónica estará cerrado el viernes por mantenimiento de equipos.',
         type: AnnouncementType.closure,
         zoneNodeIds: const ['lab_electronica', 'cruce_este'],
         createdAt: now,
@@ -123,9 +140,14 @@ class FeedService {
       Announcement(
         id: 'demo_6',
         title: 'Bienvenido al TecNM Colima',
-        body: 'SINAIT te guía por el campus. Escanea un QR para empezar o usa el comando de voz "Llévame a...".',
+        body:
+            'NAVIA te guía por el campus. Escanea un QR para empezar o usa el comando de voz "Llévame a...".',
         type: AnnouncementType.info,
-        zoneNodeIds: const ['entrada_principal', 'entrada_sur', 'estacionamiento'],
+        zoneNodeIds: const [
+          'entrada_principal',
+          'entrada_sur',
+          'estacionamiento'
+        ],
         createdAt: now,
         priority: 5,
       ),
@@ -133,8 +155,6 @@ class FeedService {
 
     if (zoneNodeId == null) return allDemo;
 
-    return allDemo
-        .where((a) => a.isRelevantFor(zoneNodeId))
-        .toList();
+    return allDemo.where((a) => a.isRelevantFor(zoneNodeId)).toList();
   }
 }

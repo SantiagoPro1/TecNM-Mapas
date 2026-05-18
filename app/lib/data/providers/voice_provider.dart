@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sinait/services/voice/voice_service.dart';
-import 'package:sinait/services/voice/intent_parser.dart';
-import 'package:sinait/data/providers/navigation_provider.dart';
+import 'package:navia/services/voice/voice_service.dart';
+import 'package:navia/services/voice/intent_parser.dart';
+import 'package:navia/data/providers/navigation_provider.dart';
 
 // ─── Estado de voz ────────────────────────────────────────────
 
@@ -93,7 +93,8 @@ class VoiceNotifier extends StateNotifier<VoiceControlState> {
           if (navState.activeRoute != null) {
             await _speak(navState.activeRoute!.voiceSummary);
             // Decir la primera instrucción
-            final firstInstruction = navState.activeRoute!.steps.first.voiceInstruction;
+            final firstInstruction =
+                navState.activeRoute!.steps.first.voiceInstruction;
             await Future.delayed(const Duration(milliseconds: 500));
             await _speak(firstInstruction);
           } else {
@@ -109,7 +110,8 @@ class VoiceNotifier extends StateNotifier<VoiceControlState> {
         if (intent.destination != null) {
           final node = _navNotifier.findDestination(intent.destination!);
           if (node != null) {
-            await _speak('${node.name} se encuentra en el campus. ${node.description}.');
+            await _speak(
+                '${node.name} se encuentra en el campus. ${node.description}.');
           } else {
             await _speak('No encontré ${intent.destination} en el campus.');
           }
@@ -119,7 +121,8 @@ class VoiceNotifier extends StateNotifier<VoiceControlState> {
       case IntentType.whereAmI:
         final current = _navNotifier.state.currentNode;
         if (current != null) {
-          await _speak('Te encuentras en ${current.name}. ${current.description}.');
+          await _speak(
+              'Te encuentras en ${current.name}. ${current.description}.');
         } else {
           await _speak(
             'No tengo tu ubicación actual. '
@@ -149,7 +152,8 @@ class VoiceNotifier extends StateNotifier<VoiceControlState> {
         final nearby = _navNotifier.getNearbyDestinations(limit: 3);
         if (nearby.isNotEmpty) {
           final names = nearby
-              .map((r) => '${r.destination.name}, a ${r.totalDistance.round()} metros')
+              .map((r) =>
+                  '${r.destination.name}, a ${r.totalDistance.round()} metros')
               .join('. ');
           await _speak('Destinos cercanos: $names.');
         } else {

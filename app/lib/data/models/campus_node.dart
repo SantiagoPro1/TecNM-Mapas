@@ -34,8 +34,9 @@ class CampusNode extends Equatable {
       id: (json['id'] as String?) ?? '',
       name: (json['name'] as String?) ?? '',
       aliases: (json['aliases'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList() ?? [],
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
       type: _parseNodeType((json['type'] as String?) ?? 'corridor'),
       lat: (json['lat'] as num?)?.toDouble() ?? 0.0,
       lng: (json['lng'] as num?)?.toDouble() ?? 0.0,

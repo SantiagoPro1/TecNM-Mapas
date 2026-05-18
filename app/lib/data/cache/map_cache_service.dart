@@ -17,7 +17,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 class MapCacheService {
   MapCacheService._();
 
-  static const String _boxName = 'sinait_map_cache';
+  static const String _boxName = 'navia_map_cache';
   static const String _seedVersionKey = 'seed_version';
 
   /// Versión de la semilla. Incrementar este valor fuerza una re-siembra

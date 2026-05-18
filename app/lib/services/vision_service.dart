@@ -19,8 +19,9 @@ class VisionService {
     if (!_isInitialized) return [];
 
     try {
-      final List<ImageLabel> labels = await _imageLabeler.processImage(inputImage);
-      
+      final List<ImageLabel> labels =
+          await _imageLabeler.processImage(inputImage);
+
       for (ImageLabel label in labels) {
         final text = label.label.toLowerCase();
 

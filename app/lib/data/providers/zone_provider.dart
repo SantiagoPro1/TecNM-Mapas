@@ -5,8 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
-import 'package:sinait/core/constants/app_zone.dart';
-import 'package:sinait/core/constants/campus_locations.dart';
+import 'package:navia/core/constants/app_zone.dart';
+import 'package:navia/core/constants/campus_locations.dart';
 
 // ─── Estado de zona ──────────────────────────────────────────────
 
@@ -193,8 +193,7 @@ class ZoneNotifier extends StateNotifier<ZoneState> {
 // ─── Providers ───────────────────────────────────────────────────
 
 /// Provider principal del geofencing.
-final zoneProvider =
-    StateNotifierProvider<ZoneNotifier, ZoneState>((ref) {
+final zoneProvider = StateNotifierProvider<ZoneNotifier, ZoneState>((ref) {
   return ZoneNotifier();
 });
 

@@ -2,9 +2,9 @@ import 'package:equatable/equatable.dart';
 
 /// Tipos de aviso contextual.
 enum AnnouncementType {
-  info,    // Información general
+  info, // Información general
   warning, // Advertencia (piso mojado, obra, etc.)
-  event,   // Evento o actividad
+  event, // Evento o actividad
   closure, // Cierre de área
   service, // Servicio disponible
 }
@@ -83,8 +83,7 @@ class Announcement extends Equatable {
   bool isRelevantFor(String nodeId) => zoneNodeIds.contains(nodeId);
 
   /// ¿Ha expirado?
-  bool get isExpired =>
-      expiresAt != null && DateTime.now().isAfter(expiresAt!);
+  bool get isExpired => expiresAt != null && DateTime.now().isAfter(expiresAt!);
 
   /// ¿Debe mostrarse?
   bool get shouldShow => active && !isExpired;
@@ -93,15 +92,15 @@ class Announcement extends Equatable {
   String get typeLabel {
     switch (type) {
       case AnnouncementType.info:
-        return 'ℹ️ Información';
+        return 'Información';
       case AnnouncementType.warning:
-        return '⚠️ Advertencia';
+        return 'Advertencia';
       case AnnouncementType.event:
-        return '📅 Evento';
+        return 'Evento';
       case AnnouncementType.closure:
-        return '🚫 Cierre';
+        return 'Cierre';
       case AnnouncementType.service:
-        return '🔧 Servicio';
+        return 'Servicio';
     }
   }
 

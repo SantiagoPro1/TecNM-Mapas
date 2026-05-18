@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:sinait/core/constants/app_routes.dart';
-import 'package:sinait/core/theme/app_theme.dart';
+import 'package:navia/core/constants/app_routes.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -20,22 +19,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _OnboardingPageData(
       icon: Icons.navigation_rounded,
       title: 'Navega con tu voz',
-      description: 'Llega a cualquier edificio o laboratorio del campus sin mirar la pantalla. SINAIT te guía paso a paso.',
+      description:
+          'Llega a cualquier edificio o laboratorio del campus sin mirar la pantalla. NAVIA te guía paso a paso.',
     ),
     _OnboardingPageData(
       icon: Icons.qr_code_scanner_rounded,
       title: 'Posicionamiento indoor',
-      description: 'Escanea los códigos QR del campus para confirmar tu posición exacta. Sin GPS limitado.',
+      description:
+          'Escanea los códigos QR del campus para confirmar tu posición exacta. Sin GPS limitado.',
     ),
     _OnboardingPageData(
       icon: Icons.settings_input_component_rounded,
       title: 'Permisos Necesarios',
-      description: 'Para funcionar, requerimos acceso a tu Cámara (para el escáner) y Micrófono (para el asistente de voz).',
+      description:
+          'Para funcionar, requerimos acceso a tu Cámara (para el escáner) y Micrófono (para el asistente de voz).',
     ),
     _OnboardingPageData(
       icon: Icons.gavel_rounded,
       title: 'Legal y Privacidad',
-      description: 'Tus datos están protegidos bajo los lineamientos del TecNM. Al continuar, aceptas el uso ético.',
+      description:
+          'Tus datos están protegidos bajo los lineamientos del TecNM. Al continuar, aceptas el uso ético.',
     ),
   ];
 
@@ -56,7 +59,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _handleNext() async {
     if (_currentPage == 2) {
       await _requestPermissions();
-      if (!mounted) return; 
+      if (!mounted) return;
     }
 
     if (_currentPage < _pages.length - 1) {
@@ -69,12 +72,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         _completeOnboarding();
       } else {
         if (!mounted) return;
+        final cs = Theme.of(context).colorScheme;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Debes aceptar los términos para continuar', style: TextStyle(fontWeight: FontWeight.bold)),
-            backgroundColor: AppTheme.error,
+            content: const Text('Debes aceptar los términos para continuar',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            backgroundColor: cs.error,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -90,9 +96,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final isLastPage = _currentPage == _pages.length - 1;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -102,7 +110,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 padding: const EdgeInsets.only(right: 16, top: 8),
                 child: TextButton(
                   onPressed: _completeOnboarding,
-                  child: const Text('Omitir', style: TextStyle(letterSpacing: 1.0)),
+                  child: const Text('Omitir',
+                      style: TextStyle(letterSpacing: 1.0)),
                 ),
               ),
             ),
@@ -116,7 +125,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   extraContent: i == _pages.length - 1
                       ? _TermsCheckbox(
                           value: _termsAccepted,
-                          onChanged: (val) => setState(() => _termsAccepted = val!),
+                          onChanged: (val) =>
+                              setState(() => _termsAccepted = val!),
                         )
                       : null,
                 ),
@@ -131,14 +141,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   borderRadius: BorderRadius.circular(18),
                   boxShadow: [
                     BoxShadow(
-                      color: (isLastPage && !_termsAccepted) ? Colors.transparent : AppTheme.accent.withValues(alpha: 0.2),
+                      color: (isLastPage && !_termsAccepted)
+                          ? Colors.transparent
+                          : cs.primary.withValues(alpha: 0.2),
                       blurRadius: 15,
                       offset: const Offset(0, 5),
                     )
                   ],
                 ),
                 child: ElevatedButton(
-                  onPressed: (isLastPage && !_termsAccepted) ? null : _handleNext,
+                  onPressed:
+                      (isLastPage && !_termsAccepted) ? null : _handleNext,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 60),
                   ),
@@ -172,6 +185,7 @@ class _PageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40),
       child: Column(
@@ -181,20 +195,21 @@ class _PageContent extends StatelessWidget {
             width: 140,
             height: 140,
             decoration: BoxDecoration(
-              color: AppTheme.accent.withValues(alpha: 0.08),
+              color: cs.primary.withValues(alpha: 0.08),
               shape: BoxShape.circle,
-              border: Border.all(color: AppTheme.accent.withValues(alpha: 0.2), width: 2),
+              border: Border.all(
+                  color: cs.primary.withValues(alpha: 0.2), width: 2),
             ),
-            child: Icon(page.icon, size: 70, color: AppTheme.accent),
+            child: Icon(page.icon, size: 70, color: cs.primary),
           ),
           const SizedBox(height: 48),
           Text(
             page.title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w900,
-              color: Colors.white,
+              color: cs.onSurface,
               letterSpacing: -0.5,
             ),
           ),
@@ -202,9 +217,9 @@ class _PageContent extends StatelessWidget {
           Text(
             page.description,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
-              color: AppTheme.textSecondary,
+              color: cs.onSurface.withValues(alpha: 0.55),
               height: 1.5,
               fontWeight: FontWeight.w500,
             ),
@@ -226,27 +241,35 @@ class _TermsCheckbox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: value ? AppTheme.accent.withValues(alpha: 0.05) : AppTheme.surface,
+        color: value ? cs.primary.withValues(alpha: 0.05) : cs.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: value ? AppTheme.accent.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.05)),
+        border: Border.all(
+            color: value
+                ? cs.primary.withValues(alpha: 0.3)
+                : cs.onSurface.withValues(alpha: 0.05)),
       ),
       child: Row(
         children: [
           Checkbox(
             value: value,
             onChanged: onChanged,
-            activeColor: AppTheme.accent,
-            checkColor: const Color(0xFF0D1B2A),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            activeColor: cs.primary,
+            checkColor: cs.onPrimary,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
               'Acepto los términos, condiciones y reglamentos internos del TecNM Campus Colima.',
-              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurface.withValues(alpha: 0.55),
+                  fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -262,6 +285,7 @@ class _DotsIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(count, (i) {
@@ -272,7 +296,7 @@ class _DotsIndicator extends StatelessWidget {
           width: active ? 32 : 10,
           height: 10,
           decoration: BoxDecoration(
-            color: active ? AppTheme.accent : AppTheme.accent.withValues(alpha: 0.2),
+            color: active ? cs.primary : cs.primary.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(5),
           ),
         );

@@ -1,19 +1,19 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sinait/data/models/campus_node.dart';
-import 'package:sinait/data/models/nav_route.dart';
-import 'package:sinait/services/navigation/navigation_service.dart';
+import 'package:navia/data/models/campus_node.dart';
+import 'package:navia/data/models/nav_route.dart';
+import 'package:navia/services/navigation/navigation_service.dart';
 
 // ─── Estado de navegación ─────────────────────────────────────
 
 /// Estados del módulo de navegación.
 enum NavStatus {
   uninitialized, // Grafo no cargado
-  ready,         // Listo para navegar (sin ruta activa)
-  calculating,   // Calculando ruta
-  navigating,    // Navegación activa con instrucciones
-  arrived,       // Llegó al destino
-  error,         // Error
+  ready, // Listo para navegar (sin ruta activa)
+  calculating, // Calculando ruta
+  navigating, // Navegación activa con instrucciones
+  arrived, // Llegó al destino
+  error, // Error
 }
 
 /// Estado inmutable de la navegación.
@@ -86,8 +86,7 @@ class NavigationState extends Equatable {
 class NavigationNotifier extends StateNotifier<NavigationState> {
   final NavigationService _navService;
 
-  NavigationNotifier(this._navService)
-      : super(const NavigationState());
+  NavigationNotifier(this._navService) : super(const NavigationState());
 
   /// Inicializa el servicio (carga el grafo del campus).
   Future<void> initialize() async {
@@ -133,7 +132,8 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
       );
     } else {
       state = state.copyWith(
-        errorMessage: 'No se encontró un punto de navegación cercano a tu ubicación GPS.',
+        errorMessage:
+            'No se encontró un punto de navegación cercano a tu ubicación GPS.',
       );
     }
   }
@@ -160,7 +160,8 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
         if (fallback != null) {
           state = state.copyWith(
             status: NavStatus.error,
-            errorMessage: 'No hay ruta accesible. ¿Deseas usar la ruta con escaleras?',
+            errorMessage:
+                'No hay ruta accesible. ¿Deseas usar la ruta con escaleras?',
           );
           return;
         }

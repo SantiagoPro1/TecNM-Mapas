@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:sinait/data/models/campus_node.dart';
-import 'package:sinait/data/models/campus_edge.dart';
-import 'package:sinait/data/cache/map_cache_service.dart';
-import 'package:sinait/services/navigation/dijkstra.dart';
+import 'package:navia/data/models/campus_node.dart';
+import 'package:navia/data/models/campus_edge.dart';
+import 'package:navia/data/cache/map_cache_service.dart';
+import 'package:navia/services/navigation/dijkstra.dart';
 
 /// Carga y gestiona el grafo del campus desde el JSON en assets.
 ///
@@ -125,7 +125,8 @@ class CampusGraph {
       adjacency[edge.from]?.add(edge);
 
       // Solo agregar dirección inversa automática si NO existe ya una arista manual en ese sentido
-      final manualReverse = edgesList.any((e) => e.from == edge.to && e.to == edge.from);
+      final manualReverse =
+          edgesList.any((e) => e.from == edge.to && e.to == edge.from);
       if (!manualReverse) {
         adjacency[edge.to]?.add(CampusEdge(
           from: edge.to,
@@ -205,8 +206,10 @@ class CampusGraph {
 
   /// Distancia Haversine simplificada (metros) para distancias cortas.
   static double _haversineMeters(
-    double lat1, double lng1,
-    double lat2, double lng2,
+    double lat1,
+    double lng1,
+    double lat2,
+    double lng2,
   ) {
     const metersPerDegLat = 111320.0;
     final metersPerDegLng = 111320.0 * _cos(lat1);

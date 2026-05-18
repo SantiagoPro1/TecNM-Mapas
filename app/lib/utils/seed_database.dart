@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sinait/data/repositories/place_repository.dart';
+import 'package:navia/data/repositories/place_repository.dart';
 
 class DatabaseSeeder {
   static Future<void> run() async {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sinait/core/theme/app_theme.dart';
-import 'package:sinait/data/models/announcement.dart';
+import 'package:navia/data/models/announcement.dart';
 
 /// Tarjeta de aviso contextual para el feed del HomeScreen.
 ///
@@ -20,6 +19,7 @@ class AnnouncementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Dismissible(
       key: Key(announcement.id),
       direction: DismissDirection.endToStart,
@@ -28,11 +28,10 @@ class AnnouncementCard extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
-          color: AppTheme.error.withValues(alpha: 0.2),
+          color: cs.error.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(14),
         ),
-        child: const Icon(Icons.close_rounded,
-            color: AppTheme.error, size: 24),
+        child: Icon(Icons.close_rounded, color: cs.error, size: 24),
       ),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -41,10 +40,10 @@ class AnnouncementCard extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.cardBackground,
+            color: cs.surface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: _borderColor,
+              color: _borderColor(cs),
               width: 1.5,
             ),
           ),
@@ -55,10 +54,10 @@ class AnnouncementCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: _iconBgColor,
+                  color: _iconColor(cs).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(_icon, color: _iconColor, size: 22),
+                child: Icon(_icon, color: _iconColor(cs), size: 22),
               ),
               const SizedBox(width: 14),
               // Contenido
@@ -70,7 +69,7 @@ class AnnouncementCard extends StatelessWidget {
                     Text(
                       announcement.typeLabel,
                       style: TextStyle(
-                        color: _iconColor,
+                        color: _iconColor(cs),
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
@@ -80,8 +79,8 @@ class AnnouncementCard extends StatelessWidget {
                     // Título
                     Text(
                       announcement.title,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
+                      style: TextStyle(
+                        color: cs.onSurface,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
@@ -92,8 +91,8 @@ class AnnouncementCard extends StatelessWidget {
                       announcement.body,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
+                      style: TextStyle(
+                        color: cs.onSurface.withValues(alpha: 0.55),
                         fontSize: 13,
                         height: 1.4,
                       ),
@@ -110,37 +109,35 @@ class AnnouncementCard extends StatelessWidget {
 
   // ─── Estilos según tipo de aviso ─────────────────────────────
 
-  Color get _borderColor {
+  Color _borderColor(ColorScheme cs) {
     switch (announcement.type) {
       case AnnouncementType.warning:
         return const Color(0xFFFF9800);
       case AnnouncementType.closure:
-        return AppTheme.error;
+        return cs.error;
       case AnnouncementType.event:
         return const Color(0xFF2196F3);
       case AnnouncementType.service:
-        return AppTheme.success;
+        return cs.tertiary;
       case AnnouncementType.info:
-        return const Color(0xFF333333);
+        return cs.onSurface.withValues(alpha: 0.2);
     }
   }
 
-  Color get _iconColor {
+  Color _iconColor(ColorScheme cs) {
     switch (announcement.type) {
       case AnnouncementType.warning:
         return const Color(0xFFFF9800);
       case AnnouncementType.closure:
-        return AppTheme.error;
+        return cs.error;
       case AnnouncementType.event:
         return const Color(0xFF2196F3);
       case AnnouncementType.service:
-        return AppTheme.success;
+        return cs.tertiary;
       case AnnouncementType.info:
-        return AppTheme.accent;
+        return cs.primary;
     }
   }
-
-  Color get _iconBgColor => _iconColor.withValues(alpha: 0.12);
 
   IconData get _icon {
     switch (announcement.type) {

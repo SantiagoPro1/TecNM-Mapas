@@ -11,9 +11,10 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <application
-    android:label="SINAIT"
+    android:label="NAVIA"
     android:name="${applicationName}"
     android:icon="@mipmap/ic_launcher"
+    android:roundIcon="@mipmap/ic_launcher_round"
     android:enableOnBackInvokedCallback="true">
         
         <activity
@@ -43,9 +44,17 @@
         <meta-data 
             android:name="com.google.android.geo.API_KEY"
             android:value="${mapsApiKey}" />
+
+        <!-- Desactivar Impeller en Android para evitar crasheos en GPUs Mali/MediaTek -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
     </application>
 
     <queries>
+        <!-- Permiso de visibilidad para Google Play Services -->
+        <package android:name="com.google.android.gms" />
+        
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

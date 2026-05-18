@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
-import 'package:sinait/data/models/campus_node.dart';
-import 'package:sinait/data/models/campus_edge.dart';
+import 'package:navia/data/models/campus_node.dart';
+import 'package:navia/data/models/campus_edge.dart';
 
 /// Un paso individual dentro de una ruta calculada.
 class RouteStep extends Equatable {

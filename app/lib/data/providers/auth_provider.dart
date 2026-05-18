@@ -1,16 +1,16 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sinait/services/auth/auth_service.dart';
+import 'package:navia/services/auth/auth_service.dart';
 
 // ─── Estado de autenticación ──────────────────────────────────
 
 /// Estados posibles de la autenticación.
 enum AuthStatus {
-  initial,       // Estado inicial, verificando sesión previa
+  initial, // Estado inicial, verificando sesión previa
   authenticated, // Usuario autenticado con @colima.tecnm.mx
   unauthenticated, // Sin sesión activa
-  loading,       // Proceso de login/logout en curso
-  error,         // Error de autenticación
+  loading, // Proceso de login/logout en curso
+  error, // Error de autenticación
 }
 
 /// Estado inmutable del módulo de autenticación.
@@ -35,8 +35,7 @@ class AuthState {
   String get displayName => user?.displayName ?? 'Estudiante TecNM';
 
   /// URL de la foto de perfil (alta resolución).
-  String? get photoUrl =>
-      user?.photoURL?.replaceFirst('s96-c', 's400-c');
+  String? get photoUrl => user?.photoURL?.replaceFirst('s96-c', 's400-c');
 
   /// ¿Está autenticado?
   bool get isAuthenticated => status == AuthStatus.authenticated;

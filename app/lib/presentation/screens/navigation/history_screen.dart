@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sinait/core/theme/app_theme.dart';
-import 'package:sinait/presentation/widgets/bottom_nav.dart';
+import 'package:navia/presentation/widgets/bottom_nav.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -45,15 +44,19 @@ class HistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       bottomNavigationBar: const BottomNav(currentIndex: 4),
       appBar: AppBar(
         title: const Text('HISTORIAL'),
         backgroundColor: Colors.transparent,
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_outline_rounded, color: Colors.white24),
+            icon: Icon(Icons.delete_outline_rounded,
+                color: cs.onSurface.withValues(alpha: 0.24)),
             onPressed: () {},
             tooltip: 'Limpiar historial',
           ),
@@ -93,12 +96,13 @@ class _HistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
         boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
       ),
       child: Row(
@@ -107,10 +111,10 @@ class _HistoryTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppTheme.accent.withValues(alpha: 0.1),
+              color: cs.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(item.icon, color: AppTheme.accent, size: 24),
+            child: Icon(item.icon, color: cs.primary, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -118,34 +122,49 @@ class _HistoryTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(item.destination,
-                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                    style: TextStyle(
+                        color: cs.onSurface,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700)),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(Icons.trip_origin_rounded, size: 10, color: Colors.white.withValues(alpha: 0.3)),
+                    Icon(Icons.trip_origin_rounded,
+                        size: 10, color: cs.onSurface.withValues(alpha: 0.3)),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text('Desde: ${item.from}',
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12, fontWeight: FontWeight.w500)),
+                          style: TextStyle(
+                              color: cs.onSurface.withValues(alpha: 0.4),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(Icons.access_time_filled_rounded, size: 14, color: Colors.white.withValues(alpha: 0.2)),
+                    Icon(Icons.access_time_filled_rounded,
+                        size: 14, color: cs.onSurface.withValues(alpha: 0.2)),
                     const SizedBox(width: 6),
                     Text(item.date,
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 11, fontWeight: FontWeight.w500)),
+                        style: TextStyle(
+                            color: cs.onSurface.withValues(alpha: 0.3),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500)),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppTheme.accent.withValues(alpha: 0.1),
+                        color: cs.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(item.duration,
-                          style: const TextStyle(color: AppTheme.accent, fontSize: 11, fontWeight: FontWeight.w800)),
+                          style: TextStyle(
+                              color: cs.primary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800)),
                     ),
                   ],
                 ),
@@ -161,17 +180,25 @@ class _HistoryTile extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.02), shape: BoxShape.circle),
-            child: Icon(Icons.history_rounded, size: 64, color: Colors.white.withValues(alpha: 0.1)),
+            decoration: BoxDecoration(
+                color: cs.onSurface.withValues(alpha: 0.02),
+                shape: BoxShape.circle),
+            child: Icon(Icons.history_rounded,
+                size: 64, color: cs.onSurface.withValues(alpha: 0.1)),
           ),
           const SizedBox(height: 24),
-          Text('Sin rutas recientes', style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 16, fontWeight: FontWeight.w600)),
+          Text('Sin rutas recientes',
+              style: TextStyle(
+                  color: cs.onSurface.withValues(alpha: 0.3),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600)),
         ],
       ),
     );

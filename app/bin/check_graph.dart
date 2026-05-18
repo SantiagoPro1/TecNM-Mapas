@@ -4,18 +4,18 @@ import 'dart:io';
 void main() {
   final file = File('assets/maps/tec_colima_map.json');
   final data = jsonDecode(file.readAsStringSync());
-  
+
   final nodes = data['nodes'] as List;
   final edges = data['edges'] as List;
-  
+
   final nodeIds = nodes.map((n) => n['id'] as String).toSet();
-  
+
   final connectedNodes = <String>{};
-  
+
   for (final edge in edges) {
     connectedNodes.add(edge['from']);
     connectedNodes.add(edge['to']);
-    
+
     if (!nodeIds.contains(edge['from'])) {
       final f = edge['from'];
       // ignore: avoid_print
@@ -27,12 +27,12 @@ void main() {
       print('Edge references missing node (to): $t');
     }
   }
-  
+
   final disconnectedNodes = nodeIds.difference(connectedNodes);
   // ignore: avoid_print
   print('Disconnected nodes:');
   for (final node in disconnectedNodes) {
-      // ignore: avoid_print
-      print('- $node');
+    // ignore: avoid_print
+    print('- $node');
   }
 }

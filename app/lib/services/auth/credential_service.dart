@@ -13,7 +13,7 @@ class CredentialService {
   static const int tokenTtlSeconds = 60;
 
   /// Clave secreta para firma HMAC (en producción, usar dotenv/secure storage).
-  static const String _secretKey = 'SINAIT_TecNM_2026_SecretKey';
+  static const String _secretKey = 'NAVIA_TecNM_2026_SecretKey';
 
   /// Genera un token JWT-like para el QR de la credencial.
   ///

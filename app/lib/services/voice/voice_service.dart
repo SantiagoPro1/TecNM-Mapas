@@ -4,11 +4,11 @@ import 'package:speech_to_text/speech_recognition_result.dart';
 
 /// Estados posibles del servicio de voz.
 enum VoiceState {
-  idle,       // Sin actividad
-  listening,  // Escuchando al usuario (STT activo)
+  idle, // Sin actividad
+  listening, // Escuchando al usuario (STT activo)
   processing, // Procesando el comando
-  speaking,   // Hablando al usuario (TTS activo)
-  error,      // Error
+  speaking, // Hablando al usuario (TTS activo)
+  error, // Error
 }
 
 /// Servicio de voz que envuelve flutter_tts (Text-to-Speech)
@@ -100,7 +100,8 @@ class VoiceService {
   }
 
   /// Habla una lista de instrucciones en secuencia.
-  Future<void> speakSequence(List<String> instructions, {
+  Future<void> speakSequence(
+    List<String> instructions, {
     Duration pauseBetween = const Duration(milliseconds: 800),
   }) async {
     for (final instruction in instructions) {

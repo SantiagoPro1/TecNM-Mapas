@@ -292,7 +292,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
               backgroundColor: const Color(0xFFFFAB00),
               behavior: SnackBarBehavior.fixed,
-              duration: Duration(seconds: 4),
+              duration: const Duration(seconds: 4),
             ),
           );
         }
@@ -437,7 +437,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 children: [
                   Icon(Icons.info_outline_rounded,
                       color: Theme.of(context).colorScheme.primary, size: 18),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'También puedes navegar escaneando los códigos QR de los pasillos.',
@@ -905,8 +905,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
         return Container(
           decoration: BoxDecoration(
             color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-            boxShadow: [
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            boxShadow: const [
               BoxShadow(color: Colors.black54, blurRadius: 20, spreadRadius: 5),
             ],
           ),
@@ -1184,7 +1184,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     Icon(Icons.qr_code_scanner,
                         color: Theme.of(context).scaffoldBackgroundColor,
                         size: 22),
-                    SizedBox(width: 10),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Activa el GPS o escanea el QR del pasillo más cercano para trazar tu ruta.',
@@ -1197,7 +1197,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ),
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 behavior: SnackBarBehavior.fixed,
-                duration: Duration(seconds: 4),
+                duration: const Duration(seconds: 4),
               ),
             );
           }
@@ -1432,8 +1432,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         } else {
                           actualUserPos = userPos;
                         }
-                        if (actualUserPos == null)
+                        if (actualUserPos == null) {
                           return const MarkerLayer(markers: []);
+                        }
                         return MarkerLayer(
                           markers: [_buildUserMarker(actualUserPos)],
                         );
@@ -1850,7 +1851,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           children: [
             Icon(Icons.check_circle_rounded,
                 color: Theme.of(context).scaffoldBackgroundColor, size: 24),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Text('¡Has llegado a tu destino!',
                 style: TextStyle(
                     fontWeight: FontWeight.bold,

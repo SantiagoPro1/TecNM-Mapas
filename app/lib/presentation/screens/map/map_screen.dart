@@ -11,7 +11,6 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'package:navia/presentation/widgets/bottom_nav.dart';
 import 'package:navia/data/models/place_node.dart';
 import 'package:navia/data/models/campus_node.dart';
 import 'package:navia/presentation/screens/map/providers/map_providers.dart';
@@ -29,8 +28,8 @@ class MapScreen extends ConsumerStatefulWidget {
 class _MapScreenState extends ConsumerState<MapScreen>
     with SingleTickerProviderStateMixin {
   GoogleMapController? _googleMapController;
-  Set<Polyline> _googlePolylines = {};
   Set<Marker> _googleMarkers = {};
+  Set<Polyline> _googlePolylines = {};
 
   LatLng? _currentPosition;
   LatLng? _displayPosition;
@@ -39,7 +38,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
   double _currentHeading = 0.0;
 
   bool _centeredOnUser = false;
-  bool _gpsInitDone = false;
   bool _isTrackingActive = false;
   bool _isNavigating = false;
 
@@ -606,31 +604,27 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   Future<void> _initializeGpsAndCenter() async {
-    try {
-      if (_centeredOnUser) return;
-      final permissionGranted = await _requestLocationPermission();
-      if (!permissionGranted || !mounted) return;
+    if (_centeredOnUser) return;
+    final permissionGranted = await _requestLocationPermission();
+    if (!permissionGranted || !mounted) return;
 
-      try {
-        final position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-          timeLimit: const Duration(seconds: 8),
-        );
-        if (!mounted) return;
-        final latLng = LatLng(position.latitude, position.longitude);
-        setState(() => _currentPosition = latLng);
-        if (!_centeredOnUser) {
-          _centeredOnUser = true;
-          _googleMapController
-              ?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 17.5));
-        }
-      } on TimeoutException {
-        debugPrint('GPS: timeout — se usará el stream.');
-      } catch (e) {
-        debugPrint('GPS: error al obtener posición inicial: $e');
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 8),
+      );
+      if (!mounted) return;
+      final latLng = LatLng(position.latitude, position.longitude);
+      setState(() => _currentPosition = latLng);
+      if (!_centeredOnUser) {
+        _centeredOnUser = true;
+        _googleMapController
+            ?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 17.5));
       }
-    } finally {
-      _gpsInitDone = true;
+    } on TimeoutException {
+      debugPrint('GPS: timeout — se usará el stream.');
+    } catch (e) {
+      debugPrint('GPS: error al obtener posición inicial: $e');
     }
   }
 
@@ -1006,11 +1000,522 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
+  // ──────────────────────────────────────────────────────────
+  //  Bottom Sheet y helpers UI
+  // ──────────────────────────────────────────────────────────
+
+  void _announceNearestPlace(LatLng center) {
+    final placesAsyncValue = ref.read(placesStreamProvider);
+    placesAsyncValue.whenData((places) {
+      if (places.isEmpty) return;
+      PlaceNode? nearest;
+      double minDist = double.infinity;
+      for (final p in places) {
+        final d = Geolocator.distanceBetween(
+            center.latitude, center.longitude, p.latitude, p.longitude);
+        if (d < minDist) { minDist = d; nearest = p; }
+      }
+      if (nearest != null && minDist < 150) {
+        _flutterTts.stop();
+        _speak('Viendo zona cerca de: ${nearest.name}');
+      }
+    });
+  }
+
+  void _handleArrival() {
+    setState(() {
+      _isNavigating = false;
+      _googlePolylines = {};
+      _destinationLatLng = null;
+      _isTrackingActive = false;
+    });
+    _speak('Has llegado a tu destino. NAVIA te desea un excelente día.');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: Color(0xFF0D1B2A), size: 24),
+            SizedBox(width: 10),
+            Text('¡Has llegado a tu destino!',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0D1B2A))),
+          ],
+        ),
+        backgroundColor: const Color(0xFF38BDF8),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  void _showAccessibleBottomSheet(PlaceNode place) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF0D1B2A),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 20, spreadRadius: 5)],
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 50, height: 5,
+                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF38BDF8).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.3)),
+                  ),
+                  child: Icon(
+                    place.type.toLowerCase().contains('cafetería') ? Icons.coffee_rounded : Icons.business_rounded,
+                    color: const Color(0xFF38BDF8), size: 32,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(place.name,
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5)),
+                      const SizedBox(height: 4),
+                      Text(place.type.toUpperCase(),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
+                              color: const Color(0xFF38BDF8).withValues(alpha: 0.8), letterSpacing: 1.2)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                _buildInfoBadge(Icons.accessible_rounded,
+                    'Nivel: ${place.accessibilityLevel.toUpperCase()}',
+                    place.accessibilityLevel.toLowerCase() == 'alto' ? Colors.greenAccent : Colors.orangeAccent),
+                const SizedBox(width: 12),
+                _buildInfoBadge(Icons.map_rounded, 'Piso: Planta Baja', Colors.blueAccent),
+              ],
+            ),
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 54,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: const LinearGradient(colors: [Color(0xFF38BDF8), Color(0xFF0091EA)]),
+                    ),
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.directions_walk_rounded, size: 22, color: Color(0xFF0D1B2A)),
+                      label: const Text('Trazar Ruta',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0D1B2A))),
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent, shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        calculateAccessibleRoute(LatLng(place.latitude, place.longitude), place.name);
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    height: 54,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.4)),
+                      color: const Color(0xFF38BDF8).withValues(alpha: 0.05),
+                    ),
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.location_on_rounded, size: 22, color: Color(0xFF38BDF8)),
+                      label: const Text('Estoy Aquí',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF38BDF8))),
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent, shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        ref.read(navigationProvider.notifier).setPosition(place.id);
+                        _speak('Ubicación fijada en ${place.name}.');
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoBadge(IconData icon, String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+        ],
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(bool isDark) {
+    return AppBar(
+      backgroundColor: const Color(0xFF0F172A),
+      foregroundColor: Colors.white,
+      elevation: 0,
+      titleSpacing: 0,
+      title: Row(
+        children: [
+          Container(
+            width: 36, height: 36,
+            margin: const EdgeInsets.only(left: 4, right: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.4), width: 1.5),
+            ),
+            child: const Icon(Icons.school_rounded, color: Color(0xFF38BDF8), size: 20),
+          ),
+          const Text('NAVIA',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2.5)),
+        ],
+      ),
+      actions: [
+        IconButton(
+          icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              color: const Color(0xFF38BDF8)),
+          onPressed: () {
+            final newTheme = isDark ? 'light' : 'dark';
+            ref.read(mapThemeProvider.notifier).state = newTheme;
+            setState(() => _currentMapStyle = newTheme == 'dark' ? _darkMapStyle : _lightMapStyle);
+          },
+          tooltip: 'Cambiar tema',
+        ),
+      ],
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
+            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFABs() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            heroTag: 'center_btn',
+            onPressed: _centerOnUser,
+            backgroundColor: _isTrackingActive ? const Color(0xFF38BDF8) : const Color(0xFF1E293B),
+            elevation: _isTrackingActive ? 8 : 4,
+            child: Icon(
+              _isTrackingActive ? Icons.gps_fixed_rounded : Icons.my_location_rounded,
+              color: _isTrackingActive ? const Color(0xFF0F172A) : const Color(0xFF38BDF8),
+              size: 26,
+            ),
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onLongPressStart: _startListening,
+            onLongPressEnd: _stopListening,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 70, height: 70,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: _isListening
+                    ? const LinearGradient(colors: [Color(0xFFFF5252), Color(0xFFFF1744)])
+                    : const LinearGradient(
+                        begin: Alignment.topLeft, end: Alignment.bottomRight,
+                        colors: [Color(0xFF38BDF8), Color(0xFF0091EA)]),
+                boxShadow: [
+                  BoxShadow(
+                    color: (_isListening ? const Color(0xFFFF5252) : const Color(0xFF38BDF8))
+                        .withValues(alpha: 0.5),
+                    blurRadius: _isListening ? 20 : 12,
+                    spreadRadius: _isListening ? 4 : 2,
+                  ),
+                ],
+              ),
+              child: Icon(_isListening ? Icons.mic : Icons.mic_none_rounded, color: Colors.white, size: 32),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFiltersRow() {
+    final currentFilter = ref.watch(categoryFilterProvider);
+    final filters = [
+      ('Todo', Icons.grid_view_rounded),
+      ('Edificio', Icons.business_rounded),
+      ('Cafetería', Icons.coffee_rounded),
+      ('Servicios', Icons.miscellaneous_services_rounded),
+      ('Parque', Icons.park_rounded),
+    ];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: filters.map((fd) {
+          final isSelected = currentFilter.toLowerCase() == fd.$1.toLowerCase();
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () => ref.read(categoryFilterProvider.notifier).state = fd.$1,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: isSelected
+                      ? const LinearGradient(colors: [Color(0xFF38BDF8), Color(0xFF0091EA)])
+                      : null,
+                  color: isSelected ? null : const Color(0xFF0F172A).withValues(alpha: 0.88),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: isSelected ? Colors.transparent : const Color(0xFF38BDF8).withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
+                  boxShadow: isSelected
+                      ? [BoxShadow(color: const Color(0xFF38BDF8).withValues(alpha: 0.35), blurRadius: 10)]
+                      : [],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(fd.$2, size: 15, color: isSelected ? Colors.white : const Color(0xFF90CAF9)),
+                    const SizedBox(width: 6),
+                    Text(fd.$1,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : const Color(0xFF90CAF9),
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          fontSize: 13, letterSpacing: 0.3,
+                        )),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────
+  //  Build
+  // ──────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
+    // Lugar seleccionado → bottom sheet
+    ref.listen<PlaceNode?>(selectedPlaceProvider, (_, next) {
+      if (next != null) {
+        _showAccessibleBottomSheet(next);
+        Future.delayed(const Duration(milliseconds: 100),
+            () => ref.read(selectedPlaceProvider.notifier).state = null);
+      }
+    });
+
+    // Stream GPS
+    ref.listen<AsyncValue<Position>>(currentLocationStreamProvider, (_, next) {
+      next.whenData((position) {
+        final latLng = LatLng(position.latitude, position.longitude);
+        _onNewGpsPosition(latLng, heading: position.heading);
+
+        if (!_centeredOnUser) {
+          _centeredOnUser = true;
+          _googleMapController?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 17.5));
+        }
+
+        if (_isNavigating && _destinationLatLng != null) {
+          final dist = Geolocator.distanceBetween(
+            latLng.latitude, latLng.longitude,
+            _destinationLatLng!.latitude, _destinationLatLng!.longitude,
+          );
+          if (dist <= 10.0) _handleArrival();
+        }
+      });
+    });
+
+    // Navegación activa → actualizar polilínea
+    ref.listen<NavigationState>(navigationProvider, (previous, next) {
+      if (next.currentNode != previous?.currentNode && next.currentNode != null) {
+        _googleMapController?.animateCamera(CameraUpdate.newLatLng(
+          LatLng(next.currentNode!.lat, next.currentNode!.lng),
+        ));
+      }
+      if (next.activeRoute != previous?.activeRoute) {
+        if (next.activeRoute != null) {
+          final points = next.activeRoute!.steps
+              .map((s) => LatLng(s.node.lat, s.node.lng))
+              .toList();
+          _setRoutePolyline(points);
+          setState(() => _isNavigating = true);
+        } else {
+          setState(() { _googlePolylines = {}; _isNavigating = false; });
+        }
+      }
+    });
+
+    // Lugares filtrados → reconstruir marcadores
+    ref.listen<List<PlaceNode>>(filteredPlacesProvider, (_, next) => _rebuildMarkers(next));
+
+    final isDark = ref.watch(mapThemeProvider) == 'dark';
+
     return Scaffold(
-      body: Center(
-        child: Text('Map Screen'),
+      backgroundColor: const Color(0xFF0F172A),
+      appBar: _buildAppBar(isDark),
+      floatingActionButton: _buildFABs(),
+      body: Stack(
+        children: [
+          // ── Mapa Google Maps ──────────────────────────────────
+          RepaintBoundary(
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: _mapInitialCenter,
+                zoom: _mapInitialZoom,
+              ),
+              onMapCreated: (controller) {
+                _googleMapController = controller;
+                _initializeGpsAndCenter();
+                _rebuildMarkers(ref.read(filteredPlacesProvider));
+              },
+              onCameraMove: (pos) {
+                _currentZoom = pos.zoom;
+                if (_isTrackingActive) setState(() => _isTrackingActive = false);
+                _debounceTimer?.cancel();
+                _debounceTimer = Timer(const Duration(milliseconds: 600),
+                    () => _announceNearestPlace(pos.target));
+              },
+              markers: _googleMarkers,
+              polylines: _googlePolylines,
+              style: _currentMapStyle,
+              myLocationEnabled: false,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              mapToolbarEnabled: false,
+              compassEnabled: false,
+              rotateGesturesEnabled: false,
+              cameraTargetBounds: CameraTargetBounds(_cameraBounds),
+              minMaxZoomPreference: const MinMaxZoomPreference(13, 20),
+              mapType: MapType.normal,
+            ),
+          ),
+          // ── Gradient top para legibilidad de filtros ──────────
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: Container(
+              height: 80,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  colors: [
+                    (isDark ? const Color(0xFF0F172A) : Colors.white).withValues(alpha: 0.95),
+                    (isDark ? const Color(0xFF0F172A) : Colors.white).withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // ── Filtros de categoría ──────────────────────────────
+          Positioned(top: 12, left: 0, right: 0, child: _buildFiltersRow()),
+          // ── Indicador de escucha por voz ──────────────────────
+          if (_isListening)
+            Positioned(
+              bottom: 120, left: 20, right: 20,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF38BDF8), width: 1.5),
+                  boxShadow: [BoxShadow(color: const Color(0xFF38BDF8).withValues(alpha: 0.2), blurRadius: 20)],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.graphic_eq, color: Color(0xFF38BDF8), size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _lastRecognizedWords.isEmpty ? 'Escuchando...' : _lastRecognizedWords,
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          // ── Barra de navegación activa ────────────────────────
+          if (_isNavigating)
+            Positioned(
+              top: 70, left: 16, right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.5)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.directions_walk, color: Color(0xFF38BDF8), size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text('Navegando en curso...',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                    ),
+                    GestureDetector(
+                      onTap: () => setState(() {
+                        _isNavigating = false;
+                        _googlePolylines = {};
+                        _destinationLatLng = null;
+                        _isTrackingActive = false;
+                      }),
+                      child: const Icon(Icons.close, color: Colors.white54, size: 18),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

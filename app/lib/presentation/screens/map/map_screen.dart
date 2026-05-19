@@ -243,11 +243,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
         Offset((size - tp.width) / 2, (size - tp.height) / 2),
       );
     } else {
-      // Ícono simple para cafetería u otros
+      // Icono material professional en vez de emoji
       final iconPainter = TextPainter(
         text: TextSpan(
-          text: isCafe ? '☕' : '📍',
-          style: const TextStyle(fontSize: 24),
+          text: String.fromCharCode(
+            isCafe ? Icons.local_cafe_rounded.codePoint : Icons.place_rounded.codePoint
+          ),
+          style: TextStyle(
+            fontFamily: 'MaterialIcons',
+            fontSize: 32,
+            color: isCafe ? const Color(0xFFFFB020) : const Color(0xFF38BDF8),
+          ),
         ),
         textDirection: TextDirection.ltr,
       )..layout();

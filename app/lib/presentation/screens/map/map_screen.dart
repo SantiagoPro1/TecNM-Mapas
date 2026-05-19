@@ -17,6 +17,7 @@ import 'package:navia/presentation/screens/map/providers/map_providers.dart';
 import 'package:navia/core/constants/campus_locations.dart';
 import 'package:navia/data/providers/navigation_provider.dart';
 import 'package:navia/data/providers/settings_provider.dart';
+import 'package:navia/presentation/widgets/bottom_nav.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -1410,6 +1411,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       backgroundColor: const Color(0xFF0F172A),
       appBar: _buildAppBar(isDark),
       floatingActionButton: _buildFABs(),
+      bottomNavigationBar: const BottomNav(currentIndex: 1),
       body: Stack(
         children: [
           // ── Mapa Google Maps ──────────────────────────────────

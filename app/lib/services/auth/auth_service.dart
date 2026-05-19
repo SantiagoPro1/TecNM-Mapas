@@ -1,10 +1,18 @@
+import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     hostedDomain: 'colima.tecnm.mx',
+    scopes: [
+      'email',
+      'profile',
+      'https://www.googleapis.com/auth/userinfo.profile',
+    ],
   );
 
   Future<User?> signInWithGoogle() async {
@@ -14,7 +22,7 @@ class AuthService {
 
       // --- VALIDACIÓN DE DOMINIO ---
       if (!googleUser.email.endsWith('@colima.tecnm.mx')) {
-        await _googleSignIn.signOut(); // Lo sacamos de Google de inmediato
+        await _googleSignIn.signOut();
         throw 'Solo se permiten correos @colima.tecnm.mx';
       }
       // ----------------------------
@@ -28,10 +36,79 @@ class AuthService {
 
       final UserCredential userCredential =
           await _auth.signInWithCredential(credential);
-      return userCredential.user;
+      final user = userCredential.user;
+
+      if (user != null && (user.photoURL == null || user.photoURL!.isEmpty)) {
+        // Intento 1: Foto directa de GoogleSignIn
+        String? photoUrl = googleUser.photoUrl;
+
+        // Intento 2: People API con el access token
+        if ((photoUrl == null || photoUrl.isEmpty) &&
+            googleAuth.accessToken != null) {
+          photoUrl = await _fetchPhotoFromPeopleApi(googleAuth.accessToken!);
+        }
+
+        // Intento 3: UserInfo endpoint
+        if ((photoUrl == null || photoUrl.isEmpty) &&
+            googleAuth.accessToken != null) {
+          photoUrl = await _fetchPhotoFromUserInfo(googleAuth.accessToken!);
+        }
+
+        if (photoUrl != null && photoUrl.isNotEmpty) {
+          // Pedir la imagen en alta resolución (400px)
+          photoUrl = photoUrl.replaceFirst('s96-c', 's400-c');
+          await user.updatePhotoURL(photoUrl);
+          await user.reload();
+          return _auth.currentUser;
+        }
+      }
+
+      return user;
     } catch (e) {
-      rethrow; // Lanzamos el error para que la pantalla lo atrape y lo muestre
+      rethrow;
     }
+  }
+
+  /// Obtiene la foto desde Google People API
+  Future<String?> _fetchPhotoFromPeopleApi(String accessToken) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+            'https://people.googleapis.com/v1/people/me?personFields=photos'),
+        headers: {'Authorization': 'Bearer $accessToken'},
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final photos = data['photos'] as List<dynamic>?;
+        if (photos != null && photos.isNotEmpty) {
+          return photos.first['url'] as String?;
+        }
+      } else {
+        debugPrint('People API status: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('People API error: $e');
+    }
+    return null;
+  }
+
+  /// Obtiene la foto desde el endpoint de UserInfo de Google
+  Future<String?> _fetchPhotoFromUserInfo(String accessToken) async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://www.googleapis.com/oauth2/v3/userinfo'),
+        headers: {'Authorization': 'Bearer $accessToken'},
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['picture'] as String?;
+      } else {
+        debugPrint('UserInfo status: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('UserInfo error: $e');
+    }
+    return null;
   }
 
   // Cerrar sesión
@@ -46,7 +123,6 @@ class AuthService {
   // Truco para extraer la matrícula del correo institucional
   String getMatricula(String? email) {
     if (email == null || !email.contains('@')) return 'Sin matrícula';
-    // Si el correo es 22460290@colima.tecnm.mx, esto devuelve "22460290"
     return email.split('@')[0];
   }
 }

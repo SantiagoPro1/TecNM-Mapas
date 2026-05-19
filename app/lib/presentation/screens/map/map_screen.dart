@@ -11,14 +11,14 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'package:sinait/presentation/widgets/bottom_nav.dart';
-import 'package:sinait/data/models/place_node.dart';
-import 'package:sinait/data/models/campus_node.dart';
-import 'package:sinait/presentation/screens/map/providers/map_providers.dart';
-import 'package:sinait/core/constants/campus_locations.dart';
-import 'package:sinait/data/providers/navigation_provider.dart';
-import 'package:sinait/data/providers/settings_provider.dart';
-import 'package:sinait/data/providers/auth_provider.dart';
+import 'package:navia/presentation/widgets/bottom_nav.dart';
+import 'package:navia/data/models/place_node.dart';
+import 'package:navia/data/models/campus_node.dart';
+import 'package:navia/presentation/screens/map/providers/map_providers.dart';
+import 'package:navia/core/constants/campus_locations.dart';
+import 'package:navia/data/providers/navigation_provider.dart';
+import 'package:navia/data/providers/settings_provider.dart';
+import 'package:navia/data/providers/auth_provider.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});

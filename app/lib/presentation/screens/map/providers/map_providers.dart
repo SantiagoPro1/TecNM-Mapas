@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:sinait/data/models/place_node.dart';
-import 'package:sinait/data/repositories/place_repository.dart';
+import 'package:navia/data/models/place_node.dart';
+import 'package:navia/data/repositories/place_repository.dart';
 
 // 1. Proveedor del Repositorio
 final placeRepositoryProvider = Provider<PlaceRepository>((ref) {

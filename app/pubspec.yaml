@@ -45,9 +45,8 @@ dependencies:
   flip_card: ^0.7.0
   barcode_widget: ^2.0.4
 
-  # Mapas y Geolocalización (OpenStreetMap)
-  flutter_map: ^7.0.2
-  latlong2: ^0.9.1
+  # Mapas y Geolocalización (Google Maps)
+  google_maps_flutter: ^2.9.0
   geolocator: ^11.0.0
   flutter_dotenv: ^6.0.1
   path_provider: ^2.1.4
@@ -76,3 +75,6 @@ flutter:
     - assets/maps/zentralia_map.json
     - assets/models/
     - assets/icons/svg/                  # Iconos SVG para marcadores del mapa
+    - assets/map_styles/
+    - assets/map_styles/dark_style.json
+    - assets/map_styles/light_style.json

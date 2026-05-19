@@ -1,24 +1,24 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:flutter/services.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'package:navia/presentation/widgets/bottom_nav.dart';
-import 'package:navia/presentation/widgets/offline_banner.dart';
-import 'package:navia/data/models/place_node.dart';
-import 'package:navia/data/models/campus_node.dart';
-import 'package:navia/data/cache/cached_tile_provider.dart';
-import 'package:navia/presentation/screens/map/providers/map_providers.dart';
-import 'package:navia/core/constants/campus_locations.dart';
-import 'package:navia/data/providers/navigation_provider.dart';
-import 'package:navia/data/providers/settings_provider.dart';
-import 'package:navia/services/offline/offline_manager.dart';
-import 'package:navia/utils/gps_filter.dart';
+import 'package:sinait/presentation/widgets/bottom_nav.dart';
+import 'package:sinait/data/models/place_node.dart';
+import 'package:sinait/data/models/campus_node.dart';
+import 'package:sinait/presentation/screens/map/providers/map_providers.dart';
+import 'package:sinait/core/constants/campus_locations.dart';
+import 'package:sinait/data/providers/navigation_provider.dart';
+import 'package:sinait/data/providers/settings_provider.dart';
+import 'package:sinait/data/providers/auth_provider.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -29,80 +29,53 @@ class MapScreen extends ConsumerStatefulWidget {
 
 class _MapScreenState extends ConsumerState<MapScreen>
     with SingleTickerProviderStateMixin {
-  final MapController _mapController = MapController();
-  List<Polyline> _polylines = [];
+  GoogleMapController? _googleMapController;
+  Set<Polyline> _googlePolylines = {};
+  Set<Marker> _googleMarkers = {};
 
-  /// Color de las polilíneas de ruta, derivado de theme.colorScheme.primary.
-  /// Se actualiza en cada build para mantenerse reactivo al cambio de tema.
-  Color _routeColor = const Color(0xFF38BDF8);
-
-  // ── ValueNotifier para la posición del usuario (evita rebuilds del mapa) ──
-  final ValueNotifier<LatLng?> _userPosNotifier = ValueNotifier<LatLng?>(null);
-  final ValueNotifier<bool> _trackingNotifier = ValueNotifier<bool>(false);
-
-  // ── Bounds de cámara: envolvente de las 3 zonas protegidas ────────────────
-  // Calculado a partir de los perímetros de Geofencing:
-  //   TecNM:     19.2628, -103.7233  (r=350m)
-  //   Sendera:   19.2457, -103.7250  (r=250m)
-  //   Zentralia: 19.2530, -103.7140  (r=300m)
-  // Se agrega ~0.005° de margen (~550m) para permitir scroll cómodo.
-  static final LatLngBounds _cameraBounds = LatLngBounds(
-    const LatLng(19.2380, -103.7330), // suroeste
-    const LatLng(19.2710, -103.7050), // noreste
-  );
   LatLng? _currentPosition;
-  bool _centeredOnUser = false; // se vuelve true cuando el GPS centra el mapa
-  bool _gpsInitDone = false; // true cuando _initializeGpsAndCenter() termina
+  LatLng? _displayPosition;
+  LatLng? _previousPosition;
+  double _currentZoom = 17.0;
+  double _currentHeading = 0.0;
 
-  // ── Interpolación suave del marcador GPS ──────────────────────────────
+  bool _centeredOnUser = false;
+  bool _gpsInitDone = false;
+  bool _isTrackingActive = false;
+  bool _isNavigating = false;
+
+  LatLng? _destinationLatLng;
+  Timer? _routeRecalcTimer;
+  Timer? _debounceTimer;
+
   late final AnimationController _posAnimController;
-  LatLng? _previousPosition; // posición GPS anterior (inicio de la tween)
-  LatLng? _displayPosition; // posición renderizada (interpolada)
+  final Map<String, BitmapDescriptor> _markerIconCache = {};
 
-  // ── Filtro GPS (Kalman adaptativo + rechazo de outliers) ────────────
-  final GpsFilter _gpsFilter = GpsFilter(
-    maxAccuracyM: 25.0, // Descartar lecturas con accuracy > 25m
-    baseMaxJumpM: 15.0, // Umbral base de salto (modulado por velocidad)
-    q: 1e-5, // Process noise — suave
-    baseR: 0.5e-4, // Measurement noise base (escalado por accuracy)
-  );
-
-  // ── Modo de Seguimiento Activo ────────────────────────────────────────
-  bool _isTrackingActive = false; // cámara sigue al usuario (lógica interna)
-  Timer? _routeRecalcTimer; // debounce para recálculo de ruta
-  LatLng? _lastRouteRecalcPos; // posición donde se recalculó por última vez
-
-  // Coordenadas iniciales (TecNM Campus Colima)
   static const LatLng _initialPosition =
       LatLng(CampusLocations.centerLat, CampusLocations.centerLng);
 
-  // TTS
-  final FlutterTts _flutterTts = FlutterTts();
-  LatLng? _currentMapCenter;
-  Timer? _debounceTimer;
+  static final LatLngBounds _cameraBounds = LatLngBounds(
+    southwest: const LatLng(19.2380, -103.7330),
+    northeast: const LatLng(19.2710, -103.7050),
+  );
 
-  // STT
-  late stt.SpeechToText _speechToText;
-  bool _isListening = false;
-  String _lastRecognizedWords = '';
-
-  // Navigation state for Arrival Logic
-  LatLng? _destinationLatLng;
-  bool _isNavigating = false;
-
-  // Dev Panel State
-  final List<String> _ttsHistory = [];
-  static const bool _isSimulatingLocation = false;
-
-  // Coordenadas dinámicas para el inicio
   late LatLng _mapInitialCenter;
   late double _mapInitialZoom;
   bool _initializedWithArgs = false;
 
-  // Proveedor de tiles con caché en disco (offline)
-  final CachedTileProvider _cachedTileProvider = CachedTileProvider(
-    maxCacheAgeDays: 30,
-  );
+  // TTS / STT
+  final FlutterTts _flutterTts = FlutterTts();
+  late stt.SpeechToText _speechToText;
+  bool _isListening = false;
+  String _lastRecognizedWords = '';
+
+  // HTTP client para llamar al backend
+  final Dio _dio = Dio();
+
+  // Map style strings (cargados desde assets)
+  String? _darkMapStyle;
+  String? _lightMapStyle;
+  String? _currentMapStyle;
 
   @override
   void initState() {
@@ -110,29 +83,32 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _mapInitialCenter = _initialPosition;
     _mapInitialZoom = 17.0;
 
-    // Cargar última posición GPS guardada para centrar el mapa inmediatamente
-    // mientras el GPS real tarda en fijar señal.
-    _loadLastKnownPosition();
-
-    // AnimationController para interpolar la posición del marcador GPS.
-    // Duración inicial = 600ms. Se ajusta dinámicamente según velocidad
-    // del usuario e intervalo real entre lecturas GPS.
     _posAnimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 800),
     )..addListener(_onPositionAnimTick);
 
     _initTts();
     _initStt();
-    // NOTA: _requestLocationPermission() se invoca dentro de
-    // _initializeGpsAndCenter() cuando el mapa está listo (onMapReady).
-    // No se llama aquí para evitar diálogos antes de que el mapa exista.
+    _loadMapStyles();
+  }
+
+  Future<void> _loadMapStyles() async {
+    try {
+      _darkMapStyle =
+          await rootBundle.loadString('assets/map_styles/dark_style.json');
+      _lightMapStyle =
+          await rootBundle.loadString('assets/map_styles/light_style.json');
+      final isDark = ref.read(mapThemeProvider) == 'dark';
+      if (mounted) {
+        setState(() => _currentMapStyle = isDark ? _darkMapStyle : _lightMapStyle);
+      }
+    } catch (_) {}
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Sync map theme from settings
     final settings = ref.read(settingsProvider);
     ref.read(mapThemeProvider.notifier).state =
         settings.highContrast ? 'dark' : 'light';
@@ -151,17 +127,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
       }
       _initializedWithArgs = true;
 
-      // Active route logic
       final navState = ref.read(navigationProvider);
       if (navState.activeRoute != null) {
         final points = navState.activeRoute!.steps
             .map((s) => LatLng(s.node.lat, s.node.lng))
             .toList();
         Future.microtask(() {
+          _setRoutePolyline(points);
           setState(() {
-            _polylines = [
-              Polyline(points: points, color: _routeColor, strokeWidth: 6)
-            ];
             _isNavigating = true;
             _destinationLatLng = points.last;
           });
@@ -172,7 +145,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
           _centeredOnUser = true;
         }
       } else if (navState.currentNode != null) {
-        // If they manually set their location but haven't started a route yet
         if (_mapInitialCenter == _initialPosition) {
           _mapInitialCenter =
               LatLng(navState.currentNode!.lat, navState.currentNode!.lng);
@@ -190,41 +162,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
     await _flutterTts.setPitch(1.0);
   }
 
-  /// Carga la última posición GPS guardada en SharedPreferences
-  /// para pre-centrar el mapa mientras el GPS real tarda en fijar señal.
-  /// Esto evita que el mapa muestre las coordenadas genéricas del campus
-  /// durante los primeros segundos de uso.
-  Future<void> _loadLastKnownPosition() async {
-    try {
-      final lastPos = await OfflineManager.loadLastPosition();
-      if (lastPos != null && !_centeredOnUser && mounted) {
-        final savedLatLng = LatLng(lastPos.lat, lastPos.lng);
-        setState(() {
-          _mapInitialCenter = savedLatLng;
-          _mapInitialZoom = lastPos.zoom;
-          _currentPosition = savedLatLng;
-        });
-        debugPrint('[MapScreen] Posición offline cargada: '
-            '${lastPos.lat.toStringAsFixed(6)}, '
-            '${lastPos.lng.toStringAsFixed(6)} '
-            '(zoom: ${lastPos.zoom})');
-      }
-    } catch (e) {
-      debugPrint('[MapScreen] Error cargando posición offline: $e');
-    }
-  }
-
   void _speak(String text) {
-    // Actualizar historial TTS sin setState — no hay UI visible para esto
-    _ttsHistory.insert(0,
-        "${DateTime.now().hour}:${DateTime.now().minute}:${DateTime.now().second} - $text");
-    if (_ttsHistory.length > 10) _ttsHistory.removeLast();
-
-    // Solo hablar si la navegación asistida está activada
     final voiceEnabled = ref.read(settingsProvider).voiceEnabled;
-    if (voiceEnabled) {
-      _flutterTts.speak(text);
-    }
+    if (voiceEnabled) _flutterTts.speak(text);
   }
 
   Future<void> _initStt() async {
@@ -241,58 +181,251 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _posAnimController.dispose();
     _routeRecalcTimer?.cancel();
     _debounceTimer?.cancel();
-    _userPosNotifier.dispose();
-    _trackingNotifier.dispose();
     _flutterTts.stop();
     _speechToText.stop();
-    _mapController.dispose();
+    _googleMapController?.dispose();
+    _dio.close();
     super.dispose();
   }
 
   // ──────────────────────────────────────────────────────────
-  //  GPS: permisos, servicio habilitado y centrado inicial
+  //  Marcadores POI — BitmapDescriptor desde Canvas
   // ──────────────────────────────────────────────────────────
 
-  /// Verifica permisos de ubicación y estado del servicio GPS.
-  /// Muestra diálogos profesionales si el GPS está apagado o los
-  /// permisos están denegados permanentemente.
+  Future<BitmapDescriptor> _buildPoiIcon(
+      String letter, bool isCafe, double devicePixelRatio) async {
+    final cacheKey = '${letter}_${isCafe}_$devicePixelRatio';
+    if (_markerIconCache.containsKey(cacheKey)) {
+      return _markerIconCache[cacheKey]!;
+    }
+
+    const size = 80.0;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    // Glow suave
+    canvas.drawCircle(
+      const Offset(size / 2, size / 2),
+      size / 2,
+      Paint()
+        ..color = const Color(0xFF38BDF8).withValues(alpha: 0.15)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+
+    // Fondo círculo
+    canvas.drawCircle(
+      const Offset(size / 2, size / 2),
+      size / 2 - 8,
+      Paint()..color = const Color(0xFF1E293B),
+    );
+
+    // Borde accent
+    canvas.drawCircle(
+      const Offset(size / 2, size / 2),
+      size / 2 - 8,
+      Paint()
+        ..color = const Color(0xFF38BDF8).withValues(alpha: 0.7)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+    );
+
+    if (letter.isNotEmpty) {
+      final tp = TextPainter(
+        text: TextSpan(
+          text: letter,
+          style: const TextStyle(
+            color: Color(0xFF38BDF8),
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(
+        canvas,
+        Offset((size - tp.width) / 2, (size - tp.height) / 2),
+      );
+    } else {
+      // Ícono simple para cafetería u otros
+      final iconPainter = TextPainter(
+        text: TextSpan(
+          text: isCafe ? '☕' : '📍',
+          style: const TextStyle(fontSize: 24),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      iconPainter.paint(
+        canvas,
+        Offset((size - iconPainter.width) / 2, (size - iconPainter.height) / 2),
+      );
+    }
+
+    final img = await recorder
+        .endRecording()
+        .toImage(size.toInt(), size.toInt());
+    final data = await img.toByteData(format: ui.ImageByteFormat.png);
+    final descriptor = BitmapDescriptor.bytes(
+      data!.buffer.asUint8List(),
+      width: 40,
+      height: 40,
+    );
+
+    _markerIconCache[cacheKey] = descriptor;
+    return descriptor;
+  }
+
+  Future<BitmapDescriptor> _buildUserIcon(double devicePixelRatio) async {
+    const cacheKey = 'user_marker';
+    if (_markerIconCache.containsKey(cacheKey)) {
+      return _markerIconCache[cacheKey]!;
+    }
+
+    const size = 80.0;
+    final pulse = 1.0 +
+        0.08 *
+            math.sin(DateTime.now().millisecondsSinceEpoch / 600.0);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    // Anillo pulsante
+    canvas.drawCircle(
+      const Offset(size / 2, size / 2),
+      (size / 2 - 2) * pulse,
+      Paint()
+        ..color = const Color(0xFFFFAB00).withValues(alpha: 0.18)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+
+    // Punto central
+    canvas.drawCircle(
+      const Offset(size / 2, size / 2),
+      22,
+      Paint()
+        ..color = const Color(0xFFFFAB00)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+    );
+    canvas.drawCircle(
+      const Offset(size / 2, size / 2),
+      16,
+      Paint()..color = const Color(0xFFFFAB00),
+    );
+    canvas.drawCircle(
+      const Offset(size / 2, size / 2),
+      16,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+    );
+
+    final img = await recorder
+        .endRecording()
+        .toImage(size.toInt(), size.toInt());
+    final data = await img.toByteData(format: ui.ImageByteFormat.png);
+    final descriptor = BitmapDescriptor.bytes(
+      data!.buffer.asUint8List(),
+      width: 36,
+      height: 36,
+    );
+
+    _markerIconCache[cacheKey] = descriptor;
+    return descriptor;
+  }
+
+  Future<void> _rebuildMarkers(List<PlaceNode> places) async {
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final Set<Marker> newMarkers = {};
+
+    for (final place in places) {
+      final isBuilding = place.type.toLowerCase() == 'edificio';
+      final isCafe = place.type.toLowerCase() == 'cafetería';
+
+      String letter = place.letter ?? '';
+      if (letter.isEmpty) {
+        if (isBuilding && place.id.startsWith('edificio_')) {
+          letter = place.id.split('_').last.toUpperCase();
+        } else if (place.id == 'cecum') {
+          letter = 'C';
+        } else if (place.id == 'activididades_extraescolares') {
+          letter = 'Ñ';
+        }
+      }
+
+      final icon = await _buildPoiIcon(letter, isCafe, dpr);
+      newMarkers.add(
+        Marker(
+          markerId: MarkerId(place.id),
+          position: LatLng(place.latitude, place.longitude),
+          icon: icon,
+          infoWindow: InfoWindow(title: place.name, snippet: place.type),
+          onTap: () =>
+              ref.read(selectedPlaceProvider.notifier).state = place,
+        ),
+      );
+    }
+
+    if (mounted) setState(() => _googleMarkers = newMarkers);
+  }
+
+  Future<void> _updateUserMarker(LatLng position) async {
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    // Invalidar cache del usuario para reflejar animación de pulso
+    _markerIconCache.remove('user_marker');
+    final icon = await _buildUserIcon(dpr);
+    final userMarker = Marker(
+      markerId: const MarkerId('user_location'),
+      position: position,
+      icon: icon,
+      zIndexInt: 10,
+      anchor: const Offset(0.5, 0.5),
+    );
+
+    if (mounted) {
+      setState(() {
+        _googleMarkers.removeWhere(
+            (m) => m.markerId == const MarkerId('user_location'));
+        _googleMarkers = {..._googleMarkers, userMarker};
+      });
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────
+  //  GPS y permisos
+  // ──────────────────────────────────────────────────────────
+
   Future<bool> _requestLocationPermission() async {
-    // 1. ¿El servicio de ubicación está activo?
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       if (mounted) await _showGpsDisabledDialog();
       return false;
     }
 
-    // 2. Verificar / solicitar permisos
     var permission = await Geolocator.checkPermission();
-
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        // El usuario rechazó el permiso esta vez
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Row(
                 children: [
                   Icon(Icons.location_off_rounded,
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      size: 22),
-                  const SizedBox(width: 10),
+                      color: Color(0xFF0D1B2A), size: 22),
+                  SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Permiso de ubicación denegado. Algunas funciones estarán limitadas.',
                       style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: Theme.of(context).scaffoldBackgroundColor),
+                          color: Color(0xFF0D1B2A)),
                     ),
                   ),
                 ],
               ),
-              backgroundColor: const Color(0xFFFFAB00),
+              backgroundColor: Color(0xFFFFAB00),
               behavior: SnackBarBehavior.fixed,
-              duration: const Duration(seconds: 4),
+              duration: Duration(seconds: 4),
             ),
           );
         }
@@ -301,15 +434,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
 
     if (permission == LocationPermission.deniedForever) {
-      // Permisos denegados permanentemente → abrir ajustes de la app
       if (mounted) {
         await showDialog<void>(
           context: context,
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            backgroundColor: const Color(0xFF0D1B2A),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24)),
             icon: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -347,8 +479,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 label: const Text('Abrir Ajustes',
                     style: TextStyle(fontWeight: FontWeight.w700)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).scaffoldBackgroundColor,
+                  backgroundColor: const Color(0xFF38BDF8),
+                  foregroundColor: const Color(0xFF0D1B2A),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
                   padding:
@@ -369,45 +501,41 @@ class _MapScreenState extends ConsumerState<MapScreen>
     return true;
   }
 
-  /// Diálogo profesional cuando el servicio GPS está desactivado.
   Future<void> _showGpsDisabledDialog() async {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: const Color(0xFF0D1B2A),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         icon: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Theme.of(context).colorScheme.primary,
-                Theme.of(context).colorScheme.secondary
-              ],
+            gradient: const LinearGradient(
+              colors: [Color(0xFF38BDF8), Color(0xFF0091EA)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.3),
+                color: const Color(0xFF38BDF8).withValues(alpha: 0.3),
                 blurRadius: 20,
                 spreadRadius: 2,
               ),
             ],
           ),
-          child:
-              const Icon(Icons.gps_off_rounded, color: Colors.white, size: 36),
+          child: const Icon(Icons.gps_off_rounded,
+              color: Colors.white, size: 36),
         ),
         title: const Text(
           'GPS Desactivado',
           textAlign: TextAlign.center,
           style: TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20),
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 20),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -415,37 +543,28 @@ class _MapScreenState extends ConsumerState<MapScreen>
             const Text(
               'Para brindarte la mejor experiencia de navegación en el campus, NAVIA necesita acceder a tu ubicación en tiempo real.',
               textAlign: TextAlign.center,
-              style:
-                  TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+              style: TextStyle(
+                  color: Colors.white70, fontSize: 14, height: 1.5),
             ),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.08),
+                color: const Color(0xFF38BDF8).withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.2)),
+                    color: const Color(0xFF38BDF8).withValues(alpha: 0.2)),
               ),
-              child: Row(
+              child: const Row(
                 children: [
                   Icon(Icons.info_outline_rounded,
-                      color: Theme.of(context).colorScheme.primary, size: 18),
-                  const SizedBox(width: 10),
+                      color: Color(0xFF38BDF8), size: 18),
+                  SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'También puedes navegar escaneando los códigos QR de los pasillos.',
                       style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.6),
+                          color: Color(0xFF90CAF9),
                           fontSize: 12,
                           height: 1.4),
                     ),
@@ -469,11 +588,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
             label: const Text('Activar GPS',
                 style: TextStyle(fontWeight: FontWeight.w700)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Theme.of(context).scaffoldBackgroundColor,
+              backgroundColor: const Color(0xFF38BDF8),
+              foregroundColor: const Color(0xFF0D1B2A),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14)),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               elevation: 0,
             ),
             onPressed: () {
@@ -486,18 +606,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
-  /// Llamado cuando el mapa termina de crearse (onMapReady).
-  /// Flujo determinístico:
-  ///  1. Verifica permisos / servicio GPS → diálogos profesionales si falla.
-  ///  2. Obtiene la posición GPS actual (con timeout).
-  ///  3. Mueve la cámara a esa posición.
-  ///  4. Marca _gpsInitDone para que el stream-listener sepa que puede
-  ///     tomar el control del centrado si fuera necesario.
   Future<void> _initializeGpsAndCenter() async {
     try {
-      // Si ya se centró por argumentos de ruta o navegación activa, no interferir.
       if (_centeredOnUser) return;
-
       final permissionGranted = await _requestLocationPermission();
       if (!permissionGranted || !mounted) return;
 
@@ -506,95 +617,51 @@ class _MapScreenState extends ConsumerState<MapScreen>
           desiredAccuracy: LocationAccuracy.high,
           timeLimit: const Duration(seconds: 8),
         );
-
         if (!mounted) return;
-
         final latLng = LatLng(position.latitude, position.longitude);
-        setState(() {
-          _currentPosition = latLng;
-        });
-
-        // Solo centrar si aún no se ha centrado (evita race-condition con el stream)
+        setState(() => _currentPosition = latLng);
         if (!_centeredOnUser) {
           _centeredOnUser = true;
-          _mapController.move(latLng, 17.5);
+          _googleMapController
+              ?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 17.5));
         }
       } on TimeoutException {
-        debugPrint(
-            'GPS: timeout al obtener posición inicial — se usará el stream.');
-      } on LocationServiceDisabledException {
-        debugPrint('GPS: servicio desactivado durante getCurrentPosition.');
+        debugPrint('GPS: timeout — se usará el stream.');
       } catch (e) {
         debugPrint('GPS: error al obtener posición inicial: $e');
       }
     } finally {
-      // Siempre marcar como terminado para desbloquear el stream-listener.
       _gpsInitDone = true;
     }
   }
 
-  // Centra el mapa en la posición actual y activa el seguimiento.
   void _centerOnUser() {
-    final navState = ref.read(navigationProvider);
-    LatLng? targetPos;
-    if (navState.currentNode != null) {
-      targetPos = LatLng(navState.currentNode!.lat, navState.currentNode!.lng);
-    } else if (_displayPosition != null) {
-      targetPos = _displayPosition;
-    } else if (_currentPosition != null) {
-      targetPos = _currentPosition;
-    }
+    // Restaurar a GPS real al centrar
+    ref.read(navigationProvider.notifier).clearManualPosition();
+    setState(() => _isTrackingActive = true);
+
+    LatLng? targetPos = _displayPosition ?? _currentPosition;
 
     if (targetPos != null) {
-      _mapController.move(targetPos, 17.5);
-      _isTrackingActive = true;
-      _trackingNotifier.value = true;
+      _googleMapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(targetPos, _currentZoom));
     }
   }
 
   // ──────────────────────────────────────────────────────────
-  //  Pipeline GPS filtrado → interpolación suave del marcador
+  //  Interpolación GPS suave
   // ──────────────────────────────────────────────────────────
 
-  /// Pipeline completo de procesamiento GPS:
-  ///  1. Lectura cruda → GpsFilter (Kalman + rechazo de outliers)
-  ///  2. Posición filtrada → AnimationController (tween suave)
-  ///  3. Velocidad instantánea → duración adaptativa de animación
-  ///  4. Si hay navegación activa → recalcular ruta solo si desviación > umbral
-  void _onNewGpsRaw(Position rawPosition) {
-    // Paso 1: Filtrar con Kalman + rechazo de outliers
-    final filtered = _gpsFilter.filter(rawPosition);
-    if (filtered == null) {
-      // Lectura descartada (salto > 15m) — no actualizar nada
-      debugPrint('GPS: lectura descartada (outlier) → '
-          '${rawPosition.latitude.toStringAsFixed(6)}, '
-          '${rawPosition.longitude.toStringAsFixed(6)}');
-      return;
-    }
-
-    // Paso 2: Preparar interpolación del marcador
-    _previousPosition = _displayPosition ?? _currentPosition ?? filtered;
-    _currentPosition = filtered;
-
-    // Paso 3: Ajustar duración de animación según velocidad
-    final newDuration = _gpsFilter.adaptiveAnimationDuration;
-    if (_posAnimController.duration != newDuration) {
-      _posAnimController.duration = newDuration;
-    }
-
-    // Iniciar interpolación suave desde la posición anterior a la nueva
+  void _onNewGpsPosition(LatLng newPos, {double heading = 0.0}) {
+    _previousPosition = _displayPosition ?? _currentPosition ?? newPos;
+    setState(() {
+      _currentPosition = newPos;
+      if (heading >= 0) _currentHeading = heading;
+    });
     _posAnimController.forward(from: 0.0);
-
-    // Paso 4: Programar re-snap a grafo SI hay navegación activa
-    // Y la desviación desde el último recalc supera el umbral adaptativo
-    if (_isNavigating) {
-      _scheduleSmartRouteRecalc(filtered);
-    }
+    if (_isNavigating) _scheduleRouteRecalc(newPos);
   }
 
-  /// Tick del AnimationController: interpola lat/lng con curva suave.
-  /// Usa ValueNotifier en lugar de setState para actualizar SOLO el marcador
-  /// del usuario sin reconstruir todo el árbol de widgets del mapa.
   void _onPositionAnimTick() {
     if (_previousPosition == null || _currentPosition == null) return;
 
@@ -605,210 +672,289 @@ class _MapScreenState extends ConsumerState<MapScreen>
         (_currentPosition!.longitude - _previousPosition!.longitude) * t;
 
     final interpolated = LatLng(lat, lng);
-    _displayPosition = interpolated;
+    setState(() => _displayPosition = interpolated);
+    _updateUserMarker(interpolated);
 
-    // Notificar al ValueNotifier → solo reconstruye el MarkerLayer del usuario
-    _userPosNotifier.value = interpolated;
-
-    // Modo seguimiento activo: cámara persigue al usuario.
-    // Si el usuario está quieto, no mover la cámara para ahorrar GPU
-    // y evitar micro-vibraciones del mapa por ruido GPS.
-    if (_isTrackingActive && !_gpsFilter.isStationary) {
-      _mapController.move(interpolated, _mapController.camera.zoom);
+    if (_isTrackingActive) {
+      if (_isNavigating) {
+        _googleMapController?.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(
+              target: interpolated,
+              zoom: 19.5,
+              tilt: 50.0,
+              bearing: _currentHeading,
+            ),
+          ),
+        );
+      } else {
+        _googleMapController?.animateCamera(
+            CameraUpdate.newLatLng(interpolated));
+      }
     }
   }
 
-  /// Recalcula la ruta solo si la posición del usuario se desvió
-  /// significativamente del camino actual. El umbral es adaptativo:
-  /// quieto → 15m, caminando → 10m, rápido → 8m.
-  ///
-  /// Esto evita recalcular innecesariamente cuando el usuario camina
-  /// en línea recta sobre la ruta trazada.
-  void _scheduleSmartRouteRecalc(LatLng filteredPos) {
-    // Si ya hay un timer pendiente, cancelarlo (debounce)
+  void _scheduleRouteRecalc(LatLng rawPos) {
     _routeRecalcTimer?.cancel();
-
-    // Si el usuario está quieto, no intentar recalcular — el ruido GPS
-    // en reposo NO debe generar recálculos espurios.
-    if (_gpsFilter.isStationary) return;
-
-    // Verificar desviación respecto al último punto de recálculo
-    if (_lastRouteRecalcPos != null) {
-      final deviation = GpsFilter.distanceBetween(
-        _lastRouteRecalcPos!,
-        filteredPos,
-      );
-      // Si no nos hemos desviado lo suficiente, no recalcular
-      if (deviation < _gpsFilter.routeRecalcThresholdM) return;
-    }
-
-    // Debounce de 500ms — más reactivo que antes (800ms) porque el
-    // filtro Kalman ya eliminó la mayoría del ruido.
-    _routeRecalcTimer = Timer(const Duration(milliseconds: 500), () {
+    _routeRecalcTimer =
+        Timer(const Duration(milliseconds: 1200), () async {
       if (!mounted || !_isNavigating || _destinationLatLng == null) return;
 
+      final snapPos = _displayPosition ?? rawPos;
       final navService = ref.read(navigationServiceProvider);
       final graph = navService.graph;
       if (graph == null) return;
 
-      final snapPos = _displayPosition ?? filteredPos;
-
-      // Encontrar el corredor/entrada más cercano a la posición GPS
       final corridors = graph.nodes.values
-          .where(
-              (n) => n.type == NodeType.corridor || n.type == NodeType.entrance)
+          .where((n) =>
+              n.type == NodeType.corridor || n.type == NodeType.entrance)
           .toList();
-      final nearest = _closestNodeTo(corridors, snapPos, maxDistanceM: 100);
+      final nearest =
+          _closestNodeTo(corridors, snapPos, maxDistanceM: 100);
       if (nearest == null) return;
-
-      // Solo recalcular si el nodo más cercano cambió
       if (nearest.id == navService.currentNodeId) return;
 
-      // Encontrar nodo destino
-      final destNode =
-          _closestNodeTo(graph.nodes.values.toList(), _destinationLatLng!);
-      if (destNode == null) return;
-
-      final route = navService.calculateRouteById(nearest.id, destNode.id);
-      if (route != null) {
-        final notifier = ref.read(navigationProvider.notifier);
-        notifier.setPosition(nearest.id);
-        notifier.navigateTo(destNode.id);
-
-        final points =
-            route.steps.map((s) => LatLng(s.node.lat, s.node.lng)).toList();
-        setState(() {
-          _polylines = [
-            Polyline(points: points, color: _routeColor, strokeWidth: 6),
-          ];
-        });
-
-        // Actualizar referencia de recálculo
-        _lastRouteRecalcPos = filteredPos;
-      }
+      await calculateAccessibleRoute(_destinationLatLng!);
     });
   }
 
-  /// Marcador del usuario con anillo de precisión pulsante.
-  Marker _buildUserMarker(LatLng position) {
-    // Anillo de precisión GPS (animación sutil de escala)
-    final pulse = 1.0 +
-        0.08 *
-            math.sin(
-              DateTime.now().millisecondsSinceEpoch / 600.0,
-            );
+  // ──────────────────────────────────────────────────────────
+  //  Rutas via Google Routes API (backend proxy)
+  // ──────────────────────────────────────────────────────────
 
-    return Marker(
-      point: position,
-      width: 48,
-      height: 48,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Anillo de precisión pulsante
-          Transform.scale(
-            scale: pulse,
-            child: Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFFFAB00).withValues(alpha: 0.12),
-                border: Border.all(
-                  color: const Color(0xFFFFAB00).withValues(alpha: 0.25),
-                  width: 1.5,
-                ),
+  Future<void> calculateAccessibleRoute(LatLng destination,
+      [String? destinationName]) async {
+    _destinationLatLng = destination;
+
+    final origin = _displayPosition ?? _currentPosition;
+    if (origin == null) {
+      final navService = ref.read(navigationServiceProvider);
+      final graph = navService.graph;
+      final fromId = navService.currentNodeId;
+
+      if (fromId == null || graph == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.qr_code_scanner,
+                      color: Color(0xFF0D1B2A), size: 22),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Activa el GPS o escanea el QR del pasillo más cercano para trazar tu ruta.',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF0D1B2A)),
+                    ),
+                  ),
+                ],
               ),
+              backgroundColor: Color(0xFF38BDF8),
+              behavior: SnackBarBehavior.fixed,
+              duration: Duration(seconds: 4),
             ),
-          ),
-          // Punto central del usuario
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFAB00),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFFAB00).withValues(alpha: 0.5),
-                  blurRadius: 12,
-                  spreadRadius: 3,
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.person_pin_circle_rounded,
-              color: Colors.white,
-              size: 16,
-            ),
-          ),
-          // Indicador de seguimiento activo
-          if (_isTrackingActive)
-            Positioned(
-              top: 0,
-              right: 0,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1.5),
-                ),
-              ),
-            ),
-        ],
+          );
+        }
+        return;
+      }
+      // Si hay nodo QR fijado, usar sus coordenadas como origen
+      final fromNode = graph.nodes[fromId];
+      if (fromNode == null) return;
+      await _fetchRoute(
+          LatLng(fromNode.lat, fromNode.lng), destination, destinationName);
+      return;
+    }
+
+    await _fetchRoute(origin, destination, destinationName);
+  }
+
+  Future<void> _fetchRoute(
+      LatLng origin, LatLng destination, String? destinationName) async {
+    try {
+      final apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'];
+      if (apiKey == null || apiKey.isEmpty) {
+        _fallbackToDijkstra(destination);
+        return;
+      }
+
+      final response = await _dio.post(
+        'https://routes.googleapis.com/directions/v2:computeRoutes',
+        data: {
+          "origin": {
+            "location": {
+              "latLng": {
+                "latitude": origin.latitude,
+                "longitude": origin.longitude
+              }
+            }
+          },
+          "destination": {
+            "location": {
+              "latLng": {
+                "latitude": destination.latitude,
+                "longitude": destination.longitude
+              }
+            }
+          },
+          "travelMode": "WALK",
+        },
+        options: Options(
+          headers: {
+            'X-Goog-Api-Key': apiKey,
+            'X-Goog-FieldMask':
+                'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline',
+            'Content-Type': 'application/json',
+          },
+          receiveTimeout: const Duration(seconds: 15),
+        ),
+      );
+
+      final routes = response.data['routes'] as List<dynamic>?;
+      if (routes != null && routes.isNotEmpty) {
+        final route = routes.first;
+        final encodedPolyline = route['polyline']['encodedPolyline'] as String;
+        final points = _decodePolyline(encodedPolyline);
+        final distance = route['distanceMeters'] as int? ?? 0;
+
+        if (points.isEmpty) {
+          _speak('No se encontró una ruta válida.');
+          return;
+        }
+
+        _setRoutePolyline(points);
+        setState(() {
+          _isNavigating = true;
+          _destinationLatLng = destination;
+        });
+
+        _fitBounds(points);
+
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted && _isNavigating) {
+            setState(() => _isTrackingActive = true);
+          }
+        });
+
+        _speak(
+            'Ruta trazada hacia ${destinationName ?? "tu destino"}. '
+            '${distance > 0 ? "$distance metros." : ""}');
+      } else {
+        debugPrint('Google Routes no encontró ruta.');
+        _fallbackToDijkstra(destination);
+      }
+    } on DioException catch (e) {
+      debugPrint('Error al obtener ruta (Dio): ${e.response?.data ?? e.message}');
+      _fallbackToDijkstra(destination);
+    } catch (e) {
+      debugPrint('Error inesperado en ruta: $e');
+      _fallbackToDijkstra(destination);
+    }
+  }
+
+  List<LatLng> _decodePolyline(String encoded) {
+    List<LatLng> poly = [];
+    int index = 0, len = encoded.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int b, shift = 0, result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      poly.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+    return poly;
+  }
+
+  void _fallbackToDijkstra(LatLng destination) {
+    final navService = ref.read(navigationServiceProvider);
+    final graph = navService.graph;
+    if (graph == null) return;
+
+    final destNode = _closestNodeTo(graph.nodes.values.toList(), destination);
+    if (destNode != null) {
+      ref.read(navigationProvider.notifier).navigateTo(destNode.id);
+      _speak('Usando sistema de navegación local del campus.');
+    } else {
+      _speak('No se pudo calcular la ruta.');
+    }
+  }
+
+  void _setRoutePolyline(List<LatLng> points) {
+    setState(() {
+      _googlePolylines = {
+        Polyline(
+          polylineId: const PolylineId('campus_route'),
+          points: points,
+          color: const Color(0xFF38BDF8),
+          width: 6,
+          startCap: Cap.roundCap,
+          endCap: Cap.roundCap,
+          jointType: JointType.round,
+        ),
+      };
+    });
+  }
+
+  void _fitBounds(List<LatLng> points) {
+    if (points.isEmpty) return;
+    double minLat = points.first.latitude;
+    double maxLat = points.first.latitude;
+    double minLng = points.first.longitude;
+    double maxLng = points.first.longitude;
+    for (final p in points) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
+    }
+    _googleMapController?.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(minLat, minLng),
+          northeast: LatLng(maxLat, maxLng),
+        ),
+        60,
       ),
     );
   }
 
-  void _onPositionChanged(MapCamera camera, bool hasGesture) {
-    _currentMapCenter = camera.center;
-    // Gesto del usuario rompe el seguimiento automático
-    if (hasGesture && _isTrackingActive) {
-      _isTrackingActive = false;
-      _trackingNotifier.value = false;
+  CampusNode? _closestNodeTo(List<CampusNode> nodes, LatLng target,
+      {double maxDistanceM = double.infinity}) {
+    CampusNode? best;
+    double bestDist = double.infinity;
+    for (final node in nodes) {
+      final d = Geolocator.distanceBetween(
+          target.latitude, target.longitude, node.lat, node.lng);
+      if (d < bestDist) {
+        bestDist = d;
+        best = node;
+      }
     }
-    if (hasGesture) {
-      if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
-      _debounceTimer = Timer(const Duration(milliseconds: 600), () {
-        _announceNearestPlace(_currentMapCenter!);
-      });
-    }
+    return bestDist <= maxDistanceM ? best : null;
   }
 
-  void _announceNearestPlace(LatLng center) {
-    final placesAsyncValue = ref.read(placesStreamProvider);
+  // ──────────────────────────────────────────────────────────
+  //  STT
+  // ──────────────────────────────────────────────────────────
 
-    placesAsyncValue.whenData((places) {
-      if (places.isEmpty) return;
-
-      PlaceNode? nearestPlace;
-      double minDistance = double.infinity;
-
-      for (var place in places) {
-        final distance = Geolocator.distanceBetween(
-          center.latitude,
-          center.longitude,
-          place.latitude,
-          place.longitude,
-        );
-
-        if (distance < minDistance) {
-          minDistance = distance;
-          nearestPlace = place;
-        }
-      }
-
-      if (nearestPlace != null && minDistance < 150) {
-        _flutterTts.stop();
-        _speak('Viendo zona cerca de: ${nearestPlace.name}');
-      }
-    });
-  }
-
-  // --- STT Logic ---
   Future<void> _startListening(LongPressStartDetails details) async {
     _flutterTts.stop();
     if (!_speechToText.isAvailable) {
@@ -821,12 +967,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
         return;
       }
     }
-
     setState(() => _isListening = true);
-
     await _speechToText.listen(
       onResult: (result) {
-        _lastRecognizedWords = result.recognizedWords;
+        setState(
+            () => _lastRecognizedWords = result.recognizedWords);
       },
       localeId: "es_MX",
     );
@@ -840,9 +985,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   void _processVoiceCommand(String text) {
     if (text.isEmpty) return;
-
     final lowerText = text.toLowerCase();
-    debugPrint("Comando recibido: $lowerText");
 
     if (lowerText.contains('ir a') ||
         lowerText.contains('buscar') ||
@@ -861,23 +1004,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
       final placesAsync = ref.read(placesStreamProvider);
       placesAsync.whenData((places) {
-        PlaceNode? bestMatch;
-
-        String removeAccents(String s) {
-          return s
-              .replaceAll('á', 'a')
-              .replaceAll('é', 'e')
-              .replaceAll('í', 'i')
-              .replaceAll('ó', 'o')
-              .replaceAll('ú', 'u');
-        }
+        String removeAccents(String s) => s
+            .replaceAll('á', 'a')
+            .replaceAll('é', 'e')
+            .replaceAll('í', 'i')
+            .replaceAll('ó', 'o')
+            .replaceAll('ú', 'u');
 
         final normalizedSearch = removeAccents(searchTarget);
-
+        PlaceNode? bestMatch;
         for (var place in places) {
           final normalizedName = removeAccents(place.name.toLowerCase());
           final normalizedType = removeAccents(place.type.toLowerCase());
-
           if (normalizedName.contains(normalizedSearch) ||
               normalizedType.contains(normalizedSearch)) {
             bestMatch = place;
@@ -887,7 +1025,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
         if (bestMatch != null) {
           calculateAccessibleRoute(
-              LatLng(bestMatch.latitude, bestMatch.longitude), bestMatch.name);
+              LatLng(bestMatch.latitude, bestMatch.longitude),
+              bestMatch.name);
         } else {
           _speak(
               'No encontré el lugar: $searchTarget. Intenta decirlo de otra forma.');
@@ -896,215 +1035,210 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
+  // ──────────────────────────────────────────────────────────
+  //  Bottom Sheet de lugar
+  // ──────────────────────────────────────────────────────────
+
   void _showAccessibleBottomSheet(PlaceNode place) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-            boxShadow: const [
-              BoxShadow(color: Colors.black54, blurRadius: 20, spreadRadius: 5),
-            ],
-          ),
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Handle
-              Center(
-                child: Container(
-                  width: 50,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF0D1B2A),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black54, blurRadius: 20, spreadRadius: 5),
+          ],
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 50,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const SizedBox(height: 24),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF38BDF8).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                        color:
+                            const Color(0xFF38BDF8).withValues(alpha: 0.3)),
+                  ),
+                  child: Icon(
+                    place.type.toLowerCase().contains('cafetería')
+                        ? Icons.coffee_rounded
+                        : Icons.business_rounded,
+                    color: const Color(0xFF38BDF8),
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        place.name,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        place.type.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF38BDF8)
+                              .withValues(alpha: 0.8),
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'DETALLES DE ACCESIBILIDAD',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Colors.white38,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _buildInfoBadge(
+                  Icons.accessible_rounded,
+                  'Nivel: ${place.accessibilityLevel.toUpperCase()}',
+                  place.accessibilityLevel.toLowerCase() == 'alto'
+                      ? Colors.greenAccent
+                      : Colors.orangeAccent,
+                ),
+                const SizedBox(width: 12),
+                _buildInfoBadge(
+                  Icons.map_rounded,
+                  'Piso: Planta Baja',
+                  Colors.blueAccent,
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 54,
                     decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF38BDF8), Color(0xFF0091EA)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.directions_walk_rounded,
+                          size: 22, color: Color(0xFF0D1B2A)),
+                      label: const Text(
+                        'Trazar Ruta',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0D1B2A)),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        calculateAccessibleRoute(
+                          LatLng(place.latitude, place.longitude),
+                          place.name,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    height: 54,
+                    decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.3)),
+                          color: const Color(0xFF38BDF8)
+                              .withValues(alpha: 0.4)),
+                      color:
+                          const Color(0xFF38BDF8).withValues(alpha: 0.05),
                     ),
-                    child: Icon(
-                      place.type.toLowerCase().contains('cafetería')
-                          ? Icons.coffee_rounded
-                          : Icons.business_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 32,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          place.name,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          place.type.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withValues(alpha: 0.8),
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      ],
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.location_on_rounded,
+                          size: 22, color: Color(0xFF38BDF8)),
+                      label: const Text(
+                        'Estoy Aquí',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF38BDF8)),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        final navService = ref.read(navigationServiceProvider);
+                        final graph = navService.graph;
+                        if (graph != null) {
+                          final closest = _closestNodeTo(
+                              graph.nodes.values.toList(),
+                              LatLng(place.latitude, place.longitude));
+                          if (closest != null) {
+                            ref.read(navigationProvider.notifier).setPosition(closest.id);
+                            _speak('Ubicación fijada en ${place.name}.');
+                          } else {
+                            _speak('No se pudo fijar la ubicación.');
+                          }
+                        }
+                      },
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'DETALLES DE ACCESIBILIDAD',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white38,
-                  letterSpacing: 1.5,
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _buildInfoBadge(
-                    Icons.accessible_rounded,
-                    'Nivel: ${place.accessibilityLevel.toUpperCase()}',
-                    place.accessibilityLevel.toLowerCase() == 'alto'
-                        ? Colors.greenAccent
-                        : Colors.orangeAccent,
-                  ),
-                  const SizedBox(width: 12),
-                  _buildInfoBadge(
-                    Icons.map_rounded,
-                    'Piso: Planta Baja',
-                    Colors.blueAccent,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 54,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: LinearGradient(
-                          colors: [
-                            Theme.of(context).colorScheme.primary,
-                            Theme.of(context).colorScheme.secondary
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: ElevatedButton.icon(
-                        icon: Icon(Icons.directions_walk_rounded,
-                            size: 22,
-                            color: Theme.of(context).scaffoldBackgroundColor),
-                        label: Text(
-                          'Trazar Ruta',
-                          style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: Theme.of(context).scaffoldBackgroundColor),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          calculateAccessibleRoute(
-                            LatLng(place.latitude, place.longitude),
-                            place.name,
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      height: 54,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withValues(alpha: 0.4)),
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.05),
-                      ),
-                      child: ElevatedButton.icon(
-                        icon: Icon(Icons.location_on_rounded,
-                            size: 22,
-                            color: Theme.of(context).colorScheme.primary),
-                        label: Text(
-                          'Estoy Aquí',
-                          style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: Theme.of(context).colorScheme.primary),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          ref
-                              .read(navigationProvider.notifier)
-                              .setPosition(place.id);
-                          _speak('Ubicación fijada en ${place.name}.');
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1134,160 +1268,43 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
-  Future<void> calculateAccessibleRoute(LatLng destination,
-      [String? destinationName]) async {
-    _destinationLatLng = destination;
-    _isNavigating = true;
-
-    try {
-      final notifier = ref.read(navigationProvider.notifier);
-      final navService = ref.read(navigationServiceProvider);
-      final graph = navService.graph;
-
-      if (graph == null) {
-        _speak('El mapa aún no está listo. Intenta de nuevo.');
-        return;
-      }
-
-      // 1. Encontrar el nodo destino en el grafo por coordenadas
-      final destNode = _closestNodeTo(graph.nodes.values.toList(), destination);
-      if (destNode == null) {
-        _speak('No encontré ese lugar en el mapa.');
-        return;
-      }
-
-      // 2. Determinar origen: QR escaneado tiene prioridad.
-      //    Si no hay QR, usar GPS para encontrar el hall más cercano.
-      String? fromId = navService.currentNodeId;
-
-      if (fromId == null) {
-        // Sin QR: intentar GPS (preferir posición interpolada)
-        final gpsPos = _displayPosition ?? _currentPosition;
-        if (gpsPos != null) {
-          final corridors = graph.nodes.values
-              .where((n) =>
-                  n.type == NodeType.corridor || n.type == NodeType.entrance)
-              .toList();
-          final nearest = _closestNodeTo(corridors, gpsPos, maxDistanceM: 500);
-          if (nearest != null) {
-            fromId = nearest.id;
-          }
-        }
-
-        if (fromId == null) {
-          // Sin GPS ni QR: pedir escaneo
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    Icon(Icons.qr_code_scanner,
-                        color: Theme.of(context).scaffoldBackgroundColor,
-                        size: 22),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Activa el GPS o escanea el QR del pasillo más cercano para trazar tu ruta.',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).scaffoldBackgroundColor),
-                      ),
-                    ),
-                  ],
-                ),
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                behavior: SnackBarBehavior.fixed,
-                duration: const Duration(seconds: 4),
-              ),
-            );
-          }
-          setState(() {
-            _isNavigating = false;
-          });
-          return;
-        }
-      }
-
-      // 3. Fijar el origen en el servicio y calcular ruta por IDs
-      notifier.setPosition(fromId);
-      final route = navService.calculateRouteById(fromId, destNode.id);
-
-      if (route != null) {
-        notifier.navigateTo(destNode.id);
-
-        final List<LatLng> points =
-            route.steps.map((s) => LatLng(s.node.lat, s.node.lng)).toList();
-
-        setState(() {
-          _polylines = [
-            Polyline(points: points, color: _routeColor, strokeWidth: 6),
-          ];
-        });
-
-        _fitBounds(points);
-
-        // Resetear referencia de recálculo para la nueva ruta
-        _lastRouteRecalcPos = _displayPosition ?? _currentPosition;
-
-        // Forzar una lectura GPS fresca para empezar a navegar
-        // con la posición más precisa posible.
-        _forceGpsRefresh();
-
-        _speak('Ruta trazada hacia ${destinationName ?? destNode.name}. '
-            '${route.totalDistance.round()} metros.');
-      } else {
-        _speak(
-            'No encontré una ruta hacia ${destinationName ?? destNode.name}.');
-      }
-    } catch (e) {
-      debugPrint('Error en ruta: $e');
-      _speak('Ocurrió un error al calcular la ruta.');
-    }
-  }
-
-  /// Fuerza una lectura GPS inmediata para refrescar la posición
-  /// después de cambiar de ruta o zona.
-  Future<void> _forceGpsRefresh() async {
-    try {
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.bestForNavigation,
-        timeLimit: const Duration(seconds: 3),
-      );
-      if (mounted) {
-        _onNewGpsRaw(pos);
-      }
-    } catch (e) {
-      debugPrint('GPS: refresh forzado falló: $e');
-    }
-  }
-
-  /// Nodo del grafo más cercano a [target]. Retorna null si el más cercano
-  /// supera [maxDistanceM] metros (por defecto sin límite).
-  CampusNode? _closestNodeTo(List<CampusNode> nodes, LatLng target,
-      {double maxDistanceM = double.infinity}) {
-    CampusNode? best;
-    double bestDist = double.infinity;
-    for (final node in nodes) {
-      final d = Geolocator.distanceBetween(
-          target.latitude, target.longitude, node.lat, node.lng);
-      if (d < bestDist) {
-        bestDist = d;
-        best = node;
-      }
-    }
-    return bestDist <= maxDistanceM ? best : null;
-  }
-
-  void _fitBounds(List<LatLng> points) {
-    if (points.isEmpty) return;
-    final bounds = LatLngBounds.fromPoints(points);
-    _mapController.fitCamera(
-      CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(50)),
+  void _handleArrival() {
+    setState(() {
+      _isNavigating = false;
+      _googlePolylines = {};
+      _destinationLatLng = null;
+    });
+    _speak('Has llegado a tu destino. NAVIA te desea un excelente día.');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.check_circle_rounded,
+                color: Color(0xFF0D1B2A), size: 24),
+            SizedBox(width: 10),
+            Text('¡Has llegado a tu destino!',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0D1B2A))),
+          ],
+        ),
+        backgroundColor: const Color(0xFF38BDF8),
+        behavior: SnackBarBehavior.floating,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
     );
   }
 
+  // ──────────────────────────────────────────────────────────
+  //  Build
+  // ──────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
+    // Escuchar lugar seleccionado
     ref.listen<PlaceNode?>(selectedPlaceProvider, (previous, next) {
       if (next != null) {
         _showAccessibleBottomSheet(next);
@@ -1297,155 +1314,127 @@ class _MapScreenState extends ConsumerState<MapScreen>
       }
     });
 
+    // Escuchar stream GPS
     ref.listen<AsyncValue<Position>>(currentLocationStreamProvider,
         (previous, next) {
       next.whenData((position) {
-        // Rutear la lectura cruda a través del pipeline:
-        //   Position → GpsFilter (Kalman + outlier) → AnimationController
-        _onNewGpsRaw(position);
+        final navService = ref.read(navigationServiceProvider);
+        if (navService.isManualPosition) return;
 
-        // Para centrado inicial usamos la posición filtrada (más precisa)
-        final filtered = _gpsFilter.lastPosition;
-        if (filtered != null && !_centeredOnUser && _gpsInitDone) {
+        final latLng = LatLng(position.latitude, position.longitude);
+        _onNewGpsPosition(latLng, heading: position.heading);
+
+        if (!_centeredOnUser && _gpsInitDone) {
           _centeredOnUser = true;
-          _mapController.move(filtered, 17.5);
+          _googleMapController
+              ?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 17.5));
         }
 
-        // Persistir posición filtrada para uso offline futuro
-        if (filtered != null) {
-          OfflineManager.saveLastPosition(
-            latitude: filtered.latitude,
-            longitude: filtered.longitude,
-          );
-        }
-
-        // Detección de llegada al destino (usar posición filtrada)
-        if (_isNavigating &&
-            _destinationLatLng != null &&
-            !_isSimulatingLocation &&
-            filtered != null) {
-          final distanceToTarget = Geolocator.distanceBetween(
-            filtered.latitude,
-            filtered.longitude,
+        // Detección de llegada
+        if (_isNavigating && _destinationLatLng != null) {
+          final dist = Geolocator.distanceBetween(
+            latLng.latitude,
+            latLng.longitude,
             _destinationLatLng!.latitude,
             _destinationLatLng!.longitude,
           );
-          if (distanceToTarget <= 10.0) _handleArrival();
+          if (dist <= 10.0) _handleArrival();
         }
       });
     });
 
+    // Escuchar cambios de navegación
     ref.listen<NavigationState>(navigationProvider, (previous, next) {
       if (next.currentNode != previous?.currentNode &&
           next.currentNode != null) {
-        // Mover el mapa al nuevo nodo (Estoy Aquí o QR)
-        _mapController.move(
-          LatLng(next.currentNode!.lat, next.currentNode!.lng),
-          _mapController.camera.zoom,
-        );
+        final targetPos = LatLng(next.currentNode!.lat, next.currentNode!.lng);
+        _googleMapController?.animateCamera(CameraUpdate.newLatLng(targetPos));
+        
+        final navService = ref.read(navigationServiceProvider);
+        if (navService.isManualPosition) {
+          _onNewGpsPosition(targetPos);
+        }
       }
-
       if (next.activeRoute != previous?.activeRoute) {
         if (next.activeRoute != null) {
           final points = next.activeRoute!.steps
               .map((s) => LatLng(s.node.lat, s.node.lng))
               .toList();
-          setState(() {
-            _polylines = [
-              Polyline(points: points, color: _routeColor, strokeWidth: 6)
-            ];
-            _isNavigating = true;
-          });
+          _setRoutePolyline(points);
+          setState(() => _isNavigating = true);
         } else {
           setState(() {
-            _polylines = [];
+            _googlePolylines = {};
             _isNavigating = false;
           });
         }
       }
     });
 
+    // Escuchar cambios en los lugares y reconstruir marcadores
+    ref.listen<List<PlaceNode>>(filteredPlacesProvider, (previous, next) {
+      _rebuildMarkers(next);
+    });
+
     final currentTheme = ref.watch(mapThemeProvider);
     final isDark = currentTheme == 'dark';
 
-    // Actualizar color de ruta reactivo al cambio de tema
-    _routeColor = Theme.of(context).colorScheme.primary;
+    // Sincronizar estilo del mapa cuando el tema cambie
+    final targetStyle = isDark ? _darkMapStyle : _lightMapStyle;
+    if (_currentMapStyle != targetStyle) {
+      Future.microtask(() {
+        if (mounted) setState(() => _currentMapStyle = targetStyle);
+      });
+    }
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: const Color(0xFF0F172A),
       bottomNavigationBar: const BottomNav(currentIndex: 1),
       appBar: _buildPremiumAppBar(isDark),
       floatingActionButton: _buildFABs(isDark),
       body: Stack(
         children: [
-          // ── FlutterMap optimizado ────────────────────────────────────────
-          // POI markers en un Consumer separado; el marcador del usuario
-          // está en su propio ValueListenableBuilder para que los ticks
-          // de interpolación GPS (~60Hz) NO reconstruyan los POI markers.
           RepaintBoundary(
-            child: Consumer(
-              builder: (context, ref, child) {
-                final poiMarkers = ref.watch(filteredMapMarkersProvider);
-
-                return FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: _mapInitialCenter,
-                    initialZoom: _mapInitialZoom,
-                    minZoom: 15,
-                    maxZoom: 19,
-                    cameraConstraint: CameraConstraint.contain(
-                      bounds: _cameraBounds,
-                    ),
-                    onPositionChanged: _onPositionChanged,
-                    onMapReady: _initializeGpsAndCenter,
-                    interactionOptions: const InteractionOptions(
-                      flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-                    ),
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: isDark
-                          ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                          : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-                      subdomains: const ['a', 'b', 'c', 'd'],
-                      userAgentPackageName: 'com.navia.app',
-                      retinaMode: RetinaMode.isHighDensity(context),
-                      keepBuffer: 8,
-                      tileProvider: _cachedTileProvider,
-                    ),
-                    PolylineLayer(polylines: _polylines),
-                    // POI markers — solo cambian al filtrar categoría
-                    MarkerLayer(markers: poiMarkers),
-                    // User marker — reconstruye solo con ValueNotifier (~60Hz)
-                    // SIN afectar los POI markers ni las tiles.
-                    ValueListenableBuilder<LatLng?>(
-                      valueListenable: _userPosNotifier,
-                      builder: (context, userPos, _) {
-                        final navState = ref.read(navigationProvider);
-                        LatLng? actualUserPos;
-                        if (navState.currentNode != null) {
-                          actualUserPos = LatLng(
-                            navState.currentNode!.lat,
-                            navState.currentNode!.lng,
-                          );
-                        } else {
-                          actualUserPos = userPos;
-                        }
-                        if (actualUserPos == null) {
-                          return const MarkerLayer(markers: []);
-                        }
-                        return MarkerLayer(
-                          markers: [_buildUserMarker(actualUserPos)],
-                        );
-                      },
-                    ),
-                  ],
-                );
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: _mapInitialCenter,
+                zoom: _mapInitialZoom,
+              ),
+              onMapCreated: (controller) async {
+                _googleMapController = controller;
+                _initializeGpsAndCenter();
+                // Cargar marcadores iniciales
+                final places = ref.read(filteredPlacesProvider);
+                _rebuildMarkers(places);
               },
+              onCameraMove: (position) {
+                _currentZoom = position.zoom;
+                if (_isTrackingActive) {
+                  setState(() => _isTrackingActive = false);
+                }
+                if (_debounceTimer?.isActive ?? false) {
+                  _debounceTimer!.cancel();
+                }
+                _debounceTimer =
+                    Timer(const Duration(milliseconds: 600), () {
+                  _announceNearestPlace(position.target);
+                });
+              },
+              markers: _googleMarkers,
+              polylines: _googlePolylines,
+              myLocationEnabled: false,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              mapToolbarEnabled: false,
+              compassEnabled: false,
+              rotateGesturesEnabled: false,
+              cameraTargetBounds: CameraTargetBounds(_cameraBounds),
+              minMaxZoomPreference: const MinMaxZoomPreference(13, 20),
+              mapType: MapType.normal,
+              style: _currentMapStyle,
             ),
           ),
-          // Gradient top overlay for filters
+          // Gradient top overlay
           Positioned(
             top: 0,
             left: 0,
@@ -1458,11 +1447,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   end: Alignment.bottomCenter,
                   colors: [
                     (isDark
-                            ? Theme.of(context).scaffoldBackgroundColor
+                            ? const Color(0xFF0F172A)
                             : Colors.white)
                         .withValues(alpha: 0.95),
                     (isDark
-                            ? Theme.of(context).scaffoldBackgroundColor
+                            ? const Color(0xFF0F172A)
                             : Colors.white)
                         .withValues(alpha: 0.0),
                   ],
@@ -1470,14 +1459,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
             ),
           ),
-          Positioned(top: 12, left: 0, right: 0, child: _buildFiltersRow()),
-          // Banner de modo offline
-          const Positioned(
-            top: 50,
-            left: 16,
-            right: 16,
-            child: OfflineBanner(),
-          ),
+          Positioned(
+              top: 12, left: 0, right: 0, child: _buildFiltersRow()),
           // Voice indicator
           if (_isListening)
             Positioned(
@@ -1485,29 +1468,25 @@ class _MapScreenState extends ConsumerState<MapScreen>
               left: 20,
               right: 20,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .scaffoldBackgroundColor
-                      .withValues(alpha: 0.95),
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.95),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                      color: Theme.of(context).colorScheme.primary, width: 1.5),
+                      color: const Color(0xFF38BDF8), width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.2),
+                      color:
+                          const Color(0xFF38BDF8).withValues(alpha: 0.2),
                       blurRadius: 20,
                     )
                   ],
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.graphic_eq,
-                        color: Theme.of(context).colorScheme.primary, size: 28),
+                    const Icon(Icons.graphic_eq,
+                        color: Color(0xFF38BDF8), size: 28),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -1531,21 +1510,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
               left: 16,
               right: 16,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
+                  color: const Color(0xFF1E293B),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
+                      color: const Color(0xFF38BDF8)
                           .withValues(alpha: 0.5)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.directions_walk,
-                        color: Theme.of(context).colorScheme.primary, size: 20),
+                    const Icon(Icons.directions_walk,
+                        color: Color(0xFF38BDF8), size: 20),
                     const SizedBox(width: 8),
                     const Expanded(
                       child: Text('Navegando en curso...',
@@ -1556,7 +1533,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     GestureDetector(
                       onTap: () => setState(() {
                         _isNavigating = false;
-                        _polylines = [];
+                        _googlePolylines = {};
                         _destinationLatLng = null;
                       }),
                       child: const Icon(Icons.close,
@@ -1571,11 +1548,34 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
+  void _announceNearestPlace(LatLng center) {
+    final placesAsyncValue = ref.read(placesStreamProvider);
+    placesAsyncValue.whenData((places) {
+      if (places.isEmpty) return;
+      PlaceNode? nearestPlace;
+      double minDistance = double.infinity;
+      for (var place in places) {
+        final distance = Geolocator.distanceBetween(
+          center.latitude,
+          center.longitude,
+          place.latitude,
+          place.longitude,
+        );
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestPlace = place;
+        }
+      }
+      if (nearestPlace != null && minDistance < 150) {
+        _flutterTts.stop();
+        _speak('Viendo zona cerca de: ${nearestPlace.name}');
+      }
+    });
+  }
+
   PreferredSizeWidget _buildPremiumAppBar(bool isDark) {
     return AppBar(
-      backgroundColor: isDark
-          ? Theme.of(context).scaffoldBackgroundColor
-          : Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: const Color(0xFF0F172A),
       foregroundColor: Colors.white,
       elevation: 0,
       titleSpacing: 0,
@@ -1586,18 +1586,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
             height: 36,
             margin: const EdgeInsets.only(left: 4, right: 10),
             decoration: BoxDecoration(
-              color:
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+              color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withValues(alpha: 0.4),
+                  color: const Color(0xFF38BDF8).withValues(alpha: 0.4),
                   width: 1.5),
             ),
-            child: Icon(Icons.school_rounded,
-                color: Theme.of(context).colorScheme.primary, size: 20),
+            child: const Icon(Icons.school_rounded,
+                color: Color(0xFF38BDF8), size: 20),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1610,19 +1606,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       color: Colors.white,
                       letterSpacing: 2.5)),
               Text(
-                  _mapInitialCenter.latitude == 19.27580
-                      ? 'Plaza Sendera'
-                      : (_mapInitialCenter.latitude == 19.26691
-                          ? 'Plaza Zentralia'
-                          : 'TecNM Campus Colima'),
-                  style: TextStyle(
-                      fontSize: 10,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.6),
-                      letterSpacing: 0.5,
-                      fontWeight: FontWeight.w400)),
+                _mapInitialCenter.latitude == 19.27580
+                    ? 'Plaza Sendera'
+                    : (_mapInitialCenter.latitude == 19.26691
+                        ? 'Plaza Zentralia'
+                        : 'TecNM Campus Colima'),
+                style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF90CAF9),
+                    letterSpacing: 0.5,
+                    fontWeight: FontWeight.w400),
+              ),
             ],
           ),
         ],
@@ -1631,25 +1625,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
         IconButton(
           icon: Icon(
             isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-            color: Theme.of(context).colorScheme.primary,
+            color: const Color(0xFF38BDF8),
           ),
           onPressed: () {
-            ref.read(mapThemeProvider.notifier).state =
-                isDark ? 'light' : 'dark';
+            final newTheme = isDark ? 'light' : 'dark';
+            ref.read(mapThemeProvider.notifier).state = newTheme;
+            setState(() => _currentMapStyle =
+                newTheme == 'dark' ? _darkMapStyle : _lightMapStyle);
             _speak('Cambiando a modo ${isDark ? "claro" : "oscuro"}');
           },
           tooltip: 'Cambiar tema',
         ),
       ],
       flexibleSpace: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Theme.of(context).scaffoldBackgroundColor,
-              Theme.of(context).colorScheme.surface
-            ],
+            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
           ),
         ),
       ),
@@ -1663,31 +1656,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // Location button — refleja estado de seguimiento activo
-          ValueListenableBuilder<bool>(
-            valueListenable: _trackingNotifier,
-            builder: (context, isTracking, _) {
-              return FloatingActionButton(
-                heroTag: 'center_button',
-                onPressed: _centerOnUser,
-                backgroundColor: isTracking
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.surface,
-                elevation: isTracking ? 8 : 4,
-                child: Icon(
-                  isTracking
-                      ? Icons.gps_fixed_rounded
-                      : Icons.my_location_rounded,
-                  color: isTracking
-                      ? Theme.of(context).scaffoldBackgroundColor
-                      : Theme.of(context).colorScheme.primary,
-                  size: 26,
-                ),
-              );
-            },
+          FloatingActionButton(
+            heroTag: 'center_button',
+            onPressed: _centerOnUser,
+            backgroundColor: _isTrackingActive
+                ? const Color(0xFF38BDF8)
+                : const Color(0xFF1E293B),
+            elevation: _isTrackingActive ? 8 : 4,
+            child: Icon(
+              _isTrackingActive
+                  ? Icons.gps_fixed_rounded
+                  : Icons.my_location_rounded,
+              color: _isTrackingActive
+                  ? const Color(0xFF0F172A)
+                  : const Color(0xFF38BDF8),
+              size: 26,
+            ),
           ),
           const SizedBox(height: 12),
-          // Mic button with label
           GestureDetector(
             onLongPressStart: _startListening,
             onLongPressEnd: _stopListening,
@@ -1700,19 +1686,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 gradient: _isListening
                     ? const LinearGradient(
                         colors: [Color(0xFFFF5252), Color(0xFFFF1744)])
-                    : LinearGradient(
+                    : const LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          Theme.of(context).colorScheme.primary,
-                          Theme.of(context).colorScheme.secondary
-                        ],
+                        colors: [Color(0xFF38BDF8), Color(0xFF0091EA)],
                       ),
                 boxShadow: [
                   BoxShadow(
                     color: (_isListening
                             ? const Color(0xFFFF5252)
-                            : Theme.of(context).colorScheme.primary)
+                            : const Color(0xFF38BDF8))
                         .withValues(alpha: 0.5),
                     blurRadius: _isListening ? 20 : 12,
                     spreadRadius: _isListening ? 4 : 2,
@@ -1759,40 +1742,30 @@ class _MapScreenState extends ConsumerState<MapScreen>
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   gradient: isSelected
-                      ? LinearGradient(
-                          colors: [
-                            Theme.of(context).colorScheme.primary,
-                            Theme.of(context).colorScheme.secondary
-                          ],
+                      ? const LinearGradient(
+                          colors: [Color(0xFF38BDF8), Color(0xFF0091EA)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         )
                       : null,
                   color: isSelected
                       ? null
-                      : Theme.of(context)
-                          .scaffoldBackgroundColor
-                          .withValues(alpha: 0.88),
+                      : const Color(0xFF0F172A).withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(30),
                   border: Border.all(
                     color: isSelected
                         ? Colors.transparent
-                        : Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.3),
+                        : const Color(0xFF38BDF8).withValues(alpha: 0.3),
                     width: 1.5,
                   ),
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
+                            color: const Color(0xFF38BDF8)
                                 .withValues(alpha: 0.35),
                             blurRadius: 10,
                             spreadRadius: 1,
@@ -1807,22 +1780,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         size: 15,
                         color: isSelected
                             ? Colors.white
-                            : Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6)),
+                            : const Color(0xFF90CAF9)),
                     const SizedBox(width: 6),
                     Text(
                       filter,
                       style: TextStyle(
                         color: isSelected
                             ? Colors.white
-                            : Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w500,
+                            : const Color(0xFF90CAF9),
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                         fontSize: 13,
                         letterSpacing: 0.3,
                       ),
@@ -1833,35 +1801,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
           );
         }).toList(),
-      ),
-    );
-  }
-
-  void _handleArrival() {
-    setState(() {
-      _isNavigating = false;
-      _polylines = [];
-      _destinationLatLng = null;
-    });
-    _speak('Has llegado a tu destino. NAVIA te desea un excelente día.');
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_rounded,
-                color: Theme.of(context).scaffoldBackgroundColor, size: 24),
-            const SizedBox(width: 10),
-            Text('¡Has llegado a tu destino!',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).scaffoldBackgroundColor)),
-          ],
-        ),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
       ),
     );
   }

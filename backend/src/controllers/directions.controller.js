@@ -1,13 +1,56 @@
 const axios = require('axios');
 
 /**
- * Controlador para obtener rutas de direcciones desde Google Maps API
- * Maneja las peticiones server-to-server para evitar problemas CORS en el cliente web
+ * Decodifica un polyline encoded (formato Google) a array de {lat, lng}.
+ * @param {string} encoded
+ * @returns {{lat: number, lng: number}[]}
  */
+function decodePolyline(encoded) {
+  const points = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
 
+  while (index < encoded.length) {
+    let shift = 0;
+    let result = 0;
+    let byte;
+
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+
+    const deltaLat = result & 1 ? ~(result >> 1) : result >> 1;
+    lat += deltaLat;
+
+    shift = 0;
+    result = 0;
+
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+
+    const deltaLng = result & 1 ? ~(result >> 1) : result >> 1;
+    lng += deltaLng;
+
+    points.push({ lat: lat / 1e5, lng: lng / 1e5 });
+  }
+
+  return points;
+}
+
+/**
+ * GET /api/directions
+ * Proxy hacia Google Routes API v2 (computeRoutes).
+ * Query params: origin, destination, mode (walking|driving|bicycling|transit)
+ */
 const getDirections = async (req, res) => {
   try {
-    const { origin, destination, mode = 'walking', key } = req.query;
+    const { origin, destination, mode = 'walking' } = req.query;
 
     if (!origin || !destination) {
       return res.status(400).json({
@@ -16,72 +59,100 @@ const getDirections = async (req, res) => {
       });
     }
 
-    const googleMapsApiKey = key || process.env.GOOGLE_MAPS_API_KEY;
-    if (!googleMapsApiKey) {
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
       return res.status(500).json({
         success: false,
         error: 'GOOGLE_MAPS_API_KEY no configurada en el servidor',
       });
     }
 
-    const url = 'https://maps.googleapis.com/maps/api/directions/json';
-    const params = {
-      origin,
-      destination,
-      mode,
-      key: googleMapsApiKey,
-      alternatives: false,
-      avoid: ['highways', 'ferries', 'tolls'],
-    };
+    // Parsear coordenadas "lat,lng"
+    const [originLat, originLng] = origin.split(',').map(Number);
+    const [destLat, destLng] = destination.split(',').map(Number);
 
-    const response = await axios.get(url, { params });
-    console.log('[GOOGLE MAPS RESPONSE STATUS]:', response.data.status);
-
-    if (response.data.status !== 'OK') {
-      console.error('[GOOGLE MAPS ERROR]:', response.data.error_message);
+    if (isNaN(originLat) || isNaN(originLng) || isNaN(destLat) || isNaN(destLng)) {
       return res.status(400).json({
         success: false,
-        error: response.data.status,
-        message: response.data.error_message || 'Error al obtener direcciones',
+        error: 'Formato de coordenadas inválido. Use "lat,lng"',
       });
     }
 
-    // Extraer los puntos de la ruta del primer resultado
-    const route = response.data.routes[0];
-    const points = [];
+    // Mapear modo de transporte al formato Routes API
+    const travelModeMap = {
+      walking: 'WALK',
+      driving: 'DRIVE',
+      bicycling: 'BICYCLE',
+      transit: 'TRANSIT',
+    };
+    const travelMode = travelModeMap[mode.toLowerCase()] ?? 'WALK';
 
-    if (route.legs) {
-      route.legs.forEach((leg) => {
-        leg.steps.forEach((step) => {
-          // Decodificar polyline si es necesario, o usar los puntos finales
-          const endLocation = step.end_location;
-          points.push({
-            lat: endLocation.lat,
-            lng: endLocation.lng,
-          });
-        });
+    const requestBody = {
+      origin: {
+        location: {
+          latLng: { latitude: originLat, longitude: originLng },
+        },
+      },
+      destination: {
+        location: {
+          latLng: { latitude: destLat, longitude: destLng },
+        },
+      },
+      travelMode,
+      polylineEncoding: 'ENCODED_POLYLINE',
+      routingPreference: travelMode === 'DRIVE' ? 'TRAFFIC_AWARE' : undefined,
+    };
+
+    const response = await axios.post(
+      'https://routes.googleapis.com/directions/v2:computeRoutes',
+      requestBody,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': apiKey,
+          'X-Goog-FieldMask':
+            'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline,routes.legs',
+        },
+      }
+    );
+
+    const routes = response.data.routes;
+    if (!routes || routes.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No se encontró ninguna ruta entre los puntos indicados',
       });
     }
+
+    const route = routes[0];
+    const encodedPolyline = route.polyline?.encodedPolyline ?? '';
+    const points = decodePolyline(encodedPolyline);
+
+    // Duración viene como "123s" en Routes API v2
+    const durationSeconds = route.duration
+      ? parseInt(route.duration.replace('s', ''), 10)
+      : 0;
 
     res.json({
       success: true,
       data: {
         points,
-        distance: route.legs.reduce((sum, leg) => sum + leg.distance.value, 0), // en metros
-        duration: route.legs.reduce((sum, leg) => sum + leg.duration.value, 0), // en segundos
-        summary: route.summary,
+        distance: route.distanceMeters ?? 0,
+        duration: durationSeconds,
+        summary: `Ruta de ${Math.round((route.distanceMeters ?? 0))} m · ${Math.round(durationSeconds / 60)} min`,
       },
     });
   } catch (error) {
-    console.error('[DIRECTIONS ERROR]:', error.message);
+    console.error('[ROUTES API ERROR]:', error.response?.data ?? error.message);
     res.status(500).json({
       success: false,
       error: 'Error interno al obtener direcciones',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      details:
+        process.env.NODE_ENV === 'development'
+          ? (error.response?.data ?? error.message)
+          : undefined,
     });
   }
 };
 
-module.exports = {
-  getDirections,
-};
+module.exports = { getDirections };

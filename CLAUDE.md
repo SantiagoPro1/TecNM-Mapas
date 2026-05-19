@@ -42,8 +42,9 @@ Clean Architecture with three layers:
 
 **`lib/data/`** — Data layer
 - `models/` — Plain Dart data classes (no business logic): `CampusNode`, `CampusEdge`, `NavRoute`, `Announcement`, `PlaceNode`
-- `providers/` — Riverpod providers: `auth_provider`, `feed_provider`, `navigation_provider`, `voice_provider`
+- `providers/` — Riverpod providers: `auth_provider`, `feed_provider`, `navigation_provider`, `voice_provider`, `settings_provider`, `zone_provider`
 - `repositories/` — Abstractions over data sources (Firestore + Hive)
+- `cache/map_cache_service.dart` — Hive-backed offline cache for campus map JSON; initialized in `main()` before `runApp`
 
 **`lib/services/`** — Business logic
 - `auth/auth_service.dart` — Google Sign-In restricted to `hostedDomain: 'colima.tecnm.mx'`
@@ -67,7 +68,7 @@ Clean Architecture with three layers:
 **Assets:**
 - `assets/maps/tec_colima_map.json` — Campus graph data (nodes + edges) for offline navigation
 - `assets/models/` — TFLite model files
-- `.env` loaded via `flutter_dotenv` at runtime (not committed; **no `app/.env.example` exists** — create one manually for new contributors)
+- `.env` loaded via `flutter_dotenv` at runtime; the committed file is a safe placeholder — sensitive values go in `.env.local` (git-ignored). Set `DEV_MODE=true` to bypass the `@colima.tecnm.mx` domain lock during local development (never ship `true` to production).
 
 ---
 
@@ -128,6 +129,6 @@ Both jobs must pass before merging.
 
 ## Domain Rules
 
-- **Email domain lock:** Only `@colima.tecnm.mx` accounts can authenticate. Enforced in both Flutter (`hostedDomain`) and backend middleware.
+- **Email domain lock:** Only `@colima.tecnm.mx` accounts can authenticate. Enforced in both Flutter (`hostedDomain` + email suffix check in `auth_service.dart`) and backend middleware. Override locally with `DEV_MODE=true` in `app/.env`.
 - **Credential QR:** JWT-signed, verified server-side via `/api/auth/verify-credential`.
 - **Onboarding gate:** `SharedPreferences` key checked in `main.dart` to redirect first-time users before reaching home.

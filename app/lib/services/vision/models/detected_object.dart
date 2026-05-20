@@ -35,16 +35,70 @@ class DetectedObject extends Equatable {
   });
 
   /// Calcula la distancia heuristica a partir de las dimensiones del
-  /// bounding-box y el tamanio total del fotograma.
+  /// bounding-box y el tamanio total del fotograma, adaptándolo según la categoría del objeto.
   static String estimateDistance(
-      Rect box, double frameWidth, double frameHeight) {
+      Rect box, double frameWidth, double frameHeight, {String? label}) {
     if (frameWidth <= 0 || frameHeight <= 0) return 'desconocido';
 
     final boxArea = box.width * box.height;
     final frameArea = frameWidth * frameHeight;
     final ratio = boxArea / frameArea;
 
-    if (ratio > 0.40) return 'inmediato';
+    final lowerLabel = label?.toLowerCase() ?? '';
+
+    // Categoría: Objetos Pequeños (mochilas, botellas, termos, celulares, laptops, libros, tijeras, etc.)
+    if (lowerLabel == 'mochila' ||
+        lowerLabel == 'paraguas' ||
+        lowerLabel == 'bolso o mochila' ||
+        lowerLabel == 'maleta o mochila' ||
+        lowerLabel == 'botella de agua' ||
+        lowerLabel == 'taza o termo' ||
+        lowerLabel == 'laptop' ||
+        lowerLabel == 'mouse de computadora' ||
+        lowerLabel == 'control remoto' ||
+        lowerLabel == 'teclado de computadora' ||
+        lowerLabel == 'teléfono celular' ||
+        lowerLabel == 'libro o libreta' ||
+        lowerLabel == 'reloj de pared' ||
+        lowerLabel == 'florero' ||
+        lowerLabel == 'tijeras' ||
+        lowerLabel == 'botella' ||
+        lowerLabel == 'taza' ||
+        lowerLabel == 'libro' ||
+        lowerLabel == 'reloj') {
+      if (ratio > 0.04) return 'inmediato';
+      if (ratio > 0.015) return 'cercano';
+      if (ratio > 0.005) return 'medio';
+      return 'lejano';
+    }
+
+    // Categoría: Objetos Medianos (sillas, mesas, bancos, lavabos, etc.)
+    if (lowerLabel == 'silla o banco' ||
+        lowerLabel == 'sillón o sofá' ||
+        lowerLabel == 'planta o maceta' ||
+        lowerLabel == 'camilla o cama' ||
+        lowerLabel == 'mesa o escritorio' ||
+        lowerLabel == 'lavabo' ||
+        lowerLabel == 'baño' ||
+        lowerLabel == 'banca' ||
+        lowerLabel == 'hidrante' ||
+        lowerLabel == 'semáforo' ||
+        lowerLabel == 'señal de alto' ||
+        lowerLabel == 'silla' ||
+        lowerLabel == 'sofa' ||
+        lowerLabel == 'maceta' ||
+        lowerLabel == 'cama' ||
+        lowerLabel == 'mesa' ||
+        lowerLabel == 'balón o pelota' ||
+        lowerLabel == 'patineta') {
+      if (ratio > 0.15) return 'inmediato';
+      if (ratio > 0.06) return 'cercano';
+      if (ratio > 0.02) return 'medio';
+      return 'lejano';
+    }
+
+    // Categoría: Objetos Grandes / Estándar (personas, puertas, escaleras, barda, pared, etc.)
+    if (ratio > 0.35) return 'inmediato';
     if (ratio > 0.15) return 'cercano';
     if (ratio > 0.05) return 'medio';
     return 'lejano';

@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:navia/services/voice/voice_service.dart';
 import 'package:navia/services/voice/intent_parser.dart';
 import 'package:navia/data/providers/navigation_provider.dart';
+import 'package:navia/data/providers/settings_provider.dart';
+import 'package:navia/presentation/screens/map/providers/map_providers.dart';
 
 // ─── Estado de voz ────────────────────────────────────────────
 
@@ -42,13 +44,18 @@ class VoiceControlState {
 class VoiceNotifier extends StateNotifier<VoiceControlState> {
   final VoiceService _voiceService;
   final NavigationNotifier _navNotifier;
+  final Ref _ref;
 
-  VoiceNotifier(this._voiceService, this._navNotifier)
+  VoiceNotifier(this._voiceService, this._navNotifier, this._ref)
       : super(const VoiceControlState());
 
   /// Inicializa el servicio de voz.
   Future<void> initialize() async {
     await _voiceService.initialize();
+
+    // Sincronizar velocidad de voz desde los ajustes configurados
+    final rate = _ref.read(settingsProvider).speechRate;
+    await _voiceService.setSpeechRate(rate);
 
     _voiceService.onStateChanged = (newState) {
       if (mounted) {
@@ -88,28 +95,64 @@ class VoiceNotifier extends StateNotifier<VoiceControlState> {
     switch (intent.type) {
       case IntentType.navigate:
         if (intent.destination != null) {
-          // Sin posición no puede calcular ruta
-          if (_navNotifier.state.currentNode == null) {
+          final gpsPosition = _ref.read(currentLocationStreamProvider).value;
+          final hasGps = gpsPosition != null;
+
+          if (_navNotifier.state.currentNode == null && !hasGps) {
             await _speak(
               'Primero necesito saber dónde estás. '
-              'Escanea un código QR del campus para indicar tu posición.',
+              'Activa tu GPS o abre la cámara NAVIA AR para indicar tu posición.',
             );
             break;
           }
-          _navNotifier.navigateTo(intent.destination!);
-          final navState = _navNotifier.state;
-          if (navState.activeRoute != null) {
-            await _speak(navState.activeRoute!.voiceSummary);
-            final firstInstruction =
-                navState.activeRoute!.steps.first.voiceInstruction;
-            await Future.delayed(const Duration(milliseconds: 500));
-            await _speak(firstInstruction);
-          } else {
-            await _speak(
-              'No encontré el lugar ${intent.destination}. '
-              'Intenta decir el nombre completo, por ejemplo: '
-              'edificio sistemas, edificio erre, o biblioteca.',
+
+          // Intentar resolver el destino en el mapa local
+          final destNode = _navNotifier.findDestination(intent.destination!);
+
+          if (_navNotifier.state.currentNode != null) {
+            // Navegación local Dijkstra si tenemos nodo QR inicial
+            _navNotifier.navigateTo(intent.destination!);
+            final navState = _navNotifier.state;
+            if (navState.activeRoute != null) {
+              await _speak(navState.activeRoute!.voiceSummary);
+              final firstInstruction =
+                  navState.activeRoute!.steps.first.voiceInstruction;
+              await Future.delayed(const Duration(milliseconds: 500));
+              await _speak(firstInstruction);
+            } else {
+              await _speak(
+                'No encontré el lugar ${intent.destination} en el mapa local.',
+              );
+            }
+          } else if (hasGps) {
+            // Navegación externa/Google Routes usando GPS
+            await _speak('Calculando ruta por GPS a ${intent.destination}...');
+
+            final double destLat = destNode?.lat ?? gpsPosition.latitude;
+            final double destLng = destNode?.lng ?? gpsPosition.longitude;
+
+            final success = await _navNotifier.calculateGoogleRoute(
+              originLat: gpsPosition.latitude,
+              originLng: gpsPosition.longitude,
+              destLat: destLat,
+              destLng: destLng,
+              destinationName: destNode?.name ?? intent.destination,
             );
+
+            if (success) {
+              final navState = _navNotifier.state;
+              if (navState.activeRoute != null) {
+                await _speak(navState.activeRoute!.voiceSummary);
+                final firstInstruction =
+                    navState.activeRoute!.steps.first.voiceInstruction;
+                await Future.delayed(const Duration(milliseconds: 500));
+                await _speak(firstInstruction);
+              }
+            } else {
+              await _speak(
+                'No se pudo trazar la ruta a ${intent.destination} usando GPS.',
+              );
+            }
           }
         }
         break;
@@ -134,7 +177,7 @@ class VoiceNotifier extends StateNotifier<VoiceControlState> {
         } else {
           await _speak(
             'No tengo tu ubicación actual. '
-            'Escanea un código QR del campus para posicionarte.',
+            'Abre la cámara NAVIA AR para posicionarte.',
           );
         }
         break;
@@ -239,5 +282,5 @@ final voiceProvider =
     StateNotifierProvider<VoiceNotifier, VoiceControlState>((ref) {
   final voiceService = ref.watch(voiceServiceProvider);
   final navNotifier = ref.watch(navigationProvider.notifier);
-  return VoiceNotifier(voiceService, navNotifier);
+  return VoiceNotifier(voiceService, navNotifier, ref);
 });

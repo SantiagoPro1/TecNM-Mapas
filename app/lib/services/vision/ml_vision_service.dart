@@ -10,74 +10,61 @@ import 'package:tflite_flutter/tflite_flutter.dart';
 // Constantes del modelo SSD MobileNet (COCO)
 // ---------------------------------------------------------------------------
 
-// Eliminamos _kInputSize y _kMaxDetections constantes.
-// Seran determinados de forma dinamica al cargar el modelo.
-
-/// Subconjunto de clases COCO relevantes para navegacion accesible.
+/// Subconjunto de clases COCO relevantes para navegacion accesible en escuela.
 ///
 /// IMPORTANTE: Los IDs son 1-indexed para coincidir con el archivo
 /// coco_labels.txt (person=1, bicycle=2, car=3, etc.).
-/// El modelo SSD MobileNet COCO devuelve IDs 1-indexed.
 const Map<int, String> _kNavLabels = {
-  // Personas y vehiculos (peligro inmediato)
   1: 'persona',
   2: 'bicicleta',
-  3: 'auto',
+  3: 'automóvil',
   4: 'motocicleta',
-  6: 'autobus',
-  8: 'camion',
-
-  // Senalizacion y seguridad vial
-  10: 'semaforo',
+  6: 'autobús',
+  8: 'camión',
+  10: 'semáforo',
   11: 'hidrante',
-  13: 'senal de alto',
-  14: 'parquimetro',
+  13: 'señal de alto',
+  14: 'parquímetro',
   15: 'banca',
-
-  // Animales (posible obstaculo)
   17: 'gato',
   18: 'perro',
-
-  // Objetos personales (posible obstaculo en piso)
   27: 'mochila',
   28: 'paraguas',
-  33: 'maleta',
+  31: 'bolso o mochila',
+  33: 'maleta o mochila',
+  37: 'balón o pelota',
+  44: 'botella de agua',
+  47: 'taza o termo',
+  62: 'silla o banco',
+  63: 'sillón o sofá',
+  64: 'planta o maceta',
+  65: 'camilla o cama',
+  67: 'mesa o escritorio',
+  70: 'baño',
+  72: 'pantalla o proyector',
+  73: 'computadora portátil',
+  74: 'mouse de computadora',
+  75: 'control remoto',
+  76: 'teclado de computadora',
+  77: 'teléfono celular',
+  78: 'microondas',
+  81: 'lavabo',
+  82: 'casillero o archivero', // REFRIGERADOR -> CASILLERO
+  84: 'libro o libreta',
+  85: 'reloj de pared',
+  86: 'florero',
+  87: 'tijeras',
 
-  // Comida / contenedores (objetos sobre mesa)
-  44: 'botella',
-  47: 'taza',
-
-  // Mobiliario (obstaculos interiores)
-  62: 'silla',
-  63: 'sofa',
-  64: 'maceta',
-  65: 'cama',
-  67: 'mesa',
-
-  // Electronica / monitores (proxy para puertas con senaletica)
-  70: 'bano',
-  72: 'pantalla',
-  73: 'laptop',
-  76: 'teclado',
-  77: 'celular',
-
-  // Electrodomesticos
-  82: 'refrigerador',
-
-  // Libros / reloj
-  84: 'libro',
-  85: 'reloj',
-
-  // Extensiones personalizadas para modelos afinados (fine-tuned)
-  86: 'pared',
-  87: 'escaleras',
-  88: 'escalones',
-  89: 'puerta',
-  90: 'ventana',
-  91: 'bardas',
-  92: 'jardin',
-  93: 'terreno elevado',
-  94: 'terreno muy elevado',
+  // Clases personalizadas (fine-tuned)
+  88: 'pared',
+  89: 'escaleras',
+  90: 'escalones',
+  91: 'puerta',
+  92: 'ventana',
+  93: 'bardas',
+  94: 'jardin',
+  95: 'terreno elevado',
+  96: 'terreno muy elevado',
 };
 
 // ---------------------------------------------------------------------------
@@ -85,9 +72,6 @@ const Map<int, String> _kNavLabels = {
 // ---------------------------------------------------------------------------
 
 /// Contrato para el servicio de inferencia ML.
-///
-/// El [CameraFeedHandler] envia fotogramas procesados ([SensorFrame]) a
-/// cualquier implementacion de esta interfaz.
 abstract class MlVisionService {
   /// Ejecuta la inferencia sobre un fotograma ya convertido a RGB.
   Future<void> processFrame(SensorFrame frame);
@@ -97,19 +81,10 @@ abstract class MlVisionService {
 }
 
 // ---------------------------------------------------------------------------
-// Callback para notificar al VisionProvider
+// Callbacks
 // ---------------------------------------------------------------------------
 
-/// Firma del callback que el servicio usa para actualizar el estado.
-///
-/// - [objects]: lista de detecciones del frame actual.
-/// - Devuelve `true` si el provider acepto la actualizacion.
 typedef OnDetectionResult = void Function(List<DetectedObject> objects);
-
-/// Firma del callback para notificar errores criticos.
-///
-/// Permite al orquestador activar el modo "Solo Voz" como respaldo
-/// cuando el interprete TFLite falla de forma irrecuperable.
 typedef OnVisionError = void Function(String errorMessage);
 
 // ---------------------------------------------------------------------------
@@ -117,48 +92,28 @@ typedef OnVisionError = void Function(String errorMessage);
 // ---------------------------------------------------------------------------
 
 /// Orquestador de inferencia TFLite para deteccion de obstaculos en NAVIA.
-///
-/// Responsabilidades:
-/// 1. Carga del modelo `obstacles_detector.tflite` con gestion de errores.
-/// 2. Pre-procesamiento: escala el [SensorFrame] a 300x300 y normaliza
-///    los pixeles al rango [0, 1] (float) o [0, 255] (uint8).
-/// 3. Inferencia SSD MobileNet y post-procesamiento de las salidas.
-/// 4. Calculo de heuristica de distancia basada en area relativa del
-///    bounding-box respecto a la resolucion del frame original.
-/// 5. Despacho de resultados al [VisionProvider] solo si hay cambios
-///    significativos (gracias a Equatable en [DetectedObject]).
-///
-/// Ciclo de vida: `initialize()` -> (recibe frames via `processFrame()`)
-/// -> `dispose()`.
 class TfliteObstacleDetector implements MlVisionService {
   // -- Dependencias ----------------------------------------------------------
 
-  /// Callback para enviar detecciones al VisionProvider.
   final OnDetectionResult _onResult;
-
-  /// Callback para notificar errores criticos (activa modo Solo Voz).
   final OnVisionError _onError;
 
   // -- Estado interno --------------------------------------------------------
 
   Interpreter? _interpreter;
+  IsolateInterpreter? _isolateInterpreter;
   bool _mounted = false;
-
-  /// true si el modelo espera input uint8 (0-255) en lugar de float (0-1).
   bool _isQuantized = false;
 
-  /// Parametros extraidos del modelo
   int _inputSizeWidth = 300;
   int _inputSizeHeight = 300;
   int _maxDetections = 10;
   static const int _kNumChannels = 3;
-  static const double _kConfidenceThreshold = 0.30;
 
-  /// Cache de la ultima lista de detecciones para evitar rebuilds
-  /// innecesarios. Solo se notifica al provider si cambio.
+  /// Umbral dinámico que se modifica adaptativamente según el aprendizaje
+  double dynamicConfidenceThreshold = 0.30;
+
   List<DetectedObject> _lastDetections = const [];
-
-  /// Contador de frames sin detecciones (para limpiar UI).
   int _emptyFrameCount = 0;
   static const int _kEmptyFrameThreshold = 5;
 
@@ -172,15 +127,12 @@ class TfliteObstacleDetector implements MlVisionService {
 
   // -- Getters ---------------------------------------------------------------
 
-  /// `true` si el interprete esta cargado y listo.
   bool get isReady => _interpreter != null && _mounted;
+  int get inputSizeWidth => _inputSizeWidth;
+  int get inputSizeHeight => _inputSizeHeight;
 
   // -- Ciclo de vida ---------------------------------------------------------
 
-  /// Carga el modelo TFLite delegado al [ModelManagerService].
-  ///
-  /// Si falla, notifica al VisionProvider para activar el modo Solo Voz
-  /// como respaldo seguro para el usuario invidente.
   Future<bool> initialize(ModelManagerService modelManager) async {
     try {
       _interpreter = await modelManager.loadModel('obstacles_detector.tflite');
@@ -191,7 +143,7 @@ class TfliteObstacleDetector implements MlVisionService {
 
       _mounted = true;
 
-      // Detectar si el modelo espera input uint8 o float32, y su tamaño
+      // Configurar parámetros del modelo
       final inputTensors = _interpreter!.getInputTensors();
       if (inputTensors.isNotEmpty) {
         final inputType = inputTensors.first.type;
@@ -204,7 +156,6 @@ class TfliteObstacleDetector implements MlVisionService {
         }
       }
 
-      // Detectar cuantas detecciones devuelve el modelo
       final outputTensors = _interpreter!.getOutputTensors();
       if (outputTensors.isNotEmpty) {
         final outputShape = outputTensors.first.shape;
@@ -212,6 +163,9 @@ class TfliteObstacleDetector implements MlVisionService {
           _maxDetections = outputShape[1];
         }
       }
+
+      // Crear intérprete asíncrono para ejecutar la inferencia en un isolate de fondo
+      _isolateInterpreter = await IsolateInterpreter.create(address: _interpreter!.address);
 
       debugPrint(
         'TfliteObstacleDetector: modelo cargado '
@@ -234,36 +188,19 @@ class TfliteObstacleDetector implements MlVisionService {
 
   @override
   Future<void> processFrame(SensorFrame frame) async {
-    if (!_mounted || _interpreter == null) return;
+    if (!_mounted || _interpreter == null || _isolateInterpreter == null) return;
 
     try {
-      // 1. Pre-procesamiento: RGB -> tensor 300x300.
+      // 1. Pre-procesamiento veloz usando listas planas (Float32List/Uint8List)
       final input =
-          _isQuantized ? _preprocessUint8(frame) : _preprocessFloat(frame);
+          _isQuantized ? _preprocessUint8Fast(frame) : _preprocessFloatFast(frame);
       if (!_mounted) return;
 
-      // 2. Preparar buffers de salida del modelo SSD.
-      //    El modelo SSD MobileNet produce 4 tensores de salida:
-      //    [0] locations  : [1][N][4] (top, left, bottom, right) normalizados
-      //    [1] classes    : [1][N]    indices de clase COCO
-      //    [2] scores     : [1][N]    confianza por deteccion
-      //    [3] numDetections: [1]     numero real de detecciones
-      final outputLocations = List.generate(
-        1,
-        (_) => List.generate(
-          _maxDetections,
-          (_) => List<double>.filled(4, 0),
-        ),
-      );
-      final outputClasses = List.generate(
-        1,
-        (_) => List<double>.filled(_maxDetections, 0),
-      );
-      final outputScores = List.generate(
-        1,
-        (_) => List<double>.filled(_maxDetections, 0),
-      );
-      final outputNumDetections = List<double>.filled(1, 0);
+      // 2. Preparar buffers de salida para el modelo SSD
+      final outputLocations = [List.generate(_maxDetections, (_) => List<double>.filled(4, 0.0))];
+      final outputClasses = [List<double>.filled(_maxDetections, 0.0)];
+      final outputScores = [List<double>.filled(_maxDetections, 0.0)];
+      final outputNumDetections = List<double>.filled(1, 0.0);
 
       final outputs = <int, Object>{
         0: outputLocations,
@@ -272,27 +209,25 @@ class TfliteObstacleDetector implements MlVisionService {
         3: outputNumDetections,
       };
 
-      // 3. Inferencia.
-      _interpreter!.runForMultipleInputs([input], outputs);
+      // 3. Inferencia asíncrona en el Isolate nativo
+      await _isolateInterpreter!.runForMultipleInputs([input], outputs);
       if (!_mounted) return;
 
-      // 4. Post-procesamiento: convertir salidas a DetectedObject.
+      // 4. Post-procesamiento: mapear a DetectedObject escalando al frame original
       final detections = _postprocess(
         locations: outputLocations[0],
         classes: outputClasses[0],
         scores: outputScores[0],
         numDetections: outputNumDetections[0].toInt(),
-        frameWidth: frame.width.toDouble(),
-        frameHeight: frame.height.toDouble(),
+        frameWidth: frame.originalWidth.toDouble(),
+        frameHeight: frame.originalHeight.toDouble(),
       );
 
-      // 5. Despacho condicional: solo notificar si hay cambio real.
+      // 5. Despacho condicional
       if (!_mounted) return;
 
       if (detections.isEmpty) {
         _emptyFrameCount++;
-        // Solo limpiar detecciones despues de N frames vacios consecutivos
-        // para evitar parpadeo en la UI.
         if (_emptyFrameCount >= _kEmptyFrameThreshold &&
             _lastDetections.isNotEmpty) {
           _lastDetections = const [];
@@ -307,103 +242,91 @@ class TfliteObstacleDetector implements MlVisionService {
       }
     } catch (e) {
       debugPrint('TfliteObstacleDetector: error en inferencia - $e');
-      // Un error puntual no activa modo Solo Voz; se reintenta en el
-      // siguiente frame. Solo errores de carga activan el fallback.
     }
   }
 
   @override
   void dispose() {
     _mounted = false;
-    _interpreter?.close();
-    _interpreter = null;
+    if (_isolateInterpreter != null) {
+      _isolateInterpreter!.close();
+      _isolateInterpreter = null;
+      // El isolate interpreter destruye el intérprete nativo al cerrarse.
+      _interpreter = null;
+    } else {
+      _interpreter?.close();
+      _interpreter = null;
+    }
     _lastDetections = const [];
     debugPrint('TfliteObstacleDetector: recursos liberados.');
   }
 
-  // -- Pre-procesamiento (float32) -------------------------------------------
+  // -- Pre-procesamiento plano optimizado -------------------------------------
 
-  /// Escala el frame RGB a [_inputSizeHeight]x[_inputSizeWidth] y normaliza
-  /// los valores de pixel al rango [0.0, 1.0].
-  List<List<List<List<double>>>> _preprocessFloat(SensorFrame frame) {
-    final srcW = frame.width;
-    final srcH = frame.height;
+  Float32List _preprocessFloatFast(SensorFrame frame) {
     final bytes = frame.bytes;
+    final totalSize = _inputSizeHeight * _inputSizeWidth * _kNumChannels;
+    final tensor = Float32List(totalSize);
 
-    final tensor = List.generate(
-      1,
-      (_) => List.generate(
-        _inputSizeHeight,
-        (y) {
-          final srcY = (y * srcH) ~/ _inputSizeHeight;
-          return List.generate(
-            _inputSizeWidth,
-            (x) {
-              final srcX = (x * srcW) ~/ _inputSizeWidth;
-              final srcIdx = (srcY * srcW + srcX) * _kNumChannels;
+    // Si ya viene redimensionado desde el isolate de conversión
+    if (frame.width == _inputSizeWidth && frame.height == _inputSizeHeight) {
+      final len = bytes.length;
+      for (int i = 0; i < len; i++) {
+        tensor[i] = bytes[i] / 255.0;
+      }
+    } else {
+      final srcW = frame.width;
+      final srcH = frame.height;
+      int dstIdx = 0;
+      for (int y = 0; y < _inputSizeHeight; y++) {
+        final srcY = (y * srcH) ~/ _inputSizeHeight;
+        final rowOffset = srcY * srcW * _kNumChannels;
+        for (int x = 0; x < _inputSizeWidth; x++) {
+          final srcX = (x * srcW) ~/ _inputSizeWidth;
+          final srcIdx = rowOffset + srcX * _kNumChannels;
 
-              // Bounds check para evitar RangeError
-              if (srcIdx + 2 >= bytes.length) {
-                return [0.0, 0.0, 0.0];
-              }
-
-              return [
-                bytes[srcIdx] / 255.0,
-                bytes[srcIdx + 1] / 255.0,
-                bytes[srcIdx + 2] / 255.0,
-              ];
-            },
-          );
-        },
-      ),
-    );
-
+          if (srcIdx + 2 < bytes.length) {
+            tensor[dstIdx] = bytes[srcIdx] / 255.0;
+            tensor[dstIdx + 1] = bytes[srcIdx + 1] / 255.0;
+            tensor[dstIdx + 2] = bytes[srcIdx + 2] / 255.0;
+          }
+          dstIdx += 3;
+        }
+      }
+    }
     return tensor;
   }
 
-  // -- Pre-procesamiento (uint8) ---------------------------------------------
-
-  /// Escala el frame RGB a [_inputSizeHeight]x[_inputSizeWidth] sin normalizar
-  /// (mantiene valores 0-255 como uint8).
-  List<List<List<List<int>>>> _preprocessUint8(SensorFrame frame) {
+  Uint8List _preprocessUint8Fast(SensorFrame frame) {
+    final bytes = frame.bytes;
+    if (frame.width == _inputSizeWidth && frame.height == _inputSizeHeight) {
+      return bytes;
+    }
     final srcW = frame.width;
     final srcH = frame.height;
-    final bytes = frame.bytes;
+    final totalSize = _inputSizeHeight * _inputSizeWidth * _kNumChannels;
+    final tensor = Uint8List(totalSize);
+    int dstIdx = 0;
+    for (int y = 0; y < _inputSizeHeight; y++) {
+      final srcY = (y * srcH) ~/ _inputSizeHeight;
+      final rowOffset = srcY * srcW * _kNumChannels;
+      for (int x = 0; x < _inputSizeWidth; x++) {
+        final srcX = (x * srcW) ~/ _inputSizeWidth;
+        final srcIdx = rowOffset + srcX * _kNumChannels;
 
-    final tensor = List.generate(
-      1,
-      (_) => List.generate(
-        _inputSizeHeight,
-        (y) {
-          final srcY = (y * srcH) ~/ _inputSizeHeight;
-          return List.generate(
-            _inputSizeWidth,
-            (x) {
-              final srcX = (x * srcW) ~/ _inputSizeWidth;
-              final srcIdx = (srcY * srcW + srcX) * _kNumChannels;
-
-              if (srcIdx + 2 >= bytes.length) {
-                return [0, 0, 0];
-              }
-
-              return [
-                bytes[srcIdx],
-                bytes[srcIdx + 1],
-                bytes[srcIdx + 2],
-              ];
-            },
-          );
-        },
-      ),
-    );
-
+        if (srcIdx + 2 < bytes.length) {
+          tensor[dstIdx] = bytes[srcIdx];
+          tensor[dstIdx + 1] = bytes[srcIdx + 1];
+          tensor[dstIdx + 2] = bytes[srcIdx + 2];
+        }
+        dstIdx += 3;
+      }
+    }
     return tensor;
   }
 
   // -- Post-procesamiento ----------------------------------------------------
 
-  /// Convierte las salidas crudas del modelo SSD a una lista
-  /// de [DetectedObject] filtrada y con heuristica de distancia.
   List<DetectedObject> _postprocess({
     required List<List<double>> locations,
     required List<double> classes,
@@ -413,42 +336,49 @@ class TfliteObstacleDetector implements MlVisionService {
     required double frameHeight,
   }) {
     final results = <DetectedObject>[];
-
     final count = numDetections.clamp(0, _maxDetections);
-    for (int i = 0; i < count; i++) {
-      final score = scores[i];
-      if (score < _kConfidenceThreshold) continue;
 
-      // El modelo SSD MobileNet COCO devuelve IDs 1-indexed.
-      // Sumamos 1 si el modelo devuelve 0-indexed, pero la mayoria
-      // de modelos SSD MobileNet v1/v2 COCO devuelven 1-indexed directamente.
+    for (int i = 0; i < count; i++) {
       final classIndex = classes[i].toInt();
 
-      // Intentar buscar directamente y tambien con offset +1
       String? label = _kNavLabels[classIndex];
       label ??= _kNavLabels[classIndex + 1];
+      label ??= 'objeto';
 
-      // Ignorar clases que no son relevantes para navegacion accesible.
-      if (label == null) continue;
+      // Auto-tuning adaptativo para umbrales de confianza por clase
+      double threshold = dynamicConfidenceThreshold;
+      if (label == 'silla o banco' ||
+          label == 'mesa o escritorio' ||
+          label == 'persona' ||
+          label == 'mochila' ||
+          label == 'puerta' ||
+          label == 'libro o libreta' ||
+          label == 'pantalla o proyector' ||
+          label == 'escaleras' ||
+          label == 'escalones') {
+        threshold = 0.25; // Reducido para facilitar detección de objetos escolares comunes
+      } else if (label == 'automóvil' || label == 'camión' || label == 'motocicleta') {
+        threshold = 0.40; // Más alto para reducir falsos positivos en objetos vehiculares
+      }
 
-      // Coordenadas normalizadas [0..1] -> pixeles del frame original.
-      // SSD MobileNet devuelve [top, left, bottom, right].
+      final score = scores[i];
+      if (score < threshold) continue;
+
       final top = (locations[i][0] * frameHeight).clamp(0.0, frameHeight);
       final left = (locations[i][1] * frameWidth).clamp(0.0, frameWidth);
       final bottom = (locations[i][2] * frameHeight).clamp(0.0, frameHeight);
       final right = (locations[i][3] * frameWidth).clamp(0.0, frameWidth);
 
-      // Validar que el bounding box tenga dimensiones validas
       if (right <= left || bottom <= top) continue;
       if ((right - left) < 2 || (bottom - top) < 2) continue;
 
       final boundingBox = Rect.fromLTRB(left, top, right, bottom);
 
-      // Heuristica de distancia usando la funcion de DetectedObject.
       final distance = DetectedObject.estimateDistance(
         boundingBox,
         frameWidth,
         frameHeight,
+        label: label,
       );
 
       results.add(DetectedObject(
@@ -459,7 +389,6 @@ class TfliteObstacleDetector implements MlVisionService {
       ));
     }
 
-    // Ordenar por distancia (mas cercano primero = mayor area).
     results.sort((a, b) {
       final areaA = a.boundingBox.width * a.boundingBox.height;
       final areaB = b.boundingBox.width * b.boundingBox.height;
@@ -469,16 +398,7 @@ class TfliteObstacleDetector implements MlVisionService {
     return results;
   }
 
-  // -- Utilidades ------------------------------------------------------------
-
-  /// Compara dos listas de detecciones por valor usando Equatable.
-  ///
-  /// Esto evita notificar al VisionProvider (y por tanto reconstruir
-  /// widgets) cuando los resultados no cambiaron entre frames.
-  bool _areDetectionsEqual(
-    List<DetectedObject> a,
-    List<DetectedObject> b,
-  ) {
+  bool _areDetectionsEqual(List<DetectedObject> a, List<DetectedObject> b) {
     if (a.length != b.length) return false;
     for (int i = 0; i < a.length; i++) {
       if (a[i] != b[i]) return false;

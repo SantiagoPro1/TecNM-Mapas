@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:navia/core/constants/app_routes.dart';
 import 'package:navia/core/constants/campus_locations.dart';
 import 'package:navia/data/providers/auth_provider.dart';
@@ -7,6 +8,7 @@ import 'package:navia/data/providers/navigation_provider.dart';
 import 'package:navia/data/providers/voice_provider.dart';
 import 'package:navia/data/providers/feed_provider.dart';
 import 'package:navia/services/voice/voice_service.dart';
+import 'package:navia/presentation/screens/map/providers/map_providers.dart';
 import 'package:navia/presentation/widgets/bottom_nav.dart';
 import 'package:navia/presentation/widgets/announcement_card.dart';
 import 'package:navia/data/models/announcement.dart';
@@ -55,6 +57,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
+    // Mantener la posición sincronizada por GPS en segundo plano
+    ref.listen<AsyncValue<Position>>(currentLocationStreamProvider, (_, next) {
+      next.whenData((position) {
+        ref.read(navigationProvider.notifier).setPositionByCoordinates(
+              position.latitude,
+              position.longitude,
+            );
+      });
+    });
+
     ref.listen<NavigationState>(navigationProvider, (previous, next) {
       if (next.status == NavStatus.error &&
           next.errorMessage != null &&
@@ -74,7 +86,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (next.pendingARNavigation && !(previous?.pendingARNavigation ?? false)) {
         ref.read(navigationProvider.notifier).consumeARNavigation();
         if (mounted) {
-          Navigator.pushNamed(context, AppRoutes.scanner);
+          Navigator.pushReplacementNamed(context, AppRoutes.scanner);
         }
       }
     });
@@ -223,7 +235,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           gradient: LinearGradient(
             colors: isListening
                 ? [const Color(0xFFFF5252), const Color(0xFFFF1744)]
-                : [cs.primary, cs.secondary],
+                : [cs.primary, cs.primary.withValues(alpha: 0.85)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -241,12 +253,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: cs.onPrimary.withValues(alpha: 0.15),
                   shape: BoxShape.circle),
               child: Icon(
                   isListening ? Icons.graphic_eq_rounded : Icons.mic_rounded,
                   size: 28,
-                  color: Colors.white),
+                  color: cs.onPrimary),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -255,7 +267,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 children: [
                   Text(isListening ? 'ESCUCHANDO...' : 'ASISTENTE DE VOZ',
                       style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
+                          color: cs.onPrimary.withValues(alpha: 0.7),
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.5)),
@@ -266,8 +278,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             ? 'Habla ahora...'
                             : voiceState.recognizedText)
                         : '¿A dónde quieres ir?',
-                    style: const TextStyle(
-                        color: Colors.white,
+                    style: TextStyle(
+                        color: cs.onPrimary,
                         fontSize: 20,
                         fontWeight: FontWeight.w800),
                     maxLines: 1,
@@ -277,7 +289,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             ),
             Icon(Icons.arrow_forward_ios_rounded,
-                color: Colors.white.withValues(alpha: 0.5), size: 18),
+                color: cs.onPrimary.withValues(alpha: 0.5), size: 18),
           ],
         ),
       ),
@@ -307,7 +319,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => Navigator.pushNamed(context, AppRoutes.scanner),
+            onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.scanner),
             child: Text('CAMBIAR',
                 style: TextStyle(
                     color: cs.tertiary.withValues(alpha: 0.8),
@@ -366,7 +378,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           final v = venues[i];
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => Navigator.pushNamed(context, AppRoutes.map,
+            onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.map,
                 arguments: {'lat': v.$6, 'lng': v.$7, 'zoom': v.$8}),
             child: Container(
               width: 200,
@@ -419,7 +431,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final cs = Theme.of(context).colorScheme;
     final actions = [
       (
-        Icons.qr_code_scanner_rounded,
+        Icons.view_in_ar_rounded,
         'NAVIA AR',
         AppRoutes.scanner,
         cs.primary
@@ -439,7 +451,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         return Expanded(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => Navigator.pushNamed(context, a.$3),
+            onTap: () {
+              if (a.$3 == AppRoutes.scanner || a.$3 == AppRoutes.map) {
+                Navigator.pushReplacementNamed(context, a.$3);
+              } else {
+                Navigator.pushNamed(context, a.$3);
+              }
+            },
             child: Column(
               children: [
                 Container(
@@ -497,11 +515,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
-            final navState = ref.read(navigationProvider);
-            if (navState.currentNode == null) {
+            var currentNode = ref.read(navigationProvider).currentNode;
+            if (currentNode == null) {
+              final gpsState = ref.read(currentLocationStreamProvider);
+              if (gpsState.hasValue) {
+                final pos = gpsState.value!;
+                ref.read(navigationProvider.notifier)
+                    .setPositionByCoordinates(pos.latitude, pos.longitude);
+                currentNode = ref.read(navigationProvider).currentNode;
+              }
+            }
+
+            if (currentNode == null) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text('Primero indica dónde estás',
+                  content: const Text(
+                      'Primero indica dónde estás (Activa el GPS o usa la cámara NAVIA AR)',
                       style: TextStyle(fontWeight: FontWeight.w600)),
                   backgroundColor: cs.error,
                   behavior: SnackBarBehavior.floating,
@@ -509,11 +538,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       borderRadius: BorderRadius.circular(12)),
                 ),
               );
-              Navigator.pushNamed(context, AppRoutes.scanner);
+              Navigator.pushReplacementNamed(context, AppRoutes.scanner);
               return;
             }
+
             ref.read(navigationProvider.notifier).navigateTo(d.$4);
-            Navigator.pushNamed(context, AppRoutes.map);
+            ref.read(navigationProvider.notifier).consumeARNavigation();
+            Navigator.pushReplacementNamed(context, AppRoutes.scanner);
           },
           child: Container(
             margin: const EdgeInsets.only(bottom: 12),

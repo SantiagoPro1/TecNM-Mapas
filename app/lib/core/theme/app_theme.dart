@@ -326,7 +326,7 @@ ThemeData _lightClean() {
       secondary: Color(0xFF42A5F5),
       surface: surface,
       onPrimary: Colors.white,
-      onSecondary: Colors.white,
+      onSecondary: textPrimary,
       onSurface: textPrimary,
       error: error,
       tertiary: success,

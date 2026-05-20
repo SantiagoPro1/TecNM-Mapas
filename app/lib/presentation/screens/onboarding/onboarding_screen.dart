@@ -23,16 +23,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           'Llega a cualquier edificio o laboratorio del campus sin mirar la pantalla. NAVIA te guía paso a paso.',
     ),
     _OnboardingPageData(
-      icon: Icons.qr_code_scanner_rounded,
-      title: 'Posicionamiento indoor',
+      icon: Icons.view_in_ar_rounded,
+      title: 'Cámara NAVIA AR',
       description:
-          'Escanea los códigos QR del campus para confirmar tu posición exacta. Sin GPS limitado.',
+          'Usa la cámara NAVIA AR para detectar obstáculos y objetos en tiempo real con inteligencia artificial, facilitando tu navegación.',
     ),
     _OnboardingPageData(
       icon: Icons.settings_input_component_rounded,
       title: 'Permisos Necesarios',
       description:
-          'Para funcionar, requerimos acceso a tu Cámara (para el escáner) y Micrófono (para el asistente de voz).',
+          'Para funcionar, requerimos acceso a tu Cámara (para la cámara NAVIA AR) y Micrófono (para el asistente de voz).',
     ),
     _OnboardingPageData(
       icon: Icons.gavel_rounded,

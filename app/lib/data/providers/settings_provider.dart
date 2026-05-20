@@ -19,7 +19,7 @@ class AppSettings {
     this.voiceEnabled = true,
     this.highContrast = false,
     this.vibrationEnabled = true,
-    this.speechRate = 1.0,
+    this.speechRate = 0.8,
   });
 
   AppSettings copyWith({
@@ -50,7 +50,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       voiceEnabled: prefs.getBool(_kVoiceEnabled) ?? true,
       highContrast: prefs.getBool(_kHighContrast) ?? false,
       vibrationEnabled: prefs.getBool(_kVibrationEnabled) ?? true,
-      speechRate: prefs.getDouble(_kSpeechRate) ?? 1.0,
+      speechRate: prefs.getDouble(_kSpeechRate) ?? 0.8,
     );
   }
 

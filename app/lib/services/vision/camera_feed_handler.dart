@@ -16,6 +16,8 @@ class _ConversionPayload {
   final int height;
   final int timestampMicros;
   final bool isBgra;
+  final int targetWidth;
+  final int targetHeight;
 
   const _ConversionPayload({
     required this.planes,
@@ -25,65 +27,83 @@ class _ConversionPayload {
     required this.height,
     required this.timestampMicros,
     required this.isBgra,
+    required this.targetWidth,
+    required this.targetHeight,
   });
 }
 
 /// Funcion top-level ejecutada en Isolate separado.
 ///
 /// Convierte los planos crudos del sensor (YUV420 / BGRA8888) a un
-/// buffer RGB de 3 canales para inferencia TFLite.
+/// buffer RGB de 3 canales para inferencia TFLite, redimensionándolo al mismo tiempo.
 SensorFrame _convertFrameInIsolate(_ConversionPayload p) {
-  final rgbBytes = Uint8List(p.width * p.height * 3);
+  final targetW = p.targetWidth > 0 ? p.targetWidth : p.width;
+  final targetH = p.targetHeight > 0 ? p.targetHeight : p.height;
+  final rgbBytes = Uint8List(targetW * targetH * 3);
 
   if (p.isBgra) {
-    _convertBgra(p.planes[0], rgbBytes, p.width, p.height);
+    _convertBgraResized(p.planes[0], rgbBytes, p.width, p.height, targetW, targetH);
   } else {
-    _convertYuv420(
+    _convertYuv420Resized(
       p.planes,
       p.rowStrides,
       p.pixelStrides,
       rgbBytes,
       p.width,
       p.height,
+      targetW,
+      targetH,
     );
   }
 
   return SensorFrame(
     bytes: rgbBytes,
-    width: p.width,
-    height: p.height,
+    width: targetW,
+    height: targetH,
     timestampMicros: p.timestampMicros,
+    originalWidth: p.width,
+    originalHeight: p.height,
   );
 }
 
-/// BGRA8888 (iOS) -> RGB.
-void _convertBgra(
+/// BGRA8888 (iOS) -> RGB con redimensionamiento.
+void _convertBgraResized(
   Uint8List plane,
   Uint8List rgb,
-  int width,
-  int height,
+  int srcW,
+  int srcH,
+  int dstW,
+  int dstH,
 ) {
-  final pixelCount = width * height;
   final maxBgra = plane.length;
-  for (int i = 0; i < pixelCount; i++) {
-    final bgraIdx = i * 4;
-    if (bgraIdx + 2 >= maxBgra) break;
-    final rgbIdx = i * 3;
-    rgb[rgbIdx] = plane[bgraIdx + 2]; // R
-    rgb[rgbIdx + 1] = plane[bgraIdx + 1]; // G
-    rgb[rgbIdx + 2] = plane[bgraIdx]; // B
+  int dstIdx = 0;
+  for (int y = 0; y < dstH; y++) {
+    final srcY = (y * srcH) ~/ dstH;
+    final rowOffset = srcY * srcW * 4;
+    for (int x = 0; x < dstW; x++) {
+      final srcX = (x * srcW) ~/ dstW;
+      final bgraIdx = rowOffset + srcX * 4;
+
+      if (bgraIdx + 2 < maxBgra) {
+        rgb[dstIdx] = plane[bgraIdx + 2]; // R
+        rgb[dstIdx + 1] = plane[bgraIdx + 1]; // G
+        rgb[dstIdx + 2] = plane[bgraIdx]; // B
+      }
+      dstIdx += 3;
+    }
   }
 }
 
-/// YUV420 (Android) -> RGB via BT.601.
-/// Optimizado con clamp inline para mejor performance.
-void _convertYuv420(
+/// YUV420 (Android) -> RGB via BT.601 con redimensionamiento integrado.
+void _convertYuv420Resized(
   List<Uint8List> planes,
   List<int> rowStrides,
   List<int> pixelStrides,
   Uint8List rgb,
-  int width,
-  int height,
+  int srcW,
+  int srcH,
+  int dstW,
+  int dstH,
 ) {
   final yPlane = planes[0];
   final uPlane = planes[1];
@@ -93,33 +113,35 @@ void _convertYuv420(
   final uvRowStride = rowStrides[1];
   final uvPixelStride = pixelStrides[1];
 
-  for (int y = 0; y < height; y++) {
-    for (int x = 0; x < width; x++) {
-      final yIndex = y * yRowStride + x;
-      final uvIndex = (y ~/ 2) * uvRowStride + (x ~/ 2) * uvPixelStride;
+  int dstIdx = 0;
+  for (int y = 0; y < dstH; y++) {
+    final srcY = (y * srcH) ~/ dstH;
+    final yRowOffset = srcY * yRowStride;
+    final uvRowOffset = (srcY ~/ 2) * uvRowStride;
+    for (int x = 0; x < dstW; x++) {
+      final srcX = (x * srcW) ~/ dstW;
+      final yIndex = yRowOffset + srcX;
+      final uvIndex = uvRowOffset + (srcX ~/ 2) * uvPixelStride;
 
-      // Bounds check para evitar RangeError en frames truncados
-      if (yIndex >= yPlane.length ||
-          uvIndex >= uPlane.length ||
-          uvIndex >= vPlane.length) {
-        continue;
+      if (yIndex < yPlane.length &&
+          uvIndex < uPlane.length &&
+          uvIndex < vPlane.length) {
+        final yVal = yPlane[yIndex];
+        final uVal = uPlane[uvIndex];
+        final vVal = vPlane[uvIndex];
+
+        // ITU-R BT.601
+        final r = (yVal + 1.370705 * (vVal - 128)).round().clamp(0, 255);
+        final g = (yVal - 0.337633 * (uVal - 128) - 0.698001 * (vVal - 128))
+            .round()
+            .clamp(0, 255);
+        final b = (yVal + 1.732446 * (uVal - 128)).round().clamp(0, 255);
+
+        rgb[dstIdx] = r;
+        rgb[dstIdx + 1] = g;
+        rgb[dstIdx + 2] = b;
       }
-
-      final yVal = yPlane[yIndex];
-      final uVal = uPlane[uvIndex];
-      final vVal = vPlane[uvIndex];
-
-      // ITU-R BT.601
-      final r = (yVal + 1.370705 * (vVal - 128)).round().clamp(0, 255);
-      final g = (yVal - 0.337633 * (uVal - 128) - 0.698001 * (vVal - 128))
-          .round()
-          .clamp(0, 255);
-      final b = (yVal + 1.732446 * (uVal - 128)).round().clamp(0, 255);
-
-      final rgbIdx = (y * width + x) * 3;
-      rgb[rgbIdx] = r;
-      rgb[rgbIdx + 1] = g;
-      rgb[rgbIdx + 2] = b;
+      dstIdx += 3;
     }
   }
 }
@@ -152,6 +174,10 @@ class CameraFeedHandler {
   /// durante tests o antes de cargar el modelo).
   final MlVisionService? _mlService;
 
+  // -- Dimensiones objetivo de redimensionamiento --
+  final int targetWidth;
+  final int targetHeight;
+
   // -- Estado interno --------------------------------------------------------
 
   CameraController? _controller;
@@ -173,12 +199,14 @@ class CameraFeedHandler {
     required CameraDescription camera,
     required bool Function() isDetectionActive,
     MlVisionService? mlService,
+    this.targetWidth = 0,
+    this.targetHeight = 0,
   })  : _camera = camera,
         _isDetectionActive = isDetectionActive,
         _mlService = mlService;
 
   // -- Getters publicos ------------------------------------------------------
-
+  
   /// Controlador de camara subyacente (para el widget `CameraPreview`).
   CameraController? get controller => _controller;
 
@@ -201,12 +229,21 @@ class CameraFeedHandler {
 
     _controller = CameraController(
       _camera,
-      ResolutionPreset.low,
+      ResolutionPreset.high,
       enableAudio: false,
       imageFormatGroup: imageFormat,
     );
 
     await _controller!.initialize();
+    
+    // Configurar auto-enfoque continuo para evitar imagen borrosa/desenfocada
+    try {
+      await _controller!.setFocusMode(FocusMode.auto);
+      debugPrint('CameraFeedHandler: Enfoque auto activado correctamente.');
+    } catch (e) {
+      debugPrint('CameraFeedHandler: No se pudo establecer el enfoque auto: $e');
+    }
+
     _mounted = true;
 
     debugPrint(
@@ -303,6 +340,8 @@ class CameraFeedHandler {
         height: image.height,
         timestampMicros: DateTime.now().microsecondsSinceEpoch,
         isBgra: isBgra,
+        targetWidth: targetWidth,
+        targetHeight: targetHeight,
       );
 
       // Conversion pesada en Isolate separado (no bloquea la UI).

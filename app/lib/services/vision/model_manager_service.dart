@@ -13,25 +13,15 @@ import 'package:tflite_flutter/tflite_flutter.dart';
 /// o descargados dinamicamente en el almacenamiento del dispositivo
 /// (utilizando `path_provider` para evitar inflar el tamanio de la app).
 class ModelManagerService {
-  /// Cache de interpreters ya cargados para evitar cargas duplicadas.
-  final Map<String, Interpreter> _cache = {};
-
   /// Intenta cargar y devolver un interprete TFLite para el modelo solicitado.
   ///
   /// El flujo de busqueda es:
-  /// 1. Cache en memoria (si ya se cargo previamente).
-  /// 2. Verifica la existencia del archivo en `assets/models/`.
-  /// 3. Si no existe, busca en `getApplicationDocumentsDirectory()/models/`.
-  /// 4. Si no existe localmente, lo descarga desde Firebase Storage.
+  /// 1. Verifica la existencia del archivo en `assets/models/`.
+  /// 2. Si no existe, busca en `getApplicationDocumentsDirectory()/models/`.
+  /// 3. Si no existe localmente, lo descarga desde Firebase Storage.
   ///
   /// Retorna un [Interpreter] listo para usarse o `null` si no se encontro.
   Future<Interpreter?> loadModel(String modelFileName) async {
-    // 0. Revisar cache en memoria
-    if (_cache.containsKey(modelFileName)) {
-      debugPrint('ModelManagerService: "$modelFileName" en cache de memoria.');
-      return _cache[modelFileName];
-    }
-
     // 1. Verificar existencia en assets integrados.
     try {
       await rootBundle.load('assets/models/$modelFileName');
@@ -41,7 +31,6 @@ class ModelManagerService {
         'assets/models/$modelFileName',
         options: _buildOptions(),
       );
-      _cache[modelFileName] = interpreter;
       return interpreter;
     } catch (_) {
       debugPrint(
@@ -70,7 +59,6 @@ class ModelManagerService {
           file,
           options: _buildOptions(),
         );
-        _cache[modelFileName] = interpreter;
         return interpreter;
       } else {
         debugPrint(
@@ -87,7 +75,6 @@ class ModelManagerService {
             file,
             options: _buildOptions(),
           );
-          _cache[modelFileName] = interpreter;
           return interpreter;
         } catch (e) {
           debugPrint(
@@ -111,13 +98,9 @@ class ModelManagerService {
     return options;
   }
 
-  /// Libera todos los interpreters cacheados.
+  /// Libera los recursos del servicio (sin cache en memoria).
   void dispose() {
-    for (final interpreter in _cache.values) {
-      interpreter.close();
-    }
-    _cache.clear();
-    debugPrint('ModelManagerService: cache de interpreters liberada.');
+    debugPrint('ModelManagerService: liberado.');
   }
 }
 

@@ -8,16 +8,17 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:dio/dio.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:navia/data/models/place_node.dart';
 import 'package:navia/data/models/campus_node.dart';
 import 'package:navia/presentation/screens/map/providers/map_providers.dart';
 import 'package:navia/core/constants/campus_locations.dart';
+import 'package:navia/core/constants/app_routes.dart';
 import 'package:navia/data/providers/navigation_provider.dart';
 import 'package:navia/data/providers/settings_provider.dart';
+import 'package:navia/data/providers/voice_provider.dart';
 import 'package:navia/presentation/widgets/bottom_nav.dart';
+import 'package:navia/core/theme/app_theme.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -41,6 +42,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
   bool _centeredOnUser = false;
   bool _isTrackingActive = false;
   bool _isNavigating = false;
+
+  /// Guard para evitar llamadas concurrentes a _fetchRoute cuando el usuario
+  /// toca "Trazar Ruta" varias veces antes de que termine la primera peticion.
+  bool _isFetchingRoute = false;
 
   LatLng? _destinationLatLng;
   Timer? _routeRecalcTimer;
@@ -66,10 +71,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
   late stt.SpeechToText _speechToText;
   bool _isListening = false;
   String _lastRecognizedWords = '';
-
-  // HTTP client para llamar al backend
-  final Dio _dio = Dio();
-
   // Map style strings (cargados desde assets)
   String? _darkMapStyle;
   String? _lightMapStyle;
@@ -182,7 +183,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _flutterTts.stop();
     _speechToText.stop();
     _googleMapController?.dispose();
-    _dio.close();
     super.dispose();
   }
 
@@ -201,12 +201,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
+    final cs = Theme.of(context).colorScheme;
+    final primaryColor = cs.primary;
+    final surfaceColor = cs.surface;
+
     // Glow suave
     canvas.drawCircle(
       const Offset(size / 2, size / 2),
       size / 2,
       Paint()
-        ..color = const Color(0xFF38BDF8).withValues(alpha: 0.15)
+        ..color = primaryColor.withValues(alpha: 0.15)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
     );
 
@@ -214,7 +218,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     canvas.drawCircle(
       const Offset(size / 2, size / 2),
       size / 2 - 8,
-      Paint()..color = const Color(0xFF1E293B),
+      Paint()..color = surfaceColor,
     );
 
     // Borde accent
@@ -222,7 +226,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       const Offset(size / 2, size / 2),
       size / 2 - 8,
       Paint()
-        ..color = const Color(0xFF38BDF8).withValues(alpha: 0.7)
+        ..color = primaryColor.withValues(alpha: 0.7)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3,
     );
@@ -231,8 +235,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
       final tp = TextPainter(
         text: TextSpan(
           text: letter,
-          style: const TextStyle(
-            color: Color(0xFF38BDF8),
+          style: TextStyle(
+            color: primaryColor,
             fontSize: 28,
             fontWeight: FontWeight.w900,
           ),
@@ -253,7 +257,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           style: TextStyle(
             fontFamily: 'MaterialIcons',
             fontSize: 32,
-            color: isCafe ? const Color(0xFFFFB020) : const Color(0xFF38BDF8),
+            color: isCafe ? const Color(0xFFFFB020) : primaryColor,
           ),
         ),
         textDirection: TextDirection.ltr,
@@ -610,10 +614,35 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
-  Future<void> _initializeGpsAndCenter() async {
-    if (_centeredOnUser) return;
+  void _showOutsideCampusSnackBar() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.info_outline_rounded, color: Colors.white, size: 20),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Te encuentras fuera del campus. Centrando vista en el TecNM Colima.',
+                style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Color(0xFF1E293B),
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<void> _initializeGpsAndCenter({bool force = false}) async {
+    if (_centeredOnUser && !force) return;
     final permissionGranted = await _requestLocationPermission();
     if (!permissionGranted || !mounted) return;
+
+    ref.invalidate(currentLocationStreamProvider);
 
     try {
       final position = await Geolocator.getCurrentPosition(
@@ -623,10 +652,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
       if (!mounted) return;
       final latLng = LatLng(position.latitude, position.longitude);
       setState(() => _currentPosition = latLng);
-      if (!_centeredOnUser) {
-        _centeredOnUser = true;
+      
+      final distanceToCampus = Geolocator.distanceBetween(
+        latLng.latitude, latLng.longitude,
+        CampusLocations.centerLat, CampusLocations.centerLng,
+      );
+      
+      _centeredOnUser = true;
+      if (distanceToCampus < 2500) {
         _googleMapController
             ?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 17.5));
+      } else {
+        _googleMapController
+            ?.animateCamera(CameraUpdate.newLatLngZoom(_initialPosition, 17.0));
+        _showOutsideCampusSnackBar();
       }
     } on TimeoutException {
       debugPrint('GPS: timeout — se usará el stream.');
@@ -643,8 +682,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
     LatLng? targetPos = _displayPosition ?? _currentPosition;
 
     if (targetPos != null) {
-      _googleMapController?.animateCamera(
-          CameraUpdate.newLatLngZoom(targetPos, _currentZoom));
+      final distanceToCampus = Geolocator.distanceBetween(
+        targetPos.latitude, targetPos.longitude,
+        CampusLocations.centerLat, CampusLocations.centerLng,
+      );
+      if (distanceToCampus < 2500) {
+        _googleMapController?.animateCamera(
+            CameraUpdate.newLatLngZoom(targetPos, _currentZoom));
+      } else {
+        _googleMapController?.animateCamera(
+            CameraUpdate.newLatLngZoom(_initialPosition, 17.0));
+        _showOutsideCampusSnackBar();
+      }
+    } else {
+      _initializeGpsAndCenter(force: true);
     }
   }
 
@@ -676,20 +727,26 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _updateUserMarker(interpolated);
 
     if (_isTrackingActive) {
-      if (_isNavigating) {
-        _googleMapController?.animateCamera(
-          CameraUpdate.newCameraPosition(
-            CameraPosition(
-              target: interpolated,
-              zoom: 19.5,
-              tilt: 50.0,
-              bearing: _currentHeading,
+      final distanceToCampus = Geolocator.distanceBetween(
+        interpolated.latitude, interpolated.longitude,
+        CampusLocations.centerLat, CampusLocations.centerLng,
+      );
+      if (distanceToCampus < 2500) {
+        if (_isNavigating) {
+          _googleMapController?.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(
+                target: interpolated,
+                zoom: 19.5,
+                tilt: 50.0,
+                bearing: _currentHeading,
+              ),
             ),
-          ),
-        );
-      } else {
-        _googleMapController?.animateCamera(
-            CameraUpdate.newLatLng(interpolated));
+          );
+        } else {
+          _googleMapController?.animateCamera(
+              CameraUpdate.newLatLng(interpolated));
+        }
       }
     }
   }
@@ -724,176 +781,67 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   Future<void> calculateAccessibleRoute(LatLng destination,
       [String? destinationName]) async {
+    if (_isFetchingRoute) return;
+    _isFetchingRoute = true;
     _destinationLatLng = destination;
 
-    final origin = _displayPosition ?? _currentPosition;
-    if (origin == null) {
-      final navService = ref.read(navigationServiceProvider);
-      final graph = navService.graph;
-      final fromId = navService.currentNodeId;
-
-      if (fromId == null || graph == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.qr_code_scanner,
-                      color: Color(0xFF0D1B2A), size: 22),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Activa el GPS o escanea el QR del pasillo más cercano para trazar tu ruta.',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF0D1B2A)),
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: Color(0xFF38BDF8),
-              behavior: SnackBarBehavior.fixed,
-              duration: Duration(seconds: 4),
-            ),
-          );
-        }
-        return;
-      }
-      // Si hay nodo QR fijado, usar sus coordenadas como origen
-      final fromNode = graph.nodes[fromId];
-      if (fromNode == null) return;
-      await _fetchRoute(
-          LatLng(fromNode.lat, fromNode.lng), destination, destinationName);
-      return;
-    }
-
-    await _fetchRoute(origin, destination, destinationName);
-  }
-
-  Future<void> _fetchRoute(
-      LatLng origin, LatLng destination, String? destinationName) async {
     try {
-      final apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) {
-        _fallbackToDijkstra(destination);
-        return;
-      }
+      final origin = _displayPosition ?? _currentPosition;
+      if (origin == null) {
+        final navService = ref.read(navigationServiceProvider);
+        final graph = navService.graph;
+        final fromId = navService.currentNodeId;
 
-      final response = await _dio.post(
-        'https://routes.googleapis.com/directions/v2:computeRoutes',
-        data: {
-          "origin": {
-            "location": {
-              "latLng": {
-                "latitude": origin.latitude,
-                "longitude": origin.longitude
-              }
-            }
-          },
-          "destination": {
-            "location": {
-              "latLng": {
-                "latitude": destination.latitude,
-                "longitude": destination.longitude
-              }
-            }
-          },
-          "travelMode": "WALK",
-        },
-        options: Options(
-          headers: {
-            'X-Goog-Api-Key': apiKey,
-            'X-Goog-FieldMask':
-                'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline',
-            'Content-Type': 'application/json',
-          },
-          receiveTimeout: const Duration(seconds: 15),
-        ),
-      );
-
-      final routes = response.data['routes'] as List<dynamic>?;
-      if (routes != null && routes.isNotEmpty) {
-        final route = routes.first;
-        final encodedPolyline = route['polyline']['encodedPolyline'] as String;
-        final points = _decodePolyline(encodedPolyline);
-        final distance = route['distanceMeters'] as int? ?? 0;
-
-        if (points.isEmpty) {
-          _speak('No se encontró una ruta válida.');
+        if (fromId == null || graph == null) {
+          if (mounted) {
+            final cs = Theme.of(context).colorScheme;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.view_in_ar_rounded,
+                        color: cs.onPrimary, size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Activa el GPS o usa la cámara NAVIA AR para trazar tu ruta.',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: cs.onPrimary),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: cs.primary,
+                behavior: SnackBarBehavior.fixed,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
           return;
         }
-
-        _setRoutePolyline(points);
-        setState(() {
-          _isNavigating = true;
-          _destinationLatLng = destination;
-        });
-
-        _fitBounds(points);
-
-        Future.delayed(const Duration(seconds: 3), () {
-          if (mounted && _isNavigating) {
-            setState(() => _isTrackingActive = true);
-          }
-        });
-
-        _speak(
-            'Ruta trazada hacia ${destinationName ?? "tu destino"}. '
-            '${distance > 0 ? "$distance metros." : ""}');
-      } else {
-        debugPrint('Google Routes no encontró ruta.');
-        _fallbackToDijkstra(destination);
+        // Si hay nodo QR fijado, usar sus coordenadas como origen
+        final fromNode = graph.nodes[fromId];
+        if (fromNode == null) return;
+        await ref.read(navigationProvider.notifier).calculateGoogleRoute(
+              originLat: fromNode.lat,
+              originLng: fromNode.lng,
+              destLat: destination.latitude,
+              destLng: destination.longitude,
+              destinationName: destinationName,
+            );
+        return;
       }
-    } on DioException catch (e) {
-      debugPrint('Error al obtener ruta (Dio): ${e.response?.data ?? e.message}');
-      _fallbackToDijkstra(destination);
-    } catch (e) {
-      debugPrint('Error inesperado en ruta: $e');
-      _fallbackToDijkstra(destination);
-    }
-  }
 
-  List<LatLng> _decodePolyline(String encoded) {
-    List<LatLng> poly = [];
-    int index = 0, len = encoded.length;
-    int lat = 0, lng = 0;
-
-    while (index < len) {
-      int b, shift = 0, result = 0;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lat += dlat;
-
-      shift = 0;
-      result = 0;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lng += dlng;
-
-      poly.add(LatLng(lat / 1E5, lng / 1E5));
-    }
-    return poly;
-  }
-
-  void _fallbackToDijkstra(LatLng destination) {
-    final navService = ref.read(navigationServiceProvider);
-    final graph = navService.graph;
-    if (graph == null) return;
-
-    final destNode = _closestNodeTo(graph.nodes.values.toList(), destination);
-    if (destNode != null) {
-      ref.read(navigationProvider.notifier).navigateTo(destNode.id);
-      _speak('Usando sistema de navegación local del campus.');
-    } else {
-      _speak('No se pudo calcular la ruta.');
+      await ref.read(navigationProvider.notifier).calculateGoogleRoute(
+            originLat: origin.latitude,
+            originLng: origin.longitude,
+            destLat: destination.latitude,
+            destLng: destination.longitude,
+            destinationName: destinationName,
+          );
+    } finally {
+      _isFetchingRoute = false;
     }
   }
 
@@ -985,26 +933,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   void _processVoiceCommand(String text) {
     if (text.isEmpty) return;
-    final lowerText = text.toLowerCase();
-
-    if (lowerText.contains('ir a') ||
-        lowerText.contains('buscar') ||
-        lowerText.contains('ir')) {
-      String searchTarget = lowerText
-          .replaceAll('quiero ir a la', '')
-          .replaceAll('quiero ir al', '')
-          .replaceAll('ir a la', '')
-          .replaceAll('ir al', '')
-          .replaceAll('ir a', '')
-          .replaceAll('ir', '')
-          .replaceAll('buscar', '')
-          .replaceAll('quiero', '')
-          .trim();
-
-      if (searchTarget.isNotEmpty) {
-        _speak('Buscando $searchTarget');
-      }
+    if (_currentPosition != null) {
+      ref.read(navigationProvider.notifier).setPositionByCoordinates(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+          );
     }
+    ref.read(voiceProvider.notifier).processTextCommand(text);
   }
 
   // ──────────────────────────────────────────────────────────
@@ -1030,13 +965,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   void _handleArrival() {
+    ref.read(navigationProvider.notifier).cancelNavigation();
     setState(() {
       _isNavigating = false;
       _googlePolylines = {};
       _destinationLatLng = null;
       _isTrackingActive = false;
     });
-    _speak('Has llegado a tu destino. NAVIA te desea un excelente día.');
+    _speak('Has llegado a tu destino. NAVIA te desea un excelente dia.');
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -1044,7 +980,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           children: [
             Icon(Icons.check_circle_rounded, color: Color(0xFF0D1B2A), size: 24),
             SizedBox(width: 10),
-            Text('¡Has llegado a tu destino!',
+            Text('Has llegado a tu destino!',
                 style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0D1B2A))),
           ],
         ),
@@ -1057,15 +993,22 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   void _showAccessibleBottomSheet(PlaceNode place) {
+    final cs = Theme.of(context).colorScheme;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF0D1B2A),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-          boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 20, spreadRadius: 5)],
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 20,
+              spreadRadius: 5,
+            )
+          ],
         ),
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
         child: Column(
@@ -1075,7 +1018,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
             Center(
               child: Container(
                 width: 50, height: 5,
-                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(
+                  color: cs.onSurface.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -1085,13 +1031,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF38BDF8).withValues(alpha: 0.1),
+                    color: cs.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.3)),
+                    border: Border.all(color: cs.primary.withValues(alpha: 0.3)),
                   ),
                   child: Icon(
                     place.type.toLowerCase().contains('cafetería') ? Icons.coffee_rounded : Icons.business_rounded,
-                    color: const Color(0xFF38BDF8), size: 32,
+                    color: cs.primary, size: 32,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -1100,11 +1046,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(place.name,
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5)),
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            color: cs.onSurface,
+                            letterSpacing: -0.5,
+                          )),
                       const SizedBox(height: 4),
                       Text(place.type.toUpperCase(),
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
-                              color: const Color(0xFF38BDF8).withValues(alpha: 0.8), letterSpacing: 1.2)),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: cs.primary.withValues(alpha: 0.8),
+                            letterSpacing: 1.2,
+                          )),
                     ],
                   ),
                 ),
@@ -1128,18 +1083,33 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     height: 54,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      gradient: const LinearGradient(colors: [Color(0xFF38BDF8), Color(0xFF0091EA)]),
+                      gradient: LinearGradient(colors: [cs.primary, cs.primary.withValues(alpha: 0.85)]),
                     ),
                     child: ElevatedButton.icon(
-                      icon: const Icon(Icons.directions_walk_rounded, size: 22, color: Color(0xFF0D1B2A)),
-                      label: const Text('Trazar Ruta',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0D1B2A))),
+                      icon: Icon(Icons.directions_walk_rounded, size: 22, color: cs.onPrimary),
+                      label: Text('Trazar Ruta',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: cs.onPrimary)),
                       style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent, shadowColor: Colors.transparent,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                       onPressed: () {
                         Navigator.pop(ctx);
-                        calculateAccessibleRoute(LatLng(place.latitude, place.longitude), place.name);
+                        final navService = ref.read(navigationServiceProvider);
+                        var node = navService.findDestination(place.id);
+                        node ??= navService.findDestination(place.name);
+                        if (node != null) {
+                          if (_currentPosition != null) {
+                            ref.read(navigationProvider.notifier).setPositionByCoordinates(
+                                  _currentPosition!.latitude,
+                                  _currentPosition!.longitude,
+                                );
+                          }
+                          ref.read(navigationProvider.notifier).navigateTo(node.id);
+                        } else {
+                          calculateAccessibleRoute(
+                              LatLng(place.latitude, place.longitude),
+                              place.name);
+                        }
                       },
                     ),
                   ),
@@ -1150,13 +1120,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     height: 54,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.4)),
-                      color: const Color(0xFF38BDF8).withValues(alpha: 0.05),
+                      border: Border.all(color: cs.primary.withValues(alpha: 0.4)),
+                      color: cs.primary.withValues(alpha: 0.05),
                     ),
                     child: ElevatedButton.icon(
-                      icon: const Icon(Icons.location_on_rounded, size: 22, color: Color(0xFF38BDF8)),
-                      label: const Text('Estoy Aquí',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF38BDF8))),
+                      icon: Icon(Icons.location_on_rounded, size: 22, color: cs.primary),
+                      label: Text('Estoy Aquí',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: cs.primary)),
                       style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent, shadowColor: Colors.transparent,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
@@ -1196,9 +1166,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   PreferredSizeWidget _buildAppBar(bool isDark) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return AppBar(
-      backgroundColor: const Color(0xFF0F172A),
-      foregroundColor: Colors.white,
+      backgroundColor: theme.appBarTheme.backgroundColor ?? cs.surface,
+      foregroundColor: theme.appBarTheme.foregroundColor ?? cs.onSurface,
       elevation: 0,
       titleSpacing: 0,
       title: Row(
@@ -1207,20 +1179,27 @@ class _MapScreenState extends ConsumerState<MapScreen>
             width: 36, height: 36,
             margin: const EdgeInsets.only(left: 4, right: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+              color: cs.primary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.4), width: 1.5),
+              border: Border.all(color: cs.primary.withValues(alpha: 0.4), width: 1.5),
             ),
-            child: const Icon(Icons.school_rounded, color: Color(0xFF38BDF8), size: 20),
+            child: Icon(Icons.school_rounded, color: cs.primary, size: 20),
           ),
-          const Text('NAVIA',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2.5)),
+          Text('NAVIA',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: theme.appBarTheme.titleTextStyle?.color ?? cs.onSurface,
+                letterSpacing: 2.5,
+              )),
         ],
       ),
       actions: [
         IconButton(
-          icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-              color: const Color(0xFF38BDF8)),
+          icon: Icon(
+            isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+            color: cs.primary,
+          ),
           onPressed: () {
             final newTheme = isDark ? 'light' : 'dark';
             ref.read(mapThemeProvider.notifier).state = newTheme;
@@ -1229,18 +1208,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
           tooltip: 'Cambiar tema',
         ),
       ],
-      flexibleSpace: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft, end: Alignment.bottomRight,
-            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-          ),
-        ),
-      ),
     );
   }
 
   Widget _buildFABs() {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
@@ -1250,11 +1222,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
           FloatingActionButton(
             heroTag: 'center_btn',
             onPressed: _centerOnUser,
-            backgroundColor: _isTrackingActive ? const Color(0xFF38BDF8) : const Color(0xFF1E293B),
+            backgroundColor: _isTrackingActive ? cs.primary : cs.surface,
             elevation: _isTrackingActive ? 8 : 4,
             child: Icon(
               _isTrackingActive ? Icons.gps_fixed_rounded : Icons.my_location_rounded,
-              color: _isTrackingActive ? const Color(0xFF0F172A) : const Color(0xFF38BDF8),
+              color: _isTrackingActive ? cs.onPrimary : cs.primary,
               size: 26,
             ),
           ),
@@ -1269,19 +1241,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 shape: BoxShape.circle,
                 gradient: _isListening
                     ? const LinearGradient(colors: [Color(0xFFFF5252), Color(0xFFFF1744)])
-                    : const LinearGradient(
+                    : LinearGradient(
                         begin: Alignment.topLeft, end: Alignment.bottomRight,
-                        colors: [Color(0xFF38BDF8), Color(0xFF0091EA)]),
+                        colors: [cs.primary, cs.primary.withValues(alpha: 0.85)]),
                 boxShadow: [
                   BoxShadow(
-                    color: (_isListening ? const Color(0xFFFF5252) : const Color(0xFF38BDF8))
+                    color: (_isListening ? const Color(0xFFFF5252) : cs.primary)
                         .withValues(alpha: 0.5),
                     blurRadius: _isListening ? 20 : 12,
                     spreadRadius: _isListening ? 4 : 2,
                   ),
                 ],
               ),
-              child: Icon(_isListening ? Icons.mic : Icons.mic_none_rounded, color: Colors.white, size: 32),
+              child: Icon(_isListening ? Icons.mic : Icons.mic_none_rounded, color: _isListening ? Colors.white : cs.onPrimary, size: 32),
             ),
           ),
         ],
@@ -1290,6 +1262,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   Widget _buildFiltersRow() {
+    final cs = Theme.of(context).colorScheme;
     final currentFilter = ref.watch(categoryFilterProvider);
     final filters = [
       ('Todo', Icons.grid_view_rounded),
@@ -1313,26 +1286,26 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   gradient: isSelected
-                      ? const LinearGradient(colors: [Color(0xFF38BDF8), Color(0xFF0091EA)])
+                      ? LinearGradient(colors: [cs.primary, cs.primary.withValues(alpha: 0.85)])
                       : null,
-                  color: isSelected ? null : const Color(0xFF0F172A).withValues(alpha: 0.88),
+                  color: isSelected ? null : cs.surface,
                   borderRadius: BorderRadius.circular(30),
                   border: Border.all(
-                    color: isSelected ? Colors.transparent : const Color(0xFF38BDF8).withValues(alpha: 0.3),
+                    color: isSelected ? Colors.transparent : cs.onSurface.withValues(alpha: 0.12),
                     width: 1.5,
                   ),
                   boxShadow: isSelected
-                      ? [BoxShadow(color: const Color(0xFF38BDF8).withValues(alpha: 0.35), blurRadius: 10)]
+                      ? [BoxShadow(color: cs.primary.withValues(alpha: 0.35), blurRadius: 10)]
                       : [],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(fd.$2, size: 15, color: isSelected ? Colors.white : const Color(0xFF90CAF9)),
+                    Icon(fd.$2, size: 15, color: isSelected ? cs.onPrimary : cs.onSurface.withValues(alpha: 0.6)),
                     const SizedBox(width: 6),
                     Text(fd.$1,
                         style: TextStyle(
-                          color: isSelected ? Colors.white : const Color(0xFF90CAF9),
+                          color: isSelected ? cs.onPrimary : cs.onSurface.withValues(alpha: 0.75),
                           fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                           fontSize: 13, letterSpacing: 0.3,
                         )),
@@ -1352,6 +1325,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Escuchar cambios de tema global para regenerar marcadores con nuevos colores
+    ref.listen(themeProvider, (_, __) {
+      _markerIconCache.clear();
+      _rebuildMarkers(ref.read(filteredPlacesProvider));
+    });
+
     // Lugar seleccionado → bottom sheet
     ref.listen<PlaceNode?>(selectedPlaceProvider, (_, next) {
       if (next != null) {
@@ -1367,9 +1346,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
         final latLng = LatLng(position.latitude, position.longitude);
         _onNewGpsPosition(latLng, heading: position.heading);
 
+        // Sincronizar posición actual en el provider de navegación local
+        ref.read(navigationProvider.notifier).setPositionByCoordinates(
+              position.latitude,
+              position.longitude,
+            );
+
         if (!_centeredOnUser) {
           _centeredOnUser = true;
-          _googleMapController?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 17.5));
+          final distanceToCampus = Geolocator.distanceBetween(
+            latLng.latitude, latLng.longitude,
+            CampusLocations.centerLat, CampusLocations.centerLng,
+          );
+          if (distanceToCampus < 2500) {
+            _googleMapController?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 17.5));
+          } else {
+            _googleMapController?.animateCamera(CameraUpdate.newLatLngZoom(_initialPosition, 17.0));
+            _showOutsideCampusSnackBar();
+          }
         }
 
         if (_isNavigating && _destinationLatLng != null) {
@@ -1389,13 +1383,34 @@ class _MapScreenState extends ConsumerState<MapScreen>
           LatLng(next.currentNode!.lat, next.currentNode!.lng),
         ));
       }
-      if (next.activeRoute != previous?.activeRoute) {
-        if (next.activeRoute != null) {
+
+      // Auto-navegar a NAVIA AR cuando se encuentra una ruta por voz o localmente.
+      if (next.pendingARNavigation && !(previous?.pendingARNavigation ?? false)) {
+        ref.read(navigationProvider.notifier).consumeARNavigation();
+        if (mounted) {
+          Navigator.pushReplacementNamed(
+            context,
+            AppRoutes.scanner,
+          );
+        }
+      }
+
+      if (next.activeRoute != previous?.activeRoute ||
+          next.routePolylinePoints != previous?.routePolylinePoints) {
+        if (next.routePolylinePoints != null) {
+          final points = next.routePolylinePoints!
+              .map((p) => LatLng(p[0], p[1]))
+              .toList();
+          _setRoutePolyline(points);
+          setState(() => _isNavigating = true);
+          _fitBounds(points);
+        } else if (next.activeRoute != null) {
           final points = next.activeRoute!.steps
               .map((s) => LatLng(s.node.lat, s.node.lng))
               .toList();
           _setRoutePolyline(points);
           setState(() => _isNavigating = true);
+          _fitBounds(points);
         } else {
           setState(() { _googlePolylines = {}; _isNavigating = false; });
         }
@@ -1491,7 +1506,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ),
               ),
             ),
-          // ── Barra de navegación activa ────────────────────────
+          // ── Barra de navegacion activa ────────────────────────
           if (_isNavigating)
             Positioned(
               top: 70, left: 16, right: 16,
@@ -1499,25 +1514,60 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.5)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                      blurRadius: 16,
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.directions_walk, color: Color(0xFF38BDF8), size: 20),
+                    const Icon(Icons.navigation_rounded, color: Color(0xFF38BDF8), size: 20),
                     const SizedBox(width: 8),
                     const Expanded(
-                      child: Text('Navegando en curso...',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                      child: Text('Ruta activa',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
                     ),
+                    // Boton para ir a NAVIA AR
                     GestureDetector(
-                      onTap: () => setState(() {
-                        _isNavigating = false;
-                        _googlePolylines = {};
-                        _destinationLatLng = null;
-                        _isTrackingActive = false;
-                      }),
-                      child: const Icon(Icons.close, color: Colors.white54, size: 18),
+                      onTap: () {
+                        Navigator.pushReplacementNamed(context, AppRoutes.scanner);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF38BDF8),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.view_in_ar_rounded, color: Color(0xFF0D1B2A), size: 14),
+                            SizedBox(width: 4),
+                            Text('AR',
+                                style: TextStyle(
+                                    color: Color(0xFF0D1B2A),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () {
+                        ref.read(navigationProvider.notifier).cancelNavigation();
+                        setState(() {
+                          _isNavigating = false;
+                          _googlePolylines = {};
+                          _destinationLatLng = null;
+                          _isTrackingActive = false;
+                        });
+                      },
+                      child: const Icon(Icons.close_rounded, color: Colors.white54, size: 18),
                     ),
                   ],
                 ),

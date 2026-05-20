@@ -47,7 +47,7 @@ class BottomNav extends StatelessWidget {
                       Navigator.pushReplacementNamed(context, AppRoutes.map),
                 ),
                 _NavItem(
-                  icon: Icons.qr_code_scanner_rounded,
+                  icon: Icons.view_in_ar_rounded,
                   label: 'NAVIA AR',
                   isActive: currentIndex == 2,
                   onTap: () => Navigator.pushReplacementNamed(

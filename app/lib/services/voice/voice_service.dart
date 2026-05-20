@@ -31,7 +31,7 @@ class VoiceService {
   String? get lastError => _lastError;
 
   /// Velocidad de voz (0.5 = lento, 1.0 = normal, 2.0 = rápido)
-  double _speechRate = 0.85;
+  double _speechRate = 0.8;
   double get speechRate => _speechRate;
 
   /// Callback cuando cambia el estado.

@@ -16,6 +16,14 @@
 
 ---
 
+## ✨ Nuevas Características (Última Actualización)
+- **Navegación GPS y Ruteo Inteligente:** Integración de Google Routes (con respaldo automático al sistema Dijkstra local) para trazar rutas de alta precisión hacia cualquier edificio.
+- **Seguimiento Dinámico en Tiempo Real:** Nuevo Mini-Mapa interactivo estilo Uber/Didi en la pantalla NAVIA AR, que re-centra la posición de forma automática basándose en las coordenadas GPS y muestra el progreso de la ruta.
+- **Asistente de Voz Turn-by-Turn (Paso a Paso):** El motor TTS ahora está sincronizado con los pasos de la ruta y el GPS para leer en voz alta de manera inteligente las indicaciones mientras el estudiante avanza.
+- **Flujo AR y Mapa Unificado:** Transición perfecta entre el mapa interactivo principal y la cámara NAVIA AR, priorizando siempre la accesibilidad.
+
+---
+
 ## 🏆 Estado del Arte y Arquitectura (Actualizado)
 
 NAVIA ha evolucionado hacia un modelo maduro, adoptando una arquitectura de 4 capas y procesamientos avanzados de machine learning e integración en nube.

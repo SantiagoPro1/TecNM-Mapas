@@ -22,10 +22,18 @@ class SensorFrame {
   /// Marca temporal del fotograma original (microsegundos).
   final int timestampMicros;
 
+  /// Ancho original del fotograma antes de redimensionar.
+  final int originalWidth;
+
+  /// Alto original del fotograma antes de redimensionar.
+  final int originalHeight;
+
   const SensorFrame({
     required this.bytes,
     required this.width,
     required this.height,
     required this.timestampMicros,
+    required this.originalWidth,
+    required this.originalHeight,
   });
 }

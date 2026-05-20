@@ -7,10 +7,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart' as ll;
+import 'package:geolocator/geolocator.dart';
 import 'package:navia/core/constants/app_routes.dart';
 import 'package:navia/data/providers/vision_provider.dart';
 import 'package:navia/data/providers/voice_provider.dart';
 import 'package:navia/data/providers/navigation_provider.dart';
+import 'package:navia/presentation/screens/map/providers/map_providers.dart';
 import 'package:navia/data/models/nav_route.dart';
 import 'package:navia/presentation/widgets/bottom_nav.dart';
 import 'package:navia/services/vision/camera_feed_handler.dart';
@@ -18,6 +20,7 @@ import 'package:navia/services/vision/ml_vision_service.dart';
 import 'package:navia/services/vision/model_manager_service.dart';
 import 'package:navia/services/vision/marker_recognizer.dart';
 import 'package:navia/services/vision/models/detected_object.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ---------------------------------------------------------------------------
 // ScannerScreen - NAVIA AR con pipeline TFLite completo
@@ -48,6 +51,16 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   DateTime _lastVoiceAt = DateTime(2000);
   static const Duration _kVoiceCooldown = Duration(seconds: 3);
 
+  // --- Filtro de consenso temporal ---
+  String? _lastAnnouncedLabel;
+  int _consensusFrames = 0;
+  static const int _kConsensusRequired = 2;
+
+  // --- Perfil de aprendizaje adaptativo ---
+  SharedPreferences? _prefs;
+  final Map<String, int> _classFrequencies = {};
+  int _sessionOpenCount = 0;
+
   // --- Demo ---
   static const List<_DemoPlace> _kDemoPlaces = [
     _DemoPlace('BIBLIOTECA', 'Biblioteca', Icons.menu_book_rounded),
@@ -70,6 +83,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    _initLearningProfile();
     _initPipeline();
     // Garantizar que voz y grafo estén listos aunque el usuario llegue aquí
     // directamente sin pasar por HomeScreen primero.
@@ -78,6 +92,44 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       ref.read(voiceProvider.notifier).initialize();
       ref.read(navigationProvider.notifier).initialize();
     });
+  }
+
+  Future<void> _initLearningProfile() async {
+    try {
+      _prefs = await SharedPreferences.getInstance();
+      _sessionOpenCount = (_prefs!.getInt('navia_sessions_count') ?? 0) + 1;
+      await _prefs!.setInt('navia_sessions_count', _sessionOpenCount);
+
+      final keys = _prefs!.getKeys();
+      for (final key in keys) {
+        if (key.startsWith('navia_freq_')) {
+          final className = key.replaceFirst('navia_freq_', '');
+          _classFrequencies[className] = _prefs!.getInt(key) ?? 0;
+        }
+      }
+      debugPrint('SINAIT Learning Profile: Sesión $_sessionOpenCount cargada.');
+      _applyLearningToDetector();
+    } catch (e) {
+      debugPrint('SINAIT Learning Profile: Error cargando perfil - $e');
+    }
+  }
+
+  void _applyLearningToDetector() {
+    if (_detector == null) return;
+    // Si ya abrimos la app varias veces y detectamos objetos escolares, 
+    // adaptamos los umbrales del detector.
+    if (_sessionOpenCount > 3) {
+      _detector!.dynamicConfidenceThreshold = 0.25;
+      debugPrint('SINAIT Learning Profile: Umbral de confianza adaptativo reducido a 0.25.');
+    }
+  }
+
+  void _recordDetection(String label) {
+    if (_prefs == null) return;
+    final cleanLabel = label.toLowerCase();
+    final count = (_classFrequencies[cleanLabel] ?? 0) + 1;
+    _classFrequencies[cleanLabel] = count;
+    _prefs!.setInt('navia_freq_$cleanLabel', count);
   }
 
   @override
@@ -183,12 +235,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
             _pipelineError = 'Modelo no disponible. Modo Solo Voz activo.');
       }
 
-      // 4. Crear CameraFeedHandler
+      // 4. Crear CameraFeedHandler con targets
       final feedHandler = CameraFeedHandler(
         camera: backCamera,
         isDetectionActive: () =>
             _isPipelineReady || ref.read(visionProvider).isActive,
         mlService: modelLoaded ? detector : null,
+        targetWidth: modelLoaded ? detector.inputSizeWidth : 0,
+        targetHeight: modelLoaded ? detector.inputSizeHeight : 0,
       );
 
       await feedHandler.initialize();
@@ -201,6 +255,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       // 5. Guardar referencias
       _detector = detector;
       _feedHandler = feedHandler;
+      _applyLearningToDetector();
 
       // 6. Marcar pipeline listo
       ref.read(visionProvider.notifier).markReady();
@@ -245,51 +300,95 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 
   void _announceObstacle(List<DetectedObject> objects) {
     if (objects.isEmpty) return;
+
+    final closest = objects.first;
+    final labelName = closest.label.toLowerCase();
+
+    // Filtro de Consenso: requiere 2 frames consecutivos con el mismo objeto antes de anunciar
+    if (labelName != _lastAnnouncedLabel) {
+      _lastAnnouncedLabel = labelName;
+      _consensusFrames = 1;
+      return;
+    } else {
+      _consensusFrames++;
+      if (_consensusFrames < _kConsensusRequired) {
+        return;
+      }
+      // Reseteamos contador para el siguiente anuncio
+      _consensusFrames = 0;
+    }
+
+    // Cooldown temporal general
     final now = DateTime.now();
     if (now.difference(_lastVoiceAt) < _kVoiceCooldown) return;
     _lastVoiceAt = now;
 
-    final closest = objects.first;
-    final distanceStr = _distanceToMeters(closest.distance);
-    final labelName = closest.label.toUpperCase();
-    final article = _getArticle(labelName);
+    // Registrar en el historial de aprendizaje
+    _recordDetection(labelName);
 
+    final article = _getArticle(labelName);
     String announcement = '';
 
-    if (labelName == 'ESCALERAS' || labelName == 'ESCALONES') {
-      announcement = 'PRECAUCION, EN $distanceStr HAY ESCALONES o ESCALERAS';
-    } else if (labelName == 'BARDAS') {
-      announcement = 'CUIDADO, EN $distanceStr HAY UNAS BARDAS';
-    } else if (closest.distance == 'inmediato') {
-      announcement = 'CUIDADO A $distanceStr ESTA $article $labelName';
-    } else if (closest.distance == 'cercano') {
-      announcement = 'PRECAUCION, EN $distanceStr HAY $article $labelName';
+    if (labelName == 'escaleras' || labelName == 'escalones') {
+      if (closest.distance == 'inmediato') {
+        announcement = 'A un metro hay escaleras, cuidado.';
+      } else if (closest.distance == 'cercano') {
+        announcement = 'A dos metros hay escalones, precaución.';
+      } else {
+        announcement = 'Hay escaleras frente a ti.';
+      }
+    } else if (labelName == 'bardas') {
+      if (closest.distance == 'inmediato') {
+        announcement = 'A un metro hay una barda, cuidado.';
+      } else if (closest.distance == 'cercano') {
+        announcement = 'A dos metros hay una barda, precaución.';
+      } else {
+        announcement = 'Hay una barda frente a ti.';
+      }
     } else {
-      announcement = 'EN $distanceStr ESTA $article $labelName FRENTE A TI';
+      switch (closest.distance) {
+        case 'inmediato':
+          announcement = 'A un metro está $article ${closest.label}, cuidado.';
+          break;
+        case 'cercano':
+          announcement = 'A dos metros hay $article ${closest.label}, precaución.';
+          break;
+        case 'medio':
+          announcement = 'A tres metros está $article ${closest.label}.';
+          break;
+        case 'lejano':
+          announcement = 'A unos cinco metros está $article ${closest.label}.';
+          break;
+        default:
+          announcement = 'A unos metros está $article ${closest.label} frente a ti.';
+      }
     }
 
     ref.read(voiceProvider.notifier).speakAnnouncement(announcement);
   }
 
   String _getArticle(String label) {
-    if (label == 'PARED' || label.endsWith('A')) return 'UNA';
-    if (label == 'BARDAS') return 'UNAS';
-    return 'UN';
-  }
-
-  String _distanceToMeters(String distance) {
-    switch (distance) {
-      case 'inmediato':
-        return '1 METRO';
-      case 'cercano':
-        return '2 METROS';
-      case 'medio':
-        return '3 METROS';
-      case 'lejano':
-        return '5 METROS';
-      default:
-        return 'UNOS METROS';
+    final lower = label.toLowerCase();
+    if (lower == 'pared' ||
+        lower == 'banca' ||
+        lower == 'silla' ||
+        lower == 'taza' ||
+        lower == 'botella' ||
+        lower == 'mochila' ||
+        lower == 'computadora portátil' ||
+        lower == 'pantalla o proyector' ||
+        lower == 'puerta' ||
+        lower == 'ventana' ||
+        lower == 'maceta' ||
+        lower == 'camilla' ||
+        lower == 'tijeras' ||
+        lower.endsWith('a')) {
+      return 'una';
     }
+    if (lower == 'bardas' || lower == 'escaleras' || lower == 'escalones') {
+      return 'unas';
+    }
+    return 'un';
   }
 
   // --- Demo BottomSheet ---
@@ -320,6 +419,23 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     final detectedObjects = visionState.detectedObjects;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+
+    // Escuchar GPS en tiempo real para actualizar la posición en el mapa/ruta
+    ref.listen<AsyncValue<Position>>(currentLocationStreamProvider, (_, next) {
+      next.whenData((position) {
+        ref.read(navigationProvider.notifier).setPositionByCoordinates(
+              position.latitude,
+              position.longitude,
+            );
+      });
+    });
+
+    // Escuchar cambios de paso en la navegación para leerlos en voz alta
+    ref.listen<NavigationState>(navigationProvider, (previous, next) {
+      if (next.currentStepIndex != previous?.currentStepIndex) {
+        ref.read(voiceProvider.notifier).speakCurrentStep();
+      }
+    });
 
     // Disparar voz post-frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -375,24 +491,46 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
               child: _NavStatusBar(colorScheme: cs),
             ),
 
-          // 6. Mini-mapa de ruta (solo si hay navegación activa)
+          // 6. Mini-mapa de ruta (solo si hay navegacion activa)
           Consumer(
             builder: (context, ref, _) {
               final navState = ref.watch(navigationProvider);
-              if (!navState.hasActiveRoute || navState.activeRoute == null) {
-                return const SizedBox.shrink();
-              }
+              final gpsAsync = ref.watch(currentLocationStreamProvider);
+
+              // Mostrar si hay ruta Dijkstra O ruta Google Routes
+              final hasRoute = navState.hasActiveRoute || navState.hasGoogleRoute;
+              if (!hasRoute) return const SizedBox.shrink();
+
+              // Validar que haya al menos 2 puntos para dibujar la polyline
+              final polyCount = navState.routePolylinePoints?.length ??
+                  navState.activeRoute?.steps.length ?? 0;
+              if (polyCount < 2) return const SizedBox.shrink();
+
+              // Posicion GPS actual
+              ll.LatLng? currentGps;
+              gpsAsync.whenData((pos) {
+                currentGps = ll.LatLng(pos.latitude, pos.longitude);
+              });
+
+              // Bottom = altura BottomNav (~56) + barra estado (~80) + margen (16)
+              final bottomOffset = MediaQuery.of(context).padding.bottom + 156.0;
+
               return Positioned(
                 right: 12,
-                bottom: 160,
+                bottom: bottomOffset,
                 child: _MiniRouteMap(
-                  route: navState.activeRoute!,
+                  route: navState.activeRoute,
                   currentStep: navState.currentStepIndex,
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.map),
+                  googlePolyline: navState.routePolylinePoints,
+                  destinationName: navState.destinationName,
+                  distanceMeters: navState.routeDistanceMeters,
+                  currentGps: currentGps,
+                  onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.map),
                 ),
               );
             },
           ),
+
 
           // 7. Boton demo
           Positioned(
@@ -772,7 +910,10 @@ class _NavStatusBar extends ConsumerWidget {
     final navState = ref.watch(navigationProvider);
     final cs = colorScheme;
 
-    if (navState.currentNode == null && navState.activeRoute == null) {
+    // Mostrar si hay nodo actual, ruta Dijkstra, o ruta Google Routes
+    if (navState.currentNode == null &&
+        navState.activeRoute == null &&
+        !navState.hasGoogleRoute) {
       return const SizedBox.shrink();
     }
 
@@ -823,6 +964,60 @@ class _NavStatusBar extends ConsumerWidget {
                           fontWeight: FontWeight.w600))),
             ]),
           ],
+          // Info de Google Routes cuando no hay ruta Dijkstra
+          if (navState.activeRoute == null && navState.hasGoogleRoute) ...[
+            if (navState.currentNode != null)
+              const SizedBox(height: 8),
+            if (navState.currentNode != null)
+              const Divider(color: Colors.white12, height: 1),
+            const SizedBox(height: 8),
+            Row(children: [
+              Icon(Icons.navigation_rounded, color: cs.primary, size: 16),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Navegando a ${navState.destinationName ?? "destino"}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ]),
+            if (navState.routeDistanceMeters != null) ...[
+              const SizedBox(height: 4),
+              Row(children: [
+                const Icon(Icons.straighten_rounded,
+                    color: Colors.white54, size: 14),
+                const SizedBox(width: 6),
+                Text(
+                  navState.routeDistanceMeters! >= 1000
+                      ? '${(navState.routeDistanceMeters! / 1000).toStringAsFixed(1)} km'
+                      : '${navState.routeDistanceMeters} m',
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Icon(Icons.schedule_rounded,
+                    color: Colors.white54, size: 14),
+                const SizedBox(width: 4),
+                Text(
+                  '${(navState.routeDistanceMeters! / 72).round()} min',
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ]),
+            ],
+          ],
         ],
       ),
     );
@@ -837,157 +1032,380 @@ class _NavStatusBar extends ConsumerWidget {
 // Mini-mapa de ruta (estilo Uber/Didi)
 // ---------------------------------------------------------------------------
 
-class _MiniRouteMap extends StatelessWidget {
-  final NavRoute route;
+class _MiniRouteMap extends StatefulWidget {
+  final NavRoute? route;
   final int currentStep;
+  final List<List<double>>? googlePolyline;
+  final String? destinationName;
+  final int? distanceMeters;
+  final ll.LatLng? currentGps;
   final VoidCallback onTap;
 
   const _MiniRouteMap({
-    required this.route,
+    this.route,
     required this.currentStep,
+    this.googlePolyline,
+    this.destinationName,
+    this.distanceMeters,
+    this.currentGps,
     required this.onTap,
   });
 
   @override
+  State<_MiniRouteMap> createState() => _MiniRouteMapState();
+}
+
+class _MiniRouteMapState extends State<_MiniRouteMap> {
+  late final MapController _mapController;
+
+  @override
+  void initState() {
+    super.initState();
+    _mapController = MapController();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MiniRouteMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.currentGps != null && widget.currentGps != oldWidget.currentGps) {
+      _mapController.move(widget.currentGps!, _mapController.camera.zoom);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final points = route.steps
-        .map((s) => ll.LatLng(s.node.lat, s.node.lng))
-        .toList();
 
-    if (points.isEmpty) return const SizedBox.shrink();
+    // Construir puntos de la polilínea (priorizar Google Routes)
+    List<ll.LatLng> polyPoints = [];
+    if (widget.googlePolyline != null && widget.googlePolyline!.isNotEmpty) {
+      polyPoints = widget.googlePolyline!
+          .map((p) => ll.LatLng(p[0], p[1]))
+          .toList();
+    } else if (widget.route != null) {
+      polyPoints = widget.route!.steps
+          .map((s) => ll.LatLng(s.node.lat, s.node.lng))
+          .toList();
+    }
 
-    final safeStep = currentStep.clamp(0, points.length - 1);
+    if (polyPoints.isEmpty) return const SizedBox.shrink();
 
-    final minLat = points.map((p) => p.latitude).reduce(math.min);
-    final maxLat = points.map((p) => p.latitude).reduce(math.max);
-    final minLng = points.map((p) => p.longitude).reduce(math.min);
-    final maxLng = points.map((p) => p.longitude).reduce(math.max);
+    // Calcular centro y bounds
+    final minLat = polyPoints.map((p) => p.latitude).reduce(math.min);
+    final maxLat = polyPoints.map((p) => p.latitude).reduce(math.max);
+    final minLng = polyPoints.map((p) => p.longitude).reduce(math.min);
+    final maxLng = polyPoints.map((p) => p.longitude).reduce(math.max);
     final center = ll.LatLng(
       (minLat + maxLat) / 2,
       (minLng + maxLng) / 2,
     );
 
+    // Info para overlay
+    final displayName = widget.destinationName ??
+        widget.route?.destination.name.split(' - ').first ??
+        'Destino';
+    final distance = widget.distanceMeters ?? widget.route?.totalDistance.round();
+    final etaMinutes = distance != null
+        ? (distance / 72).round() // ~1.2 m/s velocidad peatonal
+        : widget.route?.estimatedMinutes.round();
+
+    // Posicion del paso actual en la ruta Dijkstra
+    final safeStep = widget.route != null
+        ? widget.currentStep.clamp(0, polyPoints.length - 1)
+        : 0;
+
+    // Progreso de la ruta
+    final progress = widget.route != null && widget.route!.steps.isNotEmpty
+        ? widget.currentStep / widget.route!.steps.length
+        : 0.0;
+
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
-        width: 155,
-        height: 155,
+        width: 165,
+        height: 200,
         decoration: BoxDecoration(
+          color: const Color(0xFF0F172A),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: cs.primary, width: 2.5),
-          boxShadow: const [
-            BoxShadow(color: Colors.black54, blurRadius: 16, spreadRadius: 2),
+          border: Border.all(color: cs.primary.withValues(alpha: 0.6), width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.6),
+              blurRadius: 20,
+              spreadRadius: 3,
+            ),
+            BoxShadow(
+              color: cs.primary.withValues(alpha: 0.15),
+              blurRadius: 12,
+            ),
           ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: Stack(
             children: [
-              FlutterMap(
-                options: MapOptions(
-                  initialCameraFit: CameraFit.bounds(
-                    bounds: LatLngBounds.fromPoints(points),
-                    padding: const EdgeInsets.all(24),
+              // Fondo oscuro inmediato mientras cargan los tiles OSM
+              const Positioned.fill(
+                child: ColoredBox(color: Color(0xFF1A2332)),
+              ),
+              // Mapa base
+              Positioned.fill(
+                child: FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCameraFit: CameraFit.bounds(
+                      bounds: LatLngBounds.fromPoints(polyPoints),
+                      padding: const EdgeInsets.all(28),
+                    ),
+                    initialCenter: widget.currentGps ?? center,
+                    initialZoom: 16.5,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.none,
+                    ),
                   ),
-                  initialCenter: center,
-                  initialZoom: 16.5,
-                  interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.none,
-                  ),
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'mx.edu.tecnm.colima.navia',
-                  ),
-                  PolylineLayer(
-                    polylines: [
-                      Polyline(
-                        points: points,
-                        color: cs.primary,
-                        strokeWidth: 4,
-                      ),
-                    ],
-                  ),
-                  MarkerLayer(
-                    markers: [
-                      // Posición actual en la ruta
-                      Marker(
-                        point: points[safeStep],
-                        width: 14,
-                        height: 14,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: cs.primary, width: 2.5),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'mx.edu.tecnm.colima.navia',
+                      fallbackUrl:
+                          'https://a.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
+                      maxZoom: 19,
+                      errorTileCallback: (tile, error, stack) {
+                        debugPrint('MiniMap tile error (silenced): $error');
+                      },
+                    ),
+                    // Polilinea de la ruta
+                    PolylineLayer(
+                      polylines: [
+                        // Sombra de la ruta
+                        Polyline(
+                          points: polyPoints,
+                          color: cs.primary.withValues(alpha: 0.3),
+                          strokeWidth: 8,
+                        ),
+                        // Ruta principal
+                        Polyline(
+                          points: polyPoints,
+                          color: cs.primary,
+                          strokeWidth: 4,
+                        ),
+                      ],
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        // GPS actual (punto pulsante)
+                        if (widget.currentGps != null)
+                          Marker(
+                            point: widget.currentGps!,
+                            width: 20,
+                            height: 20,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFAB00),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFFFAB00).withValues(alpha: 0.6),
+                                    blurRadius: 8,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        // Posicion en la ruta (si no hay GPS y hay ruta Dijkstra)
+                        if (widget.currentGps == null && widget.route != null)
+                          Marker(
+                            point: polyPoints[safeStep],
+                            width: 16,
+                            height: 16,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: cs.primary, width: 2.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: cs.primary.withValues(alpha: 0.5),
+                                    blurRadius: 6,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        // Inicio
+                        Marker(
+                          point: polyPoints.first,
+                          width: 16,
+                          height: 16,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00E676),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
                           ),
                         ),
-                      ),
-                      // Marcador del destino
-                      Marker(
-                        point: points.last,
-                        width: 22,
-                        height: 22,
-                        child: const Icon(
-                          Icons.location_pin,
-                          color: Colors.red,
-                          size: 22,
+                        // Destino
+                        Marker(
+                          point: polyPoints.last,
+                          width: 24,
+                          height: 24,
+                          child: Icon(
+                            Icons.location_pin,
+                            color: cs.primary,
+                            size: 24,
+                            shadows: const [
+                              Shadow(color: Colors.black87, blurRadius: 4),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Encabezado: nombre destino + ETA
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 5),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xE50F172A), Colors.transparent],
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.navigation_rounded,
+                          color: cs.primary, size: 12),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          displayName.toUpperCase(),
+                          style: TextStyle(
+                            color: cs.primary,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
-              // Gradiente inferior con nombre del destino
+              // Footer: distancia + ETA + boton expandir
               Positioned(
                 bottom: 0,
                 left: 0,
                 right: 0,
                 child: Container(
-                  padding: const EdgeInsets.fromLTRB(8, 10, 8, 6),
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
-                      colors: [Colors.black87, Colors.transparent],
+                      colors: [Color(0xE50F172A), Colors.transparent],
                     ),
                   ),
-                  child: Text(
-                    route.destination.name.split(' - ').first,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.3,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              // Ícono de tap para expandir
-              Positioned(
-                top: 6,
-                right: 6,
-                child: Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Icon(
-                    Icons.open_in_full_rounded,
-                    color: Colors.white70,
-                    size: 10,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Barra de progreso
+                      if (progress > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: progress.clamp(0.0, 1.0),
+                              minHeight: 3,
+                              backgroundColor: Colors.white12,
+                              valueColor: AlwaysStoppedAnimation(cs.primary),
+                            ),
+                          ),
+                        ),
+                      Row(
+                        children: [
+                          if (distance != null) ...[
+                            _InfoChip(
+                              icon: Icons.straighten_rounded,
+                              text: distance >= 1000
+                                  ? '${(distance / 1000).toStringAsFixed(1)} km'
+                                  : '$distance m',
+                            ),
+                            const SizedBox(width: 4),
+                          ],
+                          if (etaMinutes != null)
+                            _InfoChip(
+                              icon: Icons.schedule_rounded,
+                              text: etaMinutes < 1
+                                  ? '<1 min'
+                                  : '$etaMinutes min',
+                            ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: cs.primary.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Icon(
+                              Icons.open_in_full_rounded,
+                              color: cs.primary,
+                              size: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Chip informativo para el mini-mapa
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _InfoChip({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.black54,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white70, size: 9),
+          const SizedBox(width: 3),
+          Text(text,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 8,
+                fontWeight: FontWeight.w700,
+              )),
+        ],
       ),
     );
   }

@@ -40,7 +40,7 @@
       "lng": -103.723855,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio b", "centro de información", "biblioteca"],
+      "aliases": ["edificio b", "centro de información", "biblioteca", "be", "edificio be"],
       "description": "Edificio B. Centro de Información (Biblioteca)."
     },
     {
@@ -51,7 +51,7 @@
       "lng": -103.723817,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio c", "cafetería norte", "cafetería"],
+      "aliases": ["edificio c", "cafetería norte", "cafetería", "ce", "edificio ce"],
       "description": "Edificio C. Cafetería Norte."
     },
     {
@@ -73,7 +73,7 @@
       "lng": -103.723391,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio d", "aulas d"],
+      "aliases": ["edificio d", "aulas d", "de", "edificio de"],
       "description": "Edificio D. Aulas."
     },
     {
@@ -84,7 +84,7 @@
       "lng": -103.723383,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio e", "microbiología"],
+      "aliases": ["edificio e", "microbiología", "edificio e microbiología"],
       "description": "Edificio E. Aulas y Laboratorio de Microbiología."
     },
     {
@@ -95,7 +95,7 @@
       "lng": -103.723391,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio f", "ciencias básicas"],
+      "aliases": ["edificio f", "ciencias básicas", "efe", "edificio efe"],
       "description": "Edificio F. Ciencias Básicas."
     },
     {
@@ -106,7 +106,7 @@
       "lng": -103.723337,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio g", "laboratorio de química", "química"],
+      "aliases": ["edificio g", "laboratorio de química", "química", "ge", "edificio ge"],
       "description": "Edificio G. Aulas y Laboratorio de Química."
     },
     {
@@ -117,7 +117,7 @@
       "lng": -103.722876,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio h", "centro de cómputo", "cómputo"],
+      "aliases": ["edificio h", "centro de cómputo", "cómputo", "ache", "hache", "edificio ache"],
       "description": "Edificio H. Centro de Cómputo."
     },
     {
@@ -128,7 +128,7 @@
       "lng": -103.723327,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio i", "taller de arquitectura", "arquitectura"],
+      "aliases": ["edificio i", "taller de arquitectura", "arquitectura", "edificio i arquitectura"],
       "description": "Edificio I. Taller de Arquitectura."
     },
     {
@@ -139,7 +139,7 @@
       "lng": -103.722914,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio j", "bioquímica", "laboratorio de bioquímica"],
+      "aliases": ["edificio j", "bioquímica", "laboratorio de bioquímica", "jota", "edificio jota"],
       "description": "Edificio J. Laboratorio de Bioquímica."
     },
     {
@@ -150,7 +150,7 @@
       "lng": -103.723372,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio k", "aulas k"],
+      "aliases": ["edificio k", "aulas k", "ka", "ca", "edificio ka"],
       "description": "Edificio K. Aulas."
     },
     {
@@ -161,7 +161,7 @@
       "lng": -103.722857,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio l", "química orgánica"],
+      "aliases": ["edificio l", "química orgánica", "ele", "edificio ele"],
       "description": "Edificio L. Laboratorio de Química Orgánica."
     },
     {
@@ -172,7 +172,7 @@
       "lng": -103.722887,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio m", "operaciones unitarias"],
+      "aliases": ["edificio m", "operaciones unitarias", "eme", "edificio eme"],
       "description": "Edificio M. Laboratorio de Operaciones Unitarias."
     },
     {
@@ -183,7 +183,7 @@
       "lng": -103.722916,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio n", "ciencias de la tierra"],
+      "aliases": ["edificio n", "ciencias de la tierra", "ene", "edificio ene"],
       "description": "Edificio N. Ciencias de la Tierra."
     },
     {
@@ -194,7 +194,7 @@
       "lng": -103.723412,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio o", "cubículos docentes"],
+      "aliases": ["edificio o", "cubículos docentes", "cubiculos", "edificio o docentes"],
       "description": "Edificio O. Cubículos Docentes."
     },
     {
@@ -205,7 +205,7 @@
       "lng": -103.724550,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio p", "taller de manufactura", "manufactura"],
+      "aliases": ["edificio p", "taller de manufactura", "manufactura", "pe", "edificio pe"],
       "description": "Edificio P. Taller de Manufactura."
     },
     {
@@ -216,7 +216,7 @@
       "lng": -103.722576,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio q", "recursos materiales"],
+      "aliases": ["edificio q", "recursos materiales", "cu", "edificio cu"],
       "description": "Edificio Q. Recursos Materiales y Mantenimiento."
     },
     {
@@ -227,7 +227,7 @@
       "lng": -103.722833,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio r", "sistemas", "computación"],
+      "aliases": ["edificio r", "sistemas", "computación", "erre", "ere", "edificio erre", "sistemas y computación"],
       "description": "Edificio R. Sistemas y Computación."
     },
     {
@@ -238,7 +238,7 @@
       "lng": -103.724239,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio s", "salón de la paz"],
+      "aliases": ["edificio s", "salón de la paz", "ese", "edificio ese", "salon de la paz"],
       "description": "Edificio S. Salón de la Paz."
     },
     {
@@ -249,7 +249,7 @@
       "lng": -103.723254,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio t", "ciencias económico administrativas", "económicas"],
+      "aliases": ["edificio t", "ciencias económico administrativas", "económicas", "te", "edificio te"],
       "description": "Edificio T. Ciencias Económico Administrativas."
     },
     {
@@ -260,7 +260,7 @@
       "lng": -103.722694,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio u", "laboratorio de arquitectura"],
+      "aliases": ["edificio u", "laboratorio de arquitectura", "lab arquitectura", "edificio u arquitectura"],
       "description": "Edificio U. Laboratorio de Arquitectura."
     },
     {
@@ -271,7 +271,7 @@
       "lng": -103.722766,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio v", "posgrado", "investigación"],
+      "aliases": ["edificio v", "posgrado", "investigación", "uve", "edificio uve"],
       "description": "Edificio V. División de Estudios de Posgrado e Investigación."
     },
     {
@@ -282,7 +282,7 @@
       "lng": -103.723364,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio w", "ingeniería industrial", "industrial"],
+      "aliases": ["edificio w", "ingeniería industrial", "industrial", "doble uve", "doble v", "doble u", "edificio doble uve"],
       "description": "Edificio W. Ingeniería Industrial."
     },
     {
@@ -293,7 +293,7 @@
       "lng": -103.722560,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio x", "laboratorio ambiental", "ambiental"],
+      "aliases": ["edificio x", "laboratorio ambiental", "ambiental", "equis", "edificio equis"],
       "description": "Edificio X. Laboratorio de Ambiental."
     },
     {
@@ -304,7 +304,7 @@
       "lng": -103.722345,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio y", "mecatrónica", "laboratorio de mecatrónica"],
+      "aliases": ["edificio y", "mecatrónica", "laboratorio de mecatrónica", "ye", "i griega", "edificio ye"],
       "description": "Edificio Y. Laboratorio de Mecatrónica."
     },
     {
@@ -315,7 +315,7 @@
       "lng": -103.722651,
       "floor": 0,
       "accessible": true,
-      "aliases": ["edificio z", "banco de reactivos", "reactivos"],
+      "aliases": ["edificio z", "banco de reactivos", "reactivos", "zeta", "edificio zeta"],
       "description": "Edificio Z. Banco de Reactivos."
     },
     {

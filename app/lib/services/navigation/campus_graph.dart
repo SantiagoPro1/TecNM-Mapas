@@ -145,10 +145,49 @@ class CampusGraph {
     );
   }
 
+  /// Mapa de pronunciaciones de letras del alfabeto español a su letra.
+  /// Cubre variantes de STT para comandos tipo "edificio erre" → "edificio r".
+  static const Map<String, String> _spanishLetterNames = {
+    'erre': 'r', 'ere': 'r', 'rre': 'r',
+    'ache': 'h', 'hache': 'h',
+    'equis': 'x',
+    'jota': 'j',
+    'uve': 'v',
+    'doble uve': 'w', 'doble v': 'w', 'doble u': 'w',
+    'zeta': 'z',
+    'ese': 's',
+    'eme': 'm',
+    'ene': 'n',
+    'ele': 'l',
+    'efe': 'f',
+    'ka': 'k',
+    'pe': 'p',
+    'cu': 'q',
+    'te': 't',
+    'ye': 'y', 'i griega': 'y',
+    'be': 'b',
+    'ce': 'c',
+    'ge': 'g',
+    'de': 'd',
+  };
+
+  /// Normaliza pronunciaciones de letras en consultas de voz.
+  /// Ej: "edificio erre" → "edificio r", "edificio ache" → "edificio h".
+  static String _normalizeLetterQuery(String q) {
+    for (final entry in _spanishLetterNames.entries) {
+      final letterName = entry.key;
+      final letter = entry.value;
+      if (q.contains('edificio $letterName')) {
+        return q.replaceAll('edificio $letterName', 'edificio $letter');
+      }
+    }
+    return q;
+  }
+
   /// Busca un nodo por su nombre, id o alias.
   /// Útil para resolver comandos de voz como "llévame a la biblioteca".
   CampusNode? findNodeByQuery(String query) {
-    final q = query.toLowerCase().trim();
+    final q = _normalizeLetterQuery(query.toLowerCase().trim());
 
     // 1. Búsqueda exacta por id
     if (nodes.containsKey(q)) return nodes[q];

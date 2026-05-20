@@ -24,6 +24,9 @@ class NavigationState extends Equatable {
   final int currentStepIndex;
   final bool accessibleOnly;
   final String? errorMessage;
+  /// Cuando es true, las pantallas deben navegar al NAVIA AR automáticamente.
+  /// Se consume con [NavigationNotifier.consumeARNavigation].
+  final bool pendingARNavigation;
 
   const NavigationState({
     this.status = NavStatus.uninitialized,
@@ -32,6 +35,7 @@ class NavigationState extends Equatable {
     this.currentStepIndex = 0,
     this.accessibleOnly = false,
     this.errorMessage,
+    this.pendingARNavigation = false,
   });
 
   /// Instrucción de voz del paso actual.
@@ -59,6 +63,7 @@ class NavigationState extends Equatable {
     int? currentStepIndex,
     bool? accessibleOnly,
     String? errorMessage,
+    bool? pendingARNavigation,
   }) {
     return NavigationState(
       status: status ?? this.status,
@@ -67,6 +72,7 @@ class NavigationState extends Equatable {
       currentStepIndex: currentStepIndex ?? this.currentStepIndex,
       accessibleOnly: accessibleOnly ?? this.accessibleOnly,
       errorMessage: errorMessage,
+      pendingARNavigation: pendingARNavigation ?? this.pendingARNavigation,
     );
   }
 
@@ -78,6 +84,7 @@ class NavigationState extends Equatable {
         currentStepIndex,
         accessibleOnly,
         errorMessage,
+        pendingARNavigation,
       ];
 }
 
@@ -152,6 +159,7 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
         status: NavStatus.navigating,
         activeRoute: route,
         currentStepIndex: 0,
+        pendingARNavigation: true,
       );
     } else {
       // Intentar sin filtro de accesibilidad si falló
@@ -202,7 +210,15 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
       status: NavStatus.ready,
       activeRoute: null,
       currentStepIndex: 0,
+      pendingARNavigation: false,
     );
+  }
+
+  /// Consume el flag de navegación a AR (llamar justo antes de hacer push).
+  void consumeARNavigation() {
+    if (state.pendingARNavigation) {
+      state = state.copyWith(pendingARNavigation: false);
+    }
   }
 
   /// Alterna el filtro de accesibilidad.

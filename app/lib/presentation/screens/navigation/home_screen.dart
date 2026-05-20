@@ -70,6 +70,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         );
       }
+      // Auto-navegar a NAVIA AR cuando se encuentra una ruta por voz
+      if (next.pendingARNavigation && !(previous?.pendingARNavigation ?? false)) {
+        ref.read(navigationProvider.notifier).consumeARNavigation();
+        if (mounted) {
+          Navigator.pushNamed(context, AppRoutes.scanner);
+        }
+      }
     });
 
     return Scaffold(

@@ -88,19 +88,27 @@ class VoiceNotifier extends StateNotifier<VoiceControlState> {
     switch (intent.type) {
       case IntentType.navigate:
         if (intent.destination != null) {
+          // Sin posición no puede calcular ruta
+          if (_navNotifier.state.currentNode == null) {
+            await _speak(
+              'Primero necesito saber dónde estás. '
+              'Escanea un código QR del campus para indicar tu posición.',
+            );
+            break;
+          }
           _navNotifier.navigateTo(intent.destination!);
           final navState = _navNotifier.state;
           if (navState.activeRoute != null) {
             await _speak(navState.activeRoute!.voiceSummary);
-            // Decir la primera instrucción
             final firstInstruction =
                 navState.activeRoute!.steps.first.voiceInstruction;
             await Future.delayed(const Duration(milliseconds: 500));
             await _speak(firstInstruction);
           } else {
             await _speak(
-              'No encontré una ruta hacia ${intent.destination}. '
-              'Intenta con otro destino.',
+              'No encontré el lugar ${intent.destination}. '
+              'Intenta decir el nombre completo, por ejemplo: '
+              'edificio sistemas, edificio erre, o biblioteca.',
             );
           }
         }

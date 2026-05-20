@@ -159,10 +159,13 @@ class CameraFeedHandler {
   int _frameCount = 0;
   bool _isProcessingFrame = false;
   bool _isStreaming = false;
+  int _lastFrameTimestampMs = 0;
 
   /// Procesar 1 de cada [_kFrameSkip] fotogramas.
-  /// Valor 2 = procesar cada 2do frame (mejor deteccion, aun buen rendimiento).
-  static const int _kFrameSkip = 2;
+  static const int _kFrameSkip = 6;
+
+  /// Intervalo mínimo entre frames procesados (ms) — limita a ~2 fps de inferencia.
+  static const int _kMinFrameGapMs = 500;
 
   // -- Constructor -----------------------------------------------------------
 
@@ -189,7 +192,7 @@ class CameraFeedHandler {
 
   /// Inicializa el [CameraController].
   ///
-  /// Usa `ResolutionPreset.medium` y desactiva audio.
+  /// Usa `ResolutionPreset.low` y desactiva audio.
   /// En Android fuerza YUV420; en iOS usa BGRA8888.
   Future<void> initialize() async {
     final imageFormat = defaultTargetPlatform == TargetPlatform.android
@@ -198,7 +201,7 @@ class CameraFeedHandler {
 
     _controller = CameraController(
       _camera,
-      ResolutionPreset.medium,
+      ResolutionPreset.low,
       enableAudio: false,
       imageFormatGroup: imageFormat,
     );
@@ -253,20 +256,18 @@ class CameraFeedHandler {
 
   /// Callback del stream de camara.
   void _onCameraFrame(CameraImage image) {
-    // Guardia de seguridad: no procesar si el handler fue disposed.
     if (!_mounted) return;
 
-    // Frame skip: solo procesamos 1 de cada [_kFrameSkip].
     _frameCount++;
     if (_frameCount % _kFrameSkip != 0) return;
-
-    // Evitar overflow del contador en sesiones muy largas.
     if (_frameCount > 1000000) _frameCount = 0;
 
-    // No procesar si la deteccion no esta activa en el VisionProvider.
-    if (!_isDetectionActive()) return;
+    // Throttle por tiempo: máximo ~2 inferencias por segundo.
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastFrameTimestampMs < _kMinFrameGapMs) return;
+    _lastFrameTimestampMs = now;
 
-    // No apilar tareas de conversion si la anterior no ha terminado.
+    if (!_isDetectionActive()) return;
     if (_isProcessingFrame) return;
 
     _processFrame(image);

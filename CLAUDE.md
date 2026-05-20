@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SINAIT-APP is an institutional mobile app for TecNM Campus Colima (InnovaTecNM 2026). It provides digital credentials, campus navigation, QR scanning, and an AI-powered assistant for students and staff. Access is restricted to `@colima.tecnm.mx` accounts.
+SINAIT-APP (branded **NAVIA**) is an institutional mobile app for TecNM Campus Colima (InnovaTecNM 2026). It provides digital credentials, campus navigation, QR scanning, and an AI-powered assistant for students and staff. Access is restricted to `@colima.tecnm.mx` accounts.
 
 The repo has two independently deployable components:
-- `app/` — Flutter 3.x mobile app
+- `app/` — Flutter 3.x mobile app (package name: `navia`)
 - `backend/` — Node.js/Express REST API
 
 ---
@@ -37,38 +37,52 @@ Clean Architecture with three layers:
 
 **`lib/core/`** — App-wide configuration
 - `router/app_router.dart` — GoRouter definitions (declared but **not used**; `main.dart` uses Navigator 1.0 with a `routes` map instead)
-- `constants/app_routes.dart` — Route name constants shared by both Navigator 1.0 and app_router.dart
-- `theme/app_theme.dart` — Dark theme: background Slate `#0F172A`, surface Slate `#1E293B`, accent Sky `#38BDF8`
+- `constants/app_routes.dart` — Route name constants
+- `theme/app_theme.dart` — 4 selectable themes: TecNM Dark, Industrial HC, Light Clean, Pastel Minimal. `themeProvider` (Riverpod) lives here. Use `Theme.of(context).colorScheme` for reactive theming; `AppTheme.*` constants are only for `const` widget contexts.
 
 **`lib/data/`** — Data layer
-- `models/` — Plain Dart data classes (no business logic): `CampusNode`, `CampusEdge`, `NavRoute`, `Announcement`, `PlaceNode`
-- `providers/` — Riverpod providers: `auth_provider`, `feed_provider`, `navigation_provider`, `voice_provider`, `settings_provider`, `zone_provider`
+- `models/` — Plain Dart data classes: `CampusNode`, `CampusEdge`, `NavRoute`, `Announcement`, `PlaceNode`
+- `providers/` — Riverpod providers: `auth_provider`, `feed_provider`, `navigation_provider`, `settings_provider`, `vision_provider`, `voice_provider`, `zone_provider`
 - `repositories/` — Abstractions over data sources (Firestore + Hive)
 - `cache/map_cache_service.dart` — Hive-backed offline cache for campus map JSON; initialized in `main()` before `runApp`
 
 **`lib/services/`** — Business logic
 - `auth/auth_service.dart` — Google Sign-In restricted to `hostedDomain: 'colima.tecnm.mx'`
 - `auth/credential_service.dart` — JWT generation for QR credential cards
+- `feed/feed_service.dart` — Firestore-backed announcements feed
 - `navigation/campus_graph.dart` + `dijkstra.dart` — Graph-based campus pathfinding
 - `navigation/navigation_service.dart` — GPS + voice query → nearest node lookup
+- `offline/offline_manager.dart` — Central offline orchestrator: monitors connectivity, persists last GPS position to SharedPreferences, verifies offline readiness
+- `offline/connectivity_service.dart` — Network connectivity monitoring singleton
+- `vision/vision_service.dart` — ML Kit image labeling + TFLite model inference
 - `voice/voice_service.dart` + `intent_parser.dart` — STT + intent parsing
-- `vision_service.dart` — ML Kit image labeling + TFLite model inference
 
 **`lib/presentation/`** — UI layer
 - Each feature has its own `screens/<feature>/` folder
 - Shared widgets in `widgets/`
 - Screens are thin — they read Riverpod providers and delegate to services
 
+**`lib/utils/`**
+- `svg_marker_helper.dart` — Preloads SVG map marker icons at startup to prevent render flicker
+- `gps_filter.dart` — GPS position filtering/smoothing
+
 **State management:** Riverpod (`flutter_riverpod: ^2.5.1`). Use `ConsumerWidget` / `ConsumerStatefulWidget`. Core providers live in `data/providers/`; screen-specific providers (e.g., `map/providers/map_providers.dart`) live alongside their screen.
 
 **Local persistence:**
 - Hive for structured local data (campus graph cache, history)
-- SharedPreferences for simple flags (e.g., onboarding completed)
+- SharedPreferences for simple flags (onboarding gate, last GPS position, theme selection)
 
 **Assets:**
-- `assets/maps/tec_colima_map.json` — Campus graph data (nodes + edges) for offline navigation
+- `assets/maps/tec_colima_map.json` — Primary campus graph (nodes + edges)
+- `assets/maps/sendera_map.json`, `zentralia_map.json` — Additional campus/zone maps
+- `assets/map_styles/dark_style.json`, `light_style.json` — Google Maps styling JSONs
+- `assets/icons/svg/` — SVG map marker icons, preloaded by `PrecacheSvg.precacheAll()`
 - `assets/models/` — TFLite model files
-- `.env` loaded via `flutter_dotenv` at runtime; the committed file is a safe placeholder — sensitive values go in `.env.local` (git-ignored). Set `DEV_MODE=true` to bypass the `@colima.tecnm.mx` domain lock during local development (never ship `true` to production).
+- `.env` loaded via `flutter_dotenv`; the committed file is a safe placeholder — sensitive values go in `.env.local` (git-ignored). Set `DEV_MODE=true` to bypass the `@colima.tecnm.mx` domain lock during local development.
+
+### Startup sequence (`main.dart`)
+
+`main()` uses a two-phase pattern: `_SplashWrapper` is rendered immediately (before any async work), then all services initialize in background (`dotenv`, Firebase, `MapCacheService`, `OfflineManager`, `PrecacheSvg`), then `runApp` is called again with `ProviderScope` wrapping `NaviaApp`.
 
 ---
 
@@ -89,7 +103,7 @@ cp .env.example .env
 
 ### Architecture
 
-Express 5 REST API with three layers:
+Express 5 REST API:
 
 ```
 server.js               ← Entry point, middleware registration, route mounting
@@ -131,4 +145,4 @@ Both jobs must pass before merging.
 
 - **Email domain lock:** Only `@colima.tecnm.mx` accounts can authenticate. Enforced in both Flutter (`hostedDomain` + email suffix check in `auth_service.dart`) and backend middleware. Override locally with `DEV_MODE=true` in `app/.env`.
 - **Credential QR:** JWT-signed, verified server-side via `/api/auth/verify-credential`.
-- **Onboarding gate:** `SharedPreferences` key checked in `main.dart` to redirect first-time users before reaching home.
+- **Onboarding gate:** `SharedPreferences` key `showOnboarding` checked in `main.dart`; first-time users are routed to onboarding before home.

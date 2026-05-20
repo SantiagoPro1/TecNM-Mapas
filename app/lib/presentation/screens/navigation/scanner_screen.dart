@@ -1,12 +1,17 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart' as ll;
+import 'package:navia/core/constants/app_routes.dart';
 import 'package:navia/data/providers/vision_provider.dart';
 import 'package:navia/data/providers/voice_provider.dart';
 import 'package:navia/data/providers/navigation_provider.dart';
+import 'package:navia/data/models/nav_route.dart';
 import 'package:navia/presentation/widgets/bottom_nav.dart';
 import 'package:navia/services/vision/camera_feed_handler.dart';
 import 'package:navia/services/vision/ml_vision_service.dart';
@@ -33,6 +38,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   bool _isPipelineReady = false;
   String? _pipelineError;
   bool _isInitializing = false;
+
+  /// Future del dispose de la instancia anterior — se espera en _initPipeline
+  /// para evitar crash cuando el usuario vuelve a la pantalla antes de que la
+  /// cámara anterior haya terminado de liberarse.
+  static Future<void>? _sPendingDispose;
 
   // --- Cooldown de voz ---
   DateTime _lastVoiceAt = DateTime(2000);
@@ -61,12 +71,21 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     WidgetsBinding.instance.addObserver(this);
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     _initPipeline();
+    // Garantizar que voz y grafo estén listos aunque el usuario llegue aquí
+    // directamente sin pasar por HomeScreen primero.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(voiceProvider.notifier).initialize();
+      ref.read(navigationProvider.notifier).initialize();
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _disposePipeline();
+    // Store the async dispose future so the next instance can await it before
+    // initializing its own camera (prevents "camera already in use" crashes).
+    _sPendingDispose = _disposePipeline();
     super.dispose();
   }
 
@@ -89,6 +108,17 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   Future<void> _initPipeline() async {
     if (_isInitializing || !mounted) return;
     _isInitializing = true;
+
+    // Esperar a que la instancia anterior libere la cámara antes de continuar.
+    final pending = _sPendingDispose;
+    if (pending != null) {
+      _sPendingDispose = null;
+      await pending;
+    }
+    if (!mounted) {
+      _isInitializing = false;
+      return;
+    }
 
     // Limpiar pipeline anterior si existe (fix: multiples clicks en NAVIA AR)
     await _disposePipeline();
@@ -345,7 +375,26 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
               child: _NavStatusBar(colorScheme: cs),
             ),
 
-          // 6. Boton demo
+          // 6. Mini-mapa de ruta (solo si hay navegación activa)
+          Consumer(
+            builder: (context, ref, _) {
+              final navState = ref.watch(navigationProvider);
+              if (!navState.hasActiveRoute || navState.activeRoute == null) {
+                return const SizedBox.shrink();
+              }
+              return Positioned(
+                right: 12,
+                bottom: 160,
+                child: _MiniRouteMap(
+                  route: navState.activeRoute!,
+                  currentStep: navState.currentStepIndex,
+                  onTap: () => Navigator.pushNamed(context, AppRoutes.map),
+                ),
+              );
+            },
+          ),
+
+          // 7. Boton demo
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             right: 8,
@@ -783,6 +832,166 @@ class _NavStatusBar extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 // Demo BottomSheet
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Mini-mapa de ruta (estilo Uber/Didi)
+// ---------------------------------------------------------------------------
+
+class _MiniRouteMap extends StatelessWidget {
+  final NavRoute route;
+  final int currentStep;
+  final VoidCallback onTap;
+
+  const _MiniRouteMap({
+    required this.route,
+    required this.currentStep,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final points = route.steps
+        .map((s) => ll.LatLng(s.node.lat, s.node.lng))
+        .toList();
+
+    if (points.isEmpty) return const SizedBox.shrink();
+
+    final safeStep = currentStep.clamp(0, points.length - 1);
+
+    final minLat = points.map((p) => p.latitude).reduce(math.min);
+    final maxLat = points.map((p) => p.latitude).reduce(math.max);
+    final minLng = points.map((p) => p.longitude).reduce(math.min);
+    final maxLng = points.map((p) => p.longitude).reduce(math.max);
+    final center = ll.LatLng(
+      (minLat + maxLat) / 2,
+      (minLng + maxLng) / 2,
+    );
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 155,
+        height: 155,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: cs.primary, width: 2.5),
+          boxShadow: const [
+            BoxShadow(color: Colors.black54, blurRadius: 16, spreadRadius: 2),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              FlutterMap(
+                options: MapOptions(
+                  initialCameraFit: CameraFit.bounds(
+                    bounds: LatLngBounds.fromPoints(points),
+                    padding: const EdgeInsets.all(24),
+                  ),
+                  initialCenter: center,
+                  initialZoom: 16.5,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.none,
+                  ),
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'mx.edu.tecnm.colima.navia',
+                  ),
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: points,
+                        color: cs.primary,
+                        strokeWidth: 4,
+                      ),
+                    ],
+                  ),
+                  MarkerLayer(
+                    markers: [
+                      // Posición actual en la ruta
+                      Marker(
+                        point: points[safeStep],
+                        width: 14,
+                        height: 14,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: cs.primary, width: 2.5),
+                          ),
+                        ),
+                      ),
+                      // Marcador del destino
+                      Marker(
+                        point: points.last,
+                        width: 22,
+                        height: 22,
+                        child: const Icon(
+                          Icons.location_pin,
+                          color: Colors.red,
+                          size: 22,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              // Gradiente inferior con nombre del destino
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(8, 10, 8, 6),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [Colors.black87, Colors.transparent],
+                    ),
+                  ),
+                  child: Text(
+                    route.destination.name.split(' - ').first,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.3,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              // Ícono de tap para expandir
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(
+                    Icons.open_in_full_rounded,
+                    color: Colors.white70,
+                    size: 10,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _DemoPlace {
   final String markerId;

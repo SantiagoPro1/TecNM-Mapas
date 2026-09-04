@@ -1,6 +1,7 @@
 {
   "meta": {
     "version": "5.0.0",
+    "zoneId": "tec_colima",
     "campus": "TecNM Campus Colima",
     "center": {
       "lat": 19.2628,

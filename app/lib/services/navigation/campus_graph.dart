@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:navia/core/constants/venue_registry.dart';
 import 'package:navia/data/models/campus_node.dart';
 import 'package:navia/data/models/campus_edge.dart';
+import 'package:navia/data/models/venue.dart';
 import 'package:navia/data/cache/map_cache_service.dart';
+import 'package:navia/data/repositories/venue_graph_repository.dart';
 import 'package:navia/services/navigation/dijkstra.dart';
 
 /// Carga y gestiona el grafo del campus desde el JSON en assets.
@@ -58,23 +61,33 @@ class CampusGraph {
     return _loadFromAssets();
   }
 
-  /// Lee los archivos JSON directamente de los assets.
+  /// Lee los archivos JSON directamente de los assets (todas las sedes
+  /// empaquetadas, fusionadas en un solo grafo — comportamiento histórico
+  /// usado por [load]).
   static Future<CampusGraph> _loadFromAssets() async {
-    final mapFiles = [
-      'assets/maps/tec_colima_map.json',
-      'assets/maps/sendera_map.json',
-      'assets/maps/zentralia_map.json',
-    ];
-
     final allNodes = <dynamic>[];
     final allEdges = <dynamic>[];
 
-    for (final file in mapFiles) {
+    for (final venue in VenueRegistry.bundledVenues) {
       try {
-        final jsonStr = await rootBundle.loadString(file);
+        final jsonStr = await rootBundle.loadString(venue.mapAssetPath!);
         final data = json.decode(jsonStr) as Map<String, dynamic>;
-        allNodes.addAll(data['nodes'] as List<dynamic>);
-        allEdges.addAll(data['edges'] as List<dynamic>);
+        final zoneId =
+            (data['meta'] as Map<String, dynamic>?)?['zoneId'] as String? ??
+                venue.id;
+
+        // Se estampa el zoneId de este archivo en cada nodo/arista ANTES de
+        // fusionar — una vez fusionados en una sola lista ya no hay forma de
+        // saber de qué archivo venía cada uno.
+        for (final n in (data['nodes'] as List<dynamic>? ?? [])) {
+          (n as Map<String, dynamic>).putIfAbsent('zoneId', () => zoneId);
+        }
+        for (final e in (data['edges'] as List<dynamic>? ?? [])) {
+          (e as Map<String, dynamic>).putIfAbsent('zoneId', () => zoneId);
+        }
+
+        allNodes.addAll(data['nodes'] as List<dynamic>? ?? []);
+        allEdges.addAll(data['edges'] as List<dynamic>? ?? []);
       } catch (e) {
         // Si un archivo falla, continúa con los demás
         continue;
@@ -89,26 +102,84 @@ class CampusGraph {
     return CampusGraph.fromJson(mergedData);
   }
 
-  /// Construye el grafo desde un Map ya parseado.
-  factory CampusGraph.fromJson(Map<String, dynamic> data) {
-    // Parsear nodos
-    final nodesList = ((data['nodes'] as List<dynamic>?) ?? [])
-        .map((n) => CampusNode.fromJson((n as Map<String, dynamic>?) ?? {}))
-        .toList();
-
-    final nodesMap = <String, CampusNode>{};
-    for (final node in nodesList) {
-      if (node.id.isNotEmpty) {
-        nodesMap[node.id] = node;
-      }
+  /// Carga el grafo de una sola sede.
+  ///  - Si la sede tiene JSON empaquetado, lo lee de assets.
+  ///  - Si no (sedes del Evento Nacional Deportivo), lo lee de Firestore.
+  static Future<CampusGraph> loadForVenue(
+    Venue venue, {
+    VenueGraphRepository? repo,
+  }) async {
+    if (venue.isBundled) {
+      final jsonStr = await rootBundle.loadString(venue.mapAssetPath!);
+      final data = json.decode(jsonStr) as Map<String, dynamic>;
+      return CampusGraph.fromJson(data, defaultZoneId: venue.id);
     }
 
-    // Parsear aristas
-    final edgesList = ((data['edges'] as List<dynamic>?) ?? [])
-        .map((e) => CampusEdge.fromJson((e as Map<String, dynamic>?) ?? {}))
+    final graphRepo = repo ?? VenueGraphRepository();
+    final nodes = await graphRepo.fetchNodesOnce(venue.id);
+    final edges = await graphRepo.fetchEdgesOnce(venue.id);
+    return CampusGraph.fromParsed(nodes, edges);
+  }
+
+  /// Construye el grafo desde un Map ya parseado (JSON de assets/caché).
+  ///
+  /// [defaultZoneId] se usa cuando un nodo/arista no trae su propio `zoneId`
+  /// explícito; si no se pasa, se intenta leer de `data['meta']['zoneId']`.
+  factory CampusGraph.fromJson(Map<String, dynamic> data, {String? defaultZoneId}) {
+    final zoneId = defaultZoneId ??
+        (data['meta'] as Map<String, dynamic>?)?['zoneId'] as String? ??
+        '';
+
+    final nodesList = ((data['nodes'] as List<dynamic>?) ?? [])
+        .map((n) => CampusNode.fromJson(
+              (n as Map<String, dynamic>?) ?? {},
+              zoneId: zoneId,
+            ))
         .toList();
 
-    // Construir lista de adyacencia BIDIRECCIONAL
+    final edgesList = ((data['edges'] as List<dynamic>?) ?? [])
+        .map((e) => CampusEdge.fromJson(
+              (e as Map<String, dynamic>?) ?? {},
+              zoneId: zoneId,
+            ))
+        .toList();
+
+    return CampusGraph.fromParsed(nodesList, edgesList);
+  }
+
+  /// Construye el grafo desde nodos/aristas ya deserializados (usado por
+  /// [fromJson] y por [loadForVenue] al leer directamente de Firestore).
+  factory CampusGraph.fromParsed(
+    List<CampusNode> nodesList,
+    List<CampusEdge> edgesList,
+  ) {
+    final nodesMap = <String, CampusNode>{};
+    for (final node in nodesList) {
+      if (node.id.isEmpty) continue;
+      if (kDebugMode && nodesMap.containsKey(node.id)) {
+        debugPrint(
+            'CampusGraph: ⚠ id de nodo duplicado entre sedes → "${node.id}" '
+            '(zona "${nodesMap[node.id]!.zoneId}" pisada por "${node.zoneId}")');
+      }
+      nodesMap[node.id] = node;
+    }
+
+    final adjacency = _buildAdjacency(nodesMap, edgesList);
+
+    return CampusGraph._(
+      nodes: nodesMap,
+      edges: edgesList,
+      adjacency: adjacency,
+    );
+  }
+
+  /// Construye la lista de adyacencia BIDIRECCIONAL a partir de los nodos y
+  /// aristas ya resueltos. Compartido por [fromJson] (vía [fromParsed]) y por
+  /// el grafo cargado en línea desde Firestore.
+  static Map<String, List<CampusEdge>> _buildAdjacency(
+    Map<String, CampusNode> nodesMap,
+    List<CampusEdge> edgesList,
+  ) {
     final adjacency = <String, List<CampusEdge>>{};
 
     for (final nodeId in nodesMap.keys) {
@@ -129,6 +200,7 @@ class CampusGraph {
           edgesList.any((e) => e.from == edge.to && e.to == edge.from);
       if (!manualReverse) {
         adjacency[edge.to]?.add(CampusEdge(
+          zoneId: edge.zoneId,
           from: edge.to,
           to: edge.from,
           distance: edge.distance,
@@ -138,11 +210,7 @@ class CampusGraph {
       }
     }
 
-    return CampusGraph._(
-      nodes: nodesMap,
-      edges: edgesList,
-      adjacency: adjacency,
-    );
+    return adjacency;
   }
 
   /// Mapa de pronunciaciones de letras del alfabeto español a su letra.

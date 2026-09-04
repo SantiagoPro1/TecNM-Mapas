@@ -41,48 +41,46 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBrz7CHooTTDdLj4Qd4BQwts2424Vef0fY',
-    appId: '1:487588933269:web:3fae77563cd6c1bed4f59c',
-    messagingSenderId: '487588933269',
-    projectId: 'sinait-colima',
-    authDomain: 'sinait-colima.firebaseapp.com',
-    storageBucket: 'sinait-colima.firebasestorage.app',
-    measurementId: 'G-FE28V884KV',
+    apiKey: 'AIzaSyC4uE-VkmgCVyYpS0RWRTVk5-X3_dYhCIk',
+    appId: '1:1067379970689:web:4142d4e974d8e65d86b380',
+    messagingSenderId: '1067379970689',
+    projectId: 'exemplary-datum-397601',
+    authDomain: 'exemplary-datum-397601.firebaseapp.com',
+    storageBucket: 'exemplary-datum-397601.firebasestorage.app',
+    measurementId: 'G-YZRC631MTC',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB583W_VrAXt0_I6N66DaRAIpnUodc-FGw',
-    appId: '1:487588933269:android:a0caa6cbf409f30dd4f59c',
-    messagingSenderId: '487588933269',
-    projectId: 'sinait-colima',
-    storageBucket: 'sinait-colima.firebasestorage.app',
+    apiKey: 'AIzaSyDTt0U-8LaagPsho1M8Qf4Br3cMAQgIUmQ',
+    appId: '1:1067379970689:android:8434b203f44e23af86b380',
+    messagingSenderId: '1067379970689',
+    projectId: 'exemplary-datum-397601',
+    storageBucket: 'exemplary-datum-397601.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAfnApig74rGctljhDs6cve9o3jQgllfVI',
-    appId: '1:487588933269:ios:cdf3ffc633c66c0ad4f59c',
-    messagingSenderId: '487588933269',
-    projectId: 'sinait-colima',
-    storageBucket: 'sinait-colima.firebasestorage.app',
+    apiKey: 'AIzaSyDTp8G6IpjuL4qZcTsh_3vj9fNTXy2FPgg',
+    appId: '1:1067379970689:ios:00cba5071beb2c5886b380',
+    messagingSenderId: '1067379970689',
+    projectId: 'exemplary-datum-397601',
+    storageBucket: 'exemplary-datum-397601.firebasestorage.app',
     iosBundleId: 'mx.edu.tecnm.colima.sinait',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyAfnApig74rGctljhDs6cve9o3jQgllfVI',
-    appId: '1:487588933269:ios:cdf3ffc633c66c0ad4f59c',
-    messagingSenderId: '487588933269',
-    projectId: 'sinait-colima',
-    storageBucket: 'sinait-colima.firebasestorage.app',
+    apiKey: 'AIzaSyDTp8G6IpjuL4qZcTsh_3vj9fNTXy2FPgg',
+    appId: '1:1067379970689:ios:00cba5071beb2c5886b380',
+    messagingSenderId: '1067379970689',
+    projectId: 'exemplary-datum-397601',
+    storageBucket: 'exemplary-datum-397601.firebasestorage.app',
     iosBundleId: 'mx.edu.tecnm.colima.sinait',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBrz7CHooTTDdLj4Qd4BQwts2424Vef0fY',
-    appId: '1:487588933269:web:c8f0e3f05f3a6f17d4f59c',
-    messagingSenderId: '487588933269',
-    projectId: 'sinait-colima',
-    authDomain: 'sinait-colima.firebaseapp.com',
-    storageBucket: 'sinait-colima.firebasestorage.app',
-    measurementId: 'G-6J8RWTZZJM',
+    apiKey: 'AIzaSyC4uE-VkmgCVyYpS0RWRTVk5-X3_dYhCIk',
+    appId: '1:1067379970689:web:913862ac986b84d186b380',
+    messagingSenderId: '1067379970689',
+    projectId: 'exemplary-datum-397601',
+    authDomain: 'exemplary-datum-397601.firebaseapp.com',
+    storageBucket: 'exemplary-datum-397601.firebasestorage.app',
+    measurementId: 'G-F42G8ZN72F',
   );
 }

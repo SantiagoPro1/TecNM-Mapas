@@ -216,11 +216,13 @@ class NavigationService {
       String voiceInstruction;
 
       if (i == 0) {
-        // Primer paso: anunciar inicio
-        voiceInstruction = 'Iniciando navegación desde ${node.name}.';
+        // Primer paso: ir directo a la indicación (el origen ya se muestra
+        // por separado en la tarjeta de ubicación actual).
         if (i < result.edges.length) {
           edge = result.edges[i];
-          voiceInstruction += ' ${edge.direction}.';
+          voiceInstruction = '${edge.direction}.';
+        } else {
+          voiceInstruction = 'Dirígete hacia tu destino.';
         }
       } else if (i == result.path.length - 1) {
         // Último paso: anunciar llegada

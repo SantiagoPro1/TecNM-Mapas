@@ -1,18 +1,49 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:navia/core/constants/venue_registry.dart';
+import 'package:navia/data/models/campus_edge.dart';
+import 'package:navia/data/models/campus_node.dart';
 import 'package:navia/data/models/place_node.dart';
 import 'package:navia/data/repositories/place_repository.dart';
+import 'package:navia/data/repositories/venue_graph_repository.dart';
 
 // 1. Proveedor del Repositorio
 final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
   return PlaceRepository();
 });
 
-// 2. StreamProvider que escucha los lugares en tiempo real desde Firebase
-final placesStreamProvider = StreamProvider<List<PlaceNode>>((ref) {
+// 1.05. Repositorio del grafo caminable (nodos/aristas) — usado por el editor
+// de administrador para construir el grafo de las sedes sin JSON empaquetado.
+final venueGraphRepositoryProvider = Provider<VenueGraphRepository>((ref) {
+  return VenueGraphRepository();
+});
+
+// 1.06. Nodos/aristas del grafo en tiempo real, una sede a la vez. Solo el
+// editor de administrador los consume — la navegación normal usa el grafo
+// cacheado vía CampusGraph/NavigationService, no estos streams.
+final nodesStreamProvider =
+    StreamProvider.autoDispose.family<List<CampusNode>, String>((ref, zoneId) {
+  return ref.watch(venueGraphRepositoryProvider).watchNodes(zoneId);
+});
+
+final edgesStreamProvider =
+    StreamProvider.autoDispose.family<List<CampusEdge>, String>((ref, zoneId) {
+  return ref.watch(venueGraphRepositoryProvider).watchEdges(zoneId);
+});
+
+// 1.1. Sede actualmente mostrada en el mapa. `map_screen.dart` la fija al
+// resolver `arguments['venueId']` desde la navegación.
+final currentVenueIdProvider =
+    StateProvider<String>((ref) => VenueRegistry.tecColima.id);
+
+// 2. StreamProvider que escucha los lugares en tiempo real desde Firebase,
+// una sede a la vez. `.autoDispose` para que un cliente no acumule listeners
+// de sedes que ya no está viendo.
+final placesStreamProvider =
+    StreamProvider.autoDispose.family<List<PlaceNode>, String>((ref, zoneId) {
   final repository = ref.watch(placeRepositoryProvider);
-  return repository.watchPlaces();
+  return repository.watchPlaces(zoneId);
 });
 
 // 3. StateProvider para manejar el filtro activo
@@ -64,9 +95,11 @@ final currentLocationStreamProvider = StreamProvider<Position>((ref) {
   );
 });
 
-// 5. Provider que filtra y retorna PlaceNodes (la conversión a Marker se hace en el mapa)
+// 5. Provider que filtra y retorna PlaceNodes de la sede actual (la conversión
+// a Marker se hace en el mapa)
 final filteredPlacesProvider = Provider<List<PlaceNode>>((ref) {
-  final placesAsyncValue = ref.watch(placesStreamProvider);
+  final zoneId = ref.watch(currentVenueIdProvider);
+  final placesAsyncValue = ref.watch(placesStreamProvider(zoneId));
   final filter = ref.watch(categoryFilterProvider);
 
   return placesAsyncValue.when(

@@ -91,7 +91,7 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
         centerTitle: false,
         backgroundColor: Colors.transparent,
       ),
-      bottomNavigationBar: const BottomNav(currentIndex: 3),
+      bottomNavigationBar: const BottomNav(currentIndex: 1),
       body: SafeArea(
         child: !authState.isAuthenticated
             ? _buildLoginRequired()

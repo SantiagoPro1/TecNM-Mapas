@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:navia/core/constants/venue_registry.dart';
 
 /// Servicio de caché offline para los datos de mapas (nodos + aristas).
 ///
@@ -22,14 +23,12 @@ class MapCacheService {
 
   /// Versión de la semilla. Incrementar este valor fuerza una re-siembra
   /// cuando se actualicen los archivos JSON en assets.
-  static const int _currentSeedVersion = 1;
+  static const int _currentSeedVersion = 2;
 
-  /// Archivos JSON del mapa que sirven como semilla.
-  static const List<String> _mapAssetFiles = [
-    'assets/maps/tec_colima_map.json',
-    'assets/maps/sendera_map.json',
-    'assets/maps/zentralia_map.json',
-  ];
+  /// Archivos JSON del mapa que sirven como semilla (una por cada sede
+  /// empaquetada en assets — ver [VenueRegistry]).
+  static List<String> get _mapAssetFiles =>
+      VenueRegistry.bundledVenues.map((v) => v.mapAssetPath!).toList();
 
   /// Inicializa Hive y siembra la caché si es necesario.
   /// Debe llamarse una sola vez en main(), después de WidgetsFlutterBinding.

@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Rol de administrador. Solo se puede leer el propio; escrituras
+    // únicamente desde la consola de Firebase o el Admin SDK (nunca desde
+    // el cliente), para que nadie pueda auto-promoverse.
+    match /admins/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Sedes (TecNM Colima, Sendera, Zentralia, sedes del Evento Nacional
+    // Deportivo) y sus subcolecciones. Lectura pública: los invitados sin
+    // cuenta necesitan ver el mapa. Escritura solo para administradores.
+    match /venues/{venueId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      match /places/{placeId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+      match /nodes/{nodeId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+      match /edges/{edgeId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+    }
+
+    // Colección plana heredada (la que llenaba el seedData() original antes
+    // de migrar a `venues/{id}/places`). Se deja de solo-lectura por
+    // compatibilidad; ya no acepta escrituras sin rol de admin.
+    match /places/{placeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Feed de anuncios (feed_service.dart) — no tenía reglas propias hasta
+    // ahora (este archivo no existía en el repo).
+    match /announcements/{announcementId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

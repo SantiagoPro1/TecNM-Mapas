@@ -23,8 +23,8 @@ import 'package:navia/data/providers/navigation_provider.dart';
 // Pantallas
 import 'package:navia/presentation/screens/splash/splash_screen.dart';
 import 'package:navia/presentation/screens/onboarding/onboarding_screen.dart';
+import 'package:navia/presentation/screens/auth/login_screen.dart';
 import 'package:navia/presentation/screens/navigation/home_screen.dart';
-import 'package:navia/presentation/screens/navigation/scanner_screen.dart';
 import 'package:navia/presentation/screens/navigation/history_screen.dart';
 import 'package:navia/presentation/screens/map/map_screen.dart';
 import 'package:navia/presentation/screens/credential/credential_screen.dart';
@@ -68,10 +68,17 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   final bool showOnboarding = prefs.getBool('showOnboarding') ?? true;
 
+  // 4.1. Revisar si el usuario ya eligió Invitado/Iniciar sesión en LoginScreen
+  // (se pregunta una sola vez, justo después del onboarding — ver login_screen.dart).
+  final bool hasChosenEntryMode = prefs.getBool('hasChosenEntryMode') ?? false;
+
   // 5. Una vez listos todos los servicios, reemplazar el splash con la app real
   runApp(
     ProviderScope(
-      child: NaviaApp(showOnboarding: showOnboarding),
+      child: NaviaApp(
+        showOnboarding: showOnboarding,
+        hasChosenEntryMode: hasChosenEntryMode,
+      ),
     ),
   );
 }
@@ -92,10 +99,12 @@ class _SplashWrapper extends StatelessWidget {
 
 class NaviaApp extends ConsumerStatefulWidget {
   final bool showOnboarding;
+  final bool hasChosenEntryMode;
 
   const NaviaApp({
     super.key,
     required this.showOnboarding,
+    required this.hasChosenEntryMode,
   });
 
   @override
@@ -120,15 +129,17 @@ class _NaviaAppState extends ConsumerState<NaviaApp> {
       debugShowCheckedModeBanner: false,
       theme: theme,
 
-      // Lógica de inicio: Si es nuevo va a onboarding, si no, al home
-      initialRoute:
-          widget.showOnboarding ? AppRoutes.onboarding : AppRoutes.home,
+      // Lógica de inicio: onboarding (si es nuevo) → elegir Invitado/Iniciar
+      // sesión (una sola vez) → home.
+      initialRoute: widget.showOnboarding
+          ? AppRoutes.onboarding
+          : (widget.hasChosenEntryMode ? AppRoutes.home : AppRoutes.login),
 
       // Mapa de rutas nativo (Navigator 1.0)
       routes: {
         AppRoutes.onboarding: (context) => const OnboardingScreen(),
+        AppRoutes.login: (context) => const LoginScreen(),
         AppRoutes.home: (context) => const HomeScreen(),
-        AppRoutes.scanner: (context) => const ScannerScreen(),
         AppRoutes.map: (context) => const MapScreen(),
         AppRoutes.credential: (context) => const CredentialScreen(),
         AppRoutes.history: (context) => const HistoryScreen(),

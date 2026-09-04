@@ -427,6 +427,7 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
                 RouteStep(
                   node: CampusNode(
                     id: 'google_step_$idx',
+                    zoneId: 'google_route',
                     name: instruction,
                     aliases: const [],
                     type: NodeType.corridor,
@@ -449,6 +450,7 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
             RouteStep(
               node: CampusNode(
                 id: 'google_step_final',
+                zoneId: 'google_route',
                 name: destinationName ?? 'Destino',
                 aliases: const [],
                 type: NodeType.corridor,
@@ -465,6 +467,7 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
 
         final originNode = CampusNode(
           id: 'google_origin',
+          zoneId: 'google_route',
           name: 'Mi Ubicación',
           aliases: const [],
           type: NodeType.corridor,
@@ -477,6 +480,7 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
 
         final destNode = CampusNode(
           id: 'google_dest',
+          zoneId: 'google_route',
           name: destinationName ?? 'Destino',
           aliases: const [],
           type: NodeType.corridor,

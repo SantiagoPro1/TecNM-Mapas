@@ -1,6 +1,7 @@
 {
   "meta": {
     "version": "3.1.0",
+    "zoneId": "zentralia",
     "campus": "Plaza Zentralia Colima",
     "center": {
       "lat": 19.26700,

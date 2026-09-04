@@ -40,30 +40,16 @@ class BottomNav extends StatelessWidget {
                       Navigator.pushReplacementNamed(context, AppRoutes.home),
                 ),
                 _NavItem(
-                  icon: Icons.map_rounded,
-                  label: 'Mapa',
-                  isActive: currentIndex == 1,
-                  onTap: () =>
-                      Navigator.pushReplacementNamed(context, AppRoutes.map),
-                ),
-                _NavItem(
-                  icon: Icons.view_in_ar_rounded,
-                  label: 'NAVIA AR',
-                  isActive: currentIndex == 2,
-                  onTap: () => Navigator.pushReplacementNamed(
-                      context, AppRoutes.scanner),
-                ),
-                _NavItem(
                   icon: Icons.badge_rounded,
                   label: 'ID',
-                  isActive: currentIndex == 3,
+                  isActive: currentIndex == 1,
                   onTap: () => Navigator.pushReplacementNamed(
                       context, AppRoutes.credential),
                 ),
                 _NavItem(
                   icon: Icons.person_rounded,
                   label: 'Perfil',
-                  isActive: currentIndex == 4,
+                  isActive: currentIndex == 2,
                   onTap: () => Navigator.pushReplacementNamed(
                       context, AppRoutes.profile),
                 ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:navia/core/constants/app_routes.dart';
 import 'package:navia/data/providers/auth_provider.dart';
+import 'package:navia/data/providers/settings_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -128,26 +129,28 @@ class ProfileScreen extends ConsumerWidget {
   Widget _buildProfileState(
       BuildContext context, WidgetRef ref, AuthState authState) {
     final cs = Theme.of(context).colorScheme;
+    final settings = ref.watch(settingsProvider);
     return Column(
       children: [
         _AvatarSection(authState: authState),
         const SizedBox(height: 40),
         _InfoCard(
-          title: 'DATOS ACADÉMICOS',
+          title: 'DATOS INSTITUCIONALES',
           items: [
             (Icons.badge_rounded, 'MATRÍCULA', authState.matricula),
-            (Icons.school_rounded, 'CARRERA', 'ING. EN SISTEMAS'),
-            (Icons.location_city_rounded, 'CAMPUS', 'TECNM COLIMA'),
+            (Icons.location_city_rounded, 'CAMPUS', authState.campusLabel.toUpperCase()),
             (Icons.email_rounded, 'CORREO', authState.user?.email ?? '---'),
           ],
         ),
         const SizedBox(height: 20),
-        const _InfoCard(
+        _InfoCard(
           title: 'CONFIGURACIÓN DE ACCESIBILIDAD',
           items: [
-            (Icons.record_voice_over_rounded, 'GUÍA POR VOZ', 'ACTIVA'),
+            (Icons.record_voice_over_rounded, 'GUÍA POR VOZ',
+                settings.voiceEnabled ? 'ACTIVA' : 'DESACTIVADA'),
             (Icons.translate_rounded, 'LENGUAJE', 'ESPAÑOL (MX)'),
-            (Icons.speed_rounded, 'RITMO DE VOZ', '1.0X'),
+            (Icons.speed_rounded, 'RITMO DE VOZ',
+                '${settings.speechRate.toStringAsFixed(1)}X'),
           ],
         ),
         const SizedBox(height: 40),

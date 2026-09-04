@@ -1,67 +1,26 @@
 {
   "project_info": {
-    "project_number": "487588933269",
-    "project_id": "sinait-colima",
-    "storage_bucket": "sinait-colima.firebasestorage.app"
+    "project_number": "1067379970689",
+    "project_id": "exemplary-datum-397601",
+    "storage_bucket": "exemplary-datum-397601.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:487588933269:android:a0caa6cbf409f30dd4f59c",
+        "mobilesdk_app_id": "1:1067379970689:android:8434b203f44e23af86b380",
         "android_client_info": {
           "package_name": "mx.edu.tecnm.colima.sinait"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "487588933269-k3vfnlies02mmv9fcdi3afm5ebn5bnf5.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "mx.edu.tecnm.colima.sinait",
-            "certificate_hash": "80b93744cdb4fdb0f1af075a3d6d58f261dbece0"
-          }
-        },
-        {
-          "client_id": "487588933269-l2vv8n35k524mtp0dmtj681gkdif1gn3.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "mx.edu.tecnm.colima.sinait",
-            "certificate_hash": "50166322c1b030d67c92aee5c5d08e245bf04656"
-          }
-        },
-        {
-          "client_id": "487588933269-tg46038rv3d93dur881ilvda791emngu.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "mx.edu.tecnm.colima.sinait",
-            "certificate_hash": "379e3b292190adb8f17752ce295622f74e698075"
-          }
-        },
-        {
-          "client_id": "487588933269-82c33tklslpr0p5l6bsl6gl37tqnl8mm.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyB583W_VrAXt0_I6N66DaRAIpnUodc-FGw"
+          "current_key": "AIzaSyDTt0U-8LaagPsho1M8Qf4Br3cMAQgIUmQ"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "487588933269-82c33tklslpr0p5l6bsl6gl37tqnl8mm.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "487588933269-vs3jfoe8vd7u1nuk4ah2rvbq2dilava6.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "mx.edu.tecnm.colima.sinait"
-              }
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }

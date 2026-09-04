@@ -1,22 +1,29 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart' as fm;
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:uuid/uuid.dart';
 
 import 'package:navia/data/models/place_node.dart';
 import 'package:navia/data/models/campus_node.dart';
+import 'package:navia/data/models/campus_edge.dart';
+import 'package:navia/data/models/venue.dart';
 import 'package:navia/presentation/screens/map/providers/map_providers.dart';
 import 'package:navia/core/constants/campus_locations.dart';
+import 'package:navia/core/constants/venue_registry.dart';
 import 'package:navia/core/constants/app_routes.dart';
+import 'package:navia/data/providers/auth_provider.dart';
 import 'package:navia/data/providers/navigation_provider.dart';
 import 'package:navia/data/providers/settings_provider.dart';
-import 'package:navia/data/providers/voice_provider.dart';
 import 'package:navia/presentation/widgets/bottom_nav.dart';
 import 'package:navia/core/theme/app_theme.dart';
 
@@ -33,9 +40,27 @@ class _MapScreenState extends ConsumerState<MapScreen>
   Set<Marker> _googleMarkers = {};
   Set<Polyline> _googlePolylines = {};
 
+  // google_maps_flutter solo tiene implementación nativa en Android/iOS/Web.
+  // En desktop (Windows/Linux/macOS) usamos flutter_map con tiles OSM.
+  fm.MapController? _flutterMapController;
+  bool get _isDesktop =>
+      !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+
   LatLng? _currentPosition;
   LatLng? _displayPosition;
   LatLng? _previousPosition;
+
+  /// Posición interpolada del usuario, actualizada en cada frame de la
+  /// animación de suavizado GPS (~60/s). Se lee con un ValueListenableBuilder
+  /// acotado solo al widget del mapa, para que mover el punto azul no
+  /// reconstruya toda la pantalla (botones, banners, etc.) 60 veces por
+  /// segundo — esa era la causa real de que la navegación se sintiera trabada.
+  final ValueNotifier<LatLng?> _userPosNotifier = ValueNotifier<LatLng?>(null);
+
+  /// Ícono del usuario para GoogleMap, generado una sola vez (no en cada
+  /// frame): regenerarlo por frame implicaba dibujar en Canvas y codificar
+  /// PNG ~60 veces por segundo, carísimo para un simple punto que se mueve.
+  BitmapDescriptor? _userIconCache;
   double _currentZoom = 17.0;
   double _currentHeading = 0.0;
 
@@ -43,13 +68,41 @@ class _MapScreenState extends ConsumerState<MapScreen>
   bool _isTrackingActive = false;
   bool _isNavigating = false;
 
+  /// true mientras una animación de cámara disparada por nuestro propio
+  /// código (seguir al usuario) está en curso — ver _panCamera/_panCameraNavigating.
+  bool _isProgrammaticCameraMove = false;
+
+  // ──────────────────────────────────────────────────────────
+  //  Editor de administrador (Fase 2)
+  // ──────────────────────────────────────────────────────────
+
+  /// Solo visible/activable si isAdminProvider es true. Al tocar el mapa en
+  /// este modo se agregan puntos nuevos en vez de solo consultarlos.
+  bool _isEditMode = false;
+
+  /// Id del punto que se está reubicando: el siguiente toque en el mapa lo
+  /// mueve ahí y sale de este modo. `null` = no hay una reubicación pendiente.
+  String? _editMovingId;
+
+  /// Id del punto de origen elegido para trazar una arista nueva ("Conectar").
+  /// `null` = no hay ninguna conexión en curso.
+  String? _editConnectFromId;
+
+  /// Posición del punto de origen elegido para "Conectar" — se guarda junto
+  /// con el id para no tener que volver a buscarlo al crear la arista.
+  LatLng? _editConnectFromPos;
+
+  /// Guard para no disparar dos escrituras a la vez desde el editor.
+  bool _isEditSaving = false;
+
+  static const _uuid = Uuid();
+
   /// Guard para evitar llamadas concurrentes a _fetchRoute cuando el usuario
   /// toca "Trazar Ruta" varias veces antes de que termine la primera peticion.
   bool _isFetchingRoute = false;
 
   LatLng? _destinationLatLng;
   Timer? _routeRecalcTimer;
-  Timer? _debounceTimer;
 
   late final AnimationController _posAnimController;
   final Map<String, BitmapDescriptor> _markerIconCache = {};
@@ -57,20 +110,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
   static const LatLng _initialPosition =
       LatLng(CampusLocations.centerLat, CampusLocations.centerLng);
 
-  static final LatLngBounds _cameraBounds = LatLngBounds(
-    southwest: const LatLng(19.2380, -103.7330),
-    northeast: const LatLng(19.2710, -103.7050),
-  );
+  /// Sede que se está mostrando. Se resuelve en [didChangeDependencies] desde
+  /// `arguments['venueId']`; por defecto TecNM Colima si no se especifica.
+  Venue _venue = VenueRegistry.tecColima;
+
+  /// Caja de restricción de cámara de la sede actual (antes era un único
+  /// valor global fijo a TecNM Colima — Sendera/Zentralia ya caían fuera de
+  /// esa caja).
+  LatLngBounds get _cameraBounds => LatLngBounds(
+        southwest: LatLng(_venue.boundsSouthLat, _venue.boundsWestLng),
+        northeast: LatLng(_venue.boundsNorthLat, _venue.boundsEastLng),
+      );
 
   late LatLng _mapInitialCenter;
   late double _mapInitialZoom;
   bool _initializedWithArgs = false;
 
-  // TTS / STT
+  // TTS
   final FlutterTts _flutterTts = FlutterTts();
-  late stt.SpeechToText _speechToText;
-  bool _isListening = false;
-  String _lastRecognizedWords = '';
   // Map style strings (cargados desde assets)
   String? _darkMapStyle;
   String? _lightMapStyle;
@@ -87,8 +144,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
       duration: const Duration(milliseconds: 800),
     )..addListener(_onPositionAnimTick);
 
+    if (_isDesktop) {
+      _flutterMapController = fm.MapController();
+    }
+
     _initTts();
-    _initStt();
     _loadMapStyles();
   }
 
@@ -115,6 +175,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (!_initializedWithArgs) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is Map<String, dynamic>) {
+        final venueId = args['venueId'] as String?;
+        if (venueId != null) {
+          _venue = VenueRegistry.byId(venueId);
+        }
+
         final lat = args['lat'] as double?;
         final lng = args['lng'] as double?;
         final zoom = args['zoom'] as double? ?? 17.0;
@@ -124,6 +189,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
           _centeredOnUser = true;
         }
       }
+      // Sincroniza el provider de sede actual para que filteredPlacesProvider
+      // (y con él, todo el pipeline de marcadores) escuche la sede correcta.
+      // Se difiere: este mismo widget hace `ref.watch(filteredPlacesProvider)`
+      // en su build(), y escribir el provider que depende de él mientras el
+      // árbol todavía se está montando dispara "Tried to modify a provider
+      // while the widget tree was building" en Riverpod.
+      final resolvedVenueId = _venue.id;
+      Future(() {
+        if (mounted) {
+          ref.read(currentVenueIdProvider.notifier).state = resolvedVenueId;
+        }
+      });
       _initializedWithArgs = true;
 
       final navState = ref.read(navigationProvider);
@@ -166,23 +243,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (voiceEnabled) _flutterTts.speak(text);
   }
 
-  Future<void> _initStt() async {
-    _speechToText = stt.SpeechToText();
-    await _speechToText.initialize(
-      onError: (val) => debugPrint('STT Error: $val'),
-      onStatus: (val) => debugPrint('STT Status: $val'),
-    );
-  }
-
   @override
   void dispose() {
     _posAnimController.removeListener(_onPositionAnimTick);
     _posAnimController.dispose();
     _routeRecalcTimer?.cancel();
-    _debounceTimer?.cancel();
+    _userPosNotifier.dispose();
     _flutterTts.stop();
-    _speechToText.stop();
     _googleMapController?.dispose();
+    _flutterMapController?.dispose();
     super.dispose();
   }
 
@@ -367,8 +436,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
           position: LatLng(place.latitude, place.longitude),
           icon: icon,
           infoWindow: InfoWindow(title: place.name, snippet: place.type),
-          onTap: () =>
-              ref.read(selectedPlaceProvider.notifier).state = place,
+          onTap: () {
+            if (_isEditMode || _editConnectFromId != null) {
+              _handleEditTapOnPoint(
+                id: place.id,
+                name: place.name,
+                lat: place.latitude,
+                lng: place.longitude,
+                hasPlace: true,
+              );
+            } else {
+              ref.read(selectedPlaceProvider.notifier).state = place;
+            }
+          },
         ),
       );
     }
@@ -376,26 +456,44 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (mounted) setState(() => _googleMarkers = newMarkers);
   }
 
-  Future<void> _updateUserMarker(LatLng position) async {
-    final dpr = MediaQuery.of(context).devicePixelRatio;
-    // Invalidar cache del usuario para reflejar animación de pulso
-    _markerIconCache.remove('user_marker');
-    final icon = await _buildUserIcon(dpr);
-    final userMarker = Marker(
-      markerId: const MarkerId('user_location'),
-      position: position,
-      icon: icon,
-      zIndexInt: 10,
-      anchor: const Offset(0.5, 0.5),
-    );
+  // ──────────────────────────────────────────────────────────
+  //  Cámara multiplataforma (GoogleMap / flutter_map)
+  // ──────────────────────────────────────────────────────────
 
-    if (mounted) {
-      setState(() {
-        _googleMarkers.removeWhere(
-            (m) => m.markerId == const MarkerId('user_location'));
-        _googleMarkers = {..._googleMarkers, userMarker};
-      });
+  ll.LatLng _toLL(LatLng p) => ll.LatLng(p.latitude, p.longitude);
+
+  void _panCamera(LatLng target, {double? zoom}) {
+    if (_isDesktop) {
+      final controller = _flutterMapController;
+      if (controller == null) return;
+      controller.move(_toLL(target), zoom ?? controller.camera.zoom);
+      return;
     }
+    // GoogleMap dispara onCameraMove también para movimientos programáticos
+    // (no solo gestos del usuario) — sin esta bandera, seguir al usuario
+    // apagaba _isTrackingActive a sí mismo en el primer auto-pan. flutter_map
+    // no tiene este problema porque su onPositionChanged sí distingue
+    // hasGesture.
+    _isProgrammaticCameraMove = true;
+    _googleMapController?.animateCamera(
+      zoom != null
+          ? CameraUpdate.newLatLngZoom(target, zoom)
+          : CameraUpdate.newLatLng(target),
+    );
+  }
+
+  void _panCameraNavigating(LatLng target, double zoom, double bearing) {
+    if (_isDesktop) {
+      _flutterMapController?.moveAndRotate(_toLL(target), zoom, bearing);
+      return;
+    }
+    _isProgrammaticCameraMove = true;
+    _googleMapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+            target: target, zoom: zoom, tilt: 50.0, bearing: bearing),
+      ),
+    );
   }
 
   // ──────────────────────────────────────────────────────────
@@ -660,11 +758,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
       
       _centeredOnUser = true;
       if (distanceToCampus < 2500) {
-        _googleMapController
-            ?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 17.5));
+        _panCamera(latLng, zoom: 17.5);
       } else {
-        _googleMapController
-            ?.animateCamera(CameraUpdate.newLatLngZoom(_initialPosition, 17.0));
+        _panCamera(_initialPosition, zoom: 17.0);
         _showOutsideCampusSnackBar();
       }
     } on TimeoutException {
@@ -687,11 +783,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
         CampusLocations.centerLat, CampusLocations.centerLng,
       );
       if (distanceToCampus < 2500) {
-        _googleMapController?.animateCamera(
-            CameraUpdate.newLatLngZoom(targetPos, _currentZoom));
+        _panCamera(targetPos, zoom: _currentZoom);
       } else {
-        _googleMapController?.animateCamera(
-            CameraUpdate.newLatLngZoom(_initialPosition, 17.0));
+        _panCamera(_initialPosition, zoom: 17.0);
         _showOutsideCampusSnackBar();
       }
     } else {
@@ -709,8 +803,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
       _currentPosition = newPos;
       if (heading >= 0) _currentHeading = heading;
     });
+    if (!_isDesktop) _ensureUserIcon();
     _posAnimController.forward(from: 0.0);
     if (_isNavigating) _scheduleRouteRecalc(newPos);
+  }
+
+  /// Genera el ícono del usuario una sola vez y lo cachea (ver comentario en
+  /// el campo _userIconCache). Solo hace falta llamarla, es idempotente.
+  Future<void> _ensureUserIcon() async {
+    if (_userIconCache != null || !mounted) return;
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final icon = await _buildUserIcon(dpr);
+    if (mounted) setState(() => _userIconCache = icon);
   }
 
   void _onPositionAnimTick() {
@@ -723,8 +827,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
         (_currentPosition!.longitude - _previousPosition!.longitude) * t;
 
     final interpolated = LatLng(lat, lng);
-    setState(() => _displayPosition = interpolated);
-    _updateUserMarker(interpolated);
+    // Sin setState: solo el mapa (envuelto en un ValueListenableBuilder) debe
+    // reaccionar a esto, no toda la pantalla.
+    _displayPosition = interpolated;
+    _userPosNotifier.value = interpolated;
 
     if (_isTrackingActive) {
       final distanceToCampus = Geolocator.distanceBetween(
@@ -733,19 +839,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
       );
       if (distanceToCampus < 2500) {
         if (_isNavigating) {
-          _googleMapController?.animateCamera(
-            CameraUpdate.newCameraPosition(
-              CameraPosition(
-                target: interpolated,
-                zoom: 19.5,
-                tilt: 50.0,
-                bearing: _currentHeading,
-              ),
-            ),
-          );
+          _panCameraNavigating(interpolated, 19.5, _currentHeading);
         } else {
-          _googleMapController?.animateCamera(
-              CameraUpdate.newLatLng(interpolated));
+          _panCamera(interpolated);
         }
       }
     }
@@ -863,6 +959,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   void _fitBounds(List<LatLng> points) {
     if (points.isEmpty) return;
+    if (_isDesktop) {
+      _flutterMapController?.fitCamera(
+        fm.CameraFit.bounds(
+          bounds: fm.LatLngBounds.fromPoints(points.map(_toLL).toList()),
+          padding: const EdgeInsets.all(60),
+        ),
+      );
+      return;
+    }
     double minLat = points.first.latitude;
     double maxLat = points.first.latitude;
     double minLng = points.first.longitude;
@@ -900,69 +1005,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   // ──────────────────────────────────────────────────────────
-  //  STT
-  // ──────────────────────────────────────────────────────────
-
-  Future<void> _startListening(LongPressStartDetails details) async {
-    _flutterTts.stop();
-    if (!_speechToText.isAvailable) {
-      final bool available = await _speechToText.initialize();
-      if (!mounted) return;
-      if (!available) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Micrófono no disponible.')),
-        );
-        return;
-      }
-    }
-    setState(() => _isListening = true);
-    await _speechToText.listen(
-      onResult: (result) {
-        setState(
-            () => _lastRecognizedWords = result.recognizedWords);
-      },
-      localeId: "es_MX",
-    );
-  }
-
-  Future<void> _stopListening(LongPressEndDetails details) async {
-    setState(() => _isListening = false);
-    await _speechToText.stop();
-    _processVoiceCommand(_lastRecognizedWords);
-  }
-
-  void _processVoiceCommand(String text) {
-    if (text.isEmpty) return;
-    if (_currentPosition != null) {
-      ref.read(navigationProvider.notifier).setPositionByCoordinates(
-            _currentPosition!.latitude,
-            _currentPosition!.longitude,
-          );
-    }
-    ref.read(voiceProvider.notifier).processTextCommand(text);
-  }
-
-  // ──────────────────────────────────────────────────────────
   //  Bottom Sheet y helpers UI
   // ──────────────────────────────────────────────────────────
-
-  void _announceNearestPlace(LatLng center) {
-    final placesAsyncValue = ref.read(placesStreamProvider);
-    placesAsyncValue.whenData((places) {
-      if (places.isEmpty) return;
-      PlaceNode? nearest;
-      double minDist = double.infinity;
-      for (final p in places) {
-        final d = Geolocator.distanceBetween(
-            center.latitude, center.longitude, p.latitude, p.longitude);
-        if (d < minDist) { minDist = d; nearest = p; }
-      }
-      if (nearest != null && minDist < 150) {
-        _flutterTts.stop();
-        _speak('Viendo zona cerca de: ${nearest.name}');
-      }
-    });
-  }
 
   void _handleArrival() {
     ref.read(navigationProvider.notifier).cancelNavigation();
@@ -1133,7 +1177,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       onPressed: () {
                         Navigator.pop(ctx);
                         ref.read(navigationProvider.notifier).setPosition(place.id);
-                        _speak('Ubicación fijada en ${place.name}.');
                       },
                     ),
                   ),
@@ -1165,60 +1208,69 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
-  PreferredSizeWidget _buildAppBar(bool isDark) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    return AppBar(
-      backgroundColor: theme.appBarTheme.backgroundColor ?? cs.surface,
-      foregroundColor: theme.appBarTheme.foregroundColor ?? cs.onSurface,
-      elevation: 0,
-      titleSpacing: 0,
-      title: Row(
-        children: [
-          Container(
-            width: 36, height: 36,
-            margin: const EdgeInsets.only(left: 4, right: 10),
-            decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: cs.primary.withValues(alpha: 0.4), width: 1.5),
-            ),
-            child: Icon(Icons.school_rounded, color: cs.primary, size: 20),
-          ),
-          Text('NAVIA',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                color: theme.appBarTheme.titleTextStyle?.color ?? cs.onSurface,
-                letterSpacing: 2.5,
-              )),
+  Widget _buildThemeToggle(bool isDark) {
+    return _buildRoundIconButton(
+      icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+      tooltip: 'Cambiar tema',
+      onPressed: () {
+        final newTheme = isDark ? 'light' : 'dark';
+        ref.read(mapThemeProvider.notifier).state = newTheme;
+        setState(() => _currentMapStyle = newTheme == 'dark' ? _darkMapStyle : _lightMapStyle);
+      },
+    );
+  }
+
+  /// Botón circular flotante genérico (mismo estilo para volver a Inicio y
+  /// para cambiar de tema — antes vivían como parte del AppBar).
+  Widget _buildRoundIconButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surface,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8),
         ],
       ),
-      actions: [
-        IconButton(
-          icon: Icon(
-            isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-            color: cs.primary,
-          ),
-          onPressed: () {
-            final newTheme = isDark ? 'light' : 'dark';
-            ref.read(mapThemeProvider.notifier).state = newTheme;
-            setState(() => _currentMapStyle = newTheme == 'dark' ? _darkMapStyle : _lightMapStyle);
-          },
-          tooltip: 'Cambiar tema',
-        ),
-      ],
+      child: IconButton(
+        icon: Icon(icon, color: cs.primary),
+        onPressed: onPressed,
+        tooltip: tooltip,
+      ),
     );
   }
 
   Widget _buildFABs() {
     final cs = Theme.of(context).colorScheme;
+    final isAdmin = ref.watch(isAdminProvider).value ?? false;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          if (isAdmin) ...[
+            FloatingActionButton(
+              heroTag: 'edit_btn',
+              tooltip: _isEditMode ? 'Salir del modo edición' : 'Editar sede (admin)',
+              backgroundColor: _isEditMode ? const Color(0xFFFFAB00) : cs.surface,
+              onPressed: () => setState(() {
+                _isEditMode = !_isEditMode;
+                _editMovingId = null;
+                _editConnectFromId = null;
+                _editConnectFromPos = null;
+              }),
+              child: Icon(
+                _isEditMode ? Icons.close_rounded : Icons.edit_location_alt_rounded,
+                color: _isEditMode ? const Color(0xFF0D1B2A) : cs.primary,
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           FloatingActionButton(
             heroTag: 'center_btn',
             onPressed: _centerOnUser,
@@ -1230,93 +1282,431 @@ class _MapScreenState extends ConsumerState<MapScreen>
               size: 26,
             ),
           ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onLongPressStart: _startListening,
-            onLongPressEnd: _stopListening,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 70, height: 70,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: _isListening
-                    ? const LinearGradient(colors: [Color(0xFFFF5252), Color(0xFFFF1744)])
-                    : LinearGradient(
-                        begin: Alignment.topLeft, end: Alignment.bottomRight,
-                        colors: [cs.primary, cs.primary.withValues(alpha: 0.85)]),
-                boxShadow: [
-                  BoxShadow(
-                    color: (_isListening ? const Color(0xFFFF5252) : cs.primary)
-                        .withValues(alpha: 0.5),
-                    blurRadius: _isListening ? 20 : 12,
-                    spreadRadius: _isListening ? 4 : 2,
-                  ),
-                ],
+        ],
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────
+  //  Editor de administrador (Fase 2) — agregar/mover/conectar/borrar
+  //  puntos del grafo caminable y sus pines de POI.
+  // ──────────────────────────────────────────────────────────
+
+  /// Toque sobre el mapa (fuera de cualquier marcador) mientras se está en
+  /// modo edición: agrega un punto nuevo, completa una reubicación pendiente,
+  /// o cancela una conexión en curso si se tocó vacío.
+  void _handleMapBackgroundTap(LatLng point) {
+    if (_editMovingId != null) {
+      final id = _editMovingId!;
+      setState(() => _editMovingId = null);
+      _moveUnifiedPoint(id, point);
+      return;
+    }
+    if (_editConnectFromId != null) {
+      setState(() {
+        _editConnectFromId = null;
+        _editConnectFromPos = null;
+      });
+      return;
+    }
+    if (_isEditMode) {
+      _showAddPointSheet(point);
+    }
+  }
+
+  /// Toque sobre un punto EXISTENTE (POI o nodo de corredor) mientras se está
+  /// en modo edición o completando una conexión.
+  void _handleEditTapOnPoint({
+    required String id,
+    required String name,
+    required double lat,
+    required double lng,
+    required bool hasPlace,
+  }) {
+    if (_editConnectFromId != null) {
+      final fromId = _editConnectFromId!;
+      final fromPos = _editConnectFromPos!;
+      setState(() {
+        _editConnectFromId = null;
+        _editConnectFromPos = null;
+      });
+      if (fromId == id) return; // tocó el mismo punto de nuevo → cancelar
+      _connectNodes(
+        fromId: fromId,
+        fromPos: fromPos,
+        toId: id,
+        toPos: LatLng(lat, lng),
+      );
+      return;
+    }
+    _showEditPointSheet(id: id, name: name, lat: lat, lng: lng, hasPlace: hasPlace);
+  }
+
+  void _showAddPointSheet(LatLng at) {
+    final cs = Theme.of(context).colorScheme;
+    final nameController = TextEditingController();
+    var selectedType = _editPointTypes.first;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: cs.surface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Nuevo punto',
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: cs.onSurface)),
+              const SizedBox(height: 4),
+              Text('Sede: ${_venue.label}',
+                  style: TextStyle(
+                      fontSize: 12, color: cs.onSurface.withValues(alpha: 0.5))),
+              const SizedBox(height: 16),
+              TextField(
+                controller: nameController,
+                autofocus: true,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre',
+                  hintText: 'Ej. Cancha 3, Entrada Norte...',
+                ),
               ),
-              child: Icon(_isListening ? Icons.mic : Icons.mic_none_rounded, color: _isListening ? Colors.white : cs.onPrimary, size: 32),
-            ),
+              const SizedBox(height: 20),
+              Text('TIPO',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1,
+                      color: cs.onSurface.withValues(alpha: 0.5))),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _editPointTypes.map((t) {
+                  final selected = identical(t, selectedType);
+                  return ChoiceChip(
+                    label: Text(t.label, style: const TextStyle(fontSize: 12)),
+                    avatar: Icon(t.icon,
+                        size: 16, color: selected ? cs.onPrimary : cs.primary),
+                    selected: selected,
+                    selectedColor: cs.primary,
+                    onSelected: (_) => setSheetState(() => selectedType = t),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final name = nameController.text.trim();
+                    if (name.isEmpty) return;
+                    Navigator.pop(ctx);
+                    await _createUnifiedPoint(
+                        name: name, position: at, typeInfo: selectedType);
+                  },
+                  style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16)),
+                  child: const Text('Guardar',
+                      style: TextStyle(fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEditPointSheet({
+    required String id,
+    required String name,
+    required double lat,
+    required double lng,
+    required bool hasPlace,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: cs.surface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name,
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: cs.onSurface)),
+              const SizedBox(height: 8),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.edit_rounded, color: cs.primary),
+                title: const Text('Cambiar nombre'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final newName = await _promptRename(name);
+                  if (newName != null && newName.isNotEmpty) {
+                    _renameUnifiedPoint(id: id, name: newName, hasPlace: hasPlace);
+                  }
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.open_with_rounded, color: cs.primary),
+                title: const Text('Mover'),
+                subtitle: const Text('Toca el mapa donde quieres reubicarlo'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() => _editMovingId = id);
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.timeline_rounded, color: cs.primary),
+                title: const Text('Conectar a otro punto'),
+                subtitle: const Text('Traza un camino caminable hasta otro punto'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() {
+                    _editConnectFromId = id;
+                    _editConnectFromPos = LatLng(lat, lng);
+                  });
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                title: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final confirmed = await _confirmDelete(name);
+                  if (confirmed) _deleteUnifiedPoint(id: id, hasPlace: hasPlace);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _promptRename(String currentName) async {
+    final cs = Theme.of(context).colorScheme;
+    final controller = TextEditingController(text: currentName);
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: cs.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Cambiar nombre'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(labelText: 'Nombre'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Guardar'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFiltersRow() {
+  Future<void> _renameUnifiedPoint({
+    required String id,
+    required String name,
+    required bool hasPlace,
+  }) async {
+    final zoneId = _venue.id;
+    try {
+      await ref.read(venueGraphRepositoryProvider).renameNode(zoneId, id, name);
+    } catch (_) {}
+    if (hasPlace) {
+      try {
+        await ref.read(placeRepositoryProvider).renamePlace(zoneId, id, name);
+      } catch (_) {}
+    }
+  }
+
+  Future<bool> _confirmDelete(String name) async {
     final cs = Theme.of(context).colorScheme;
-    final currentFilter = ref.watch(categoryFilterProvider);
-    final filters = [
-      ('Todo', Icons.grid_view_rounded),
-      ('Edificio', Icons.business_rounded),
-      ('Cafetería', Icons.coffee_rounded),
-      ('Servicios', Icons.miscellaneous_services_rounded),
-      ('Parque', Icons.park_rounded),
-    ];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: filters.map((fd) {
-          final isSelected = currentFilter.toLowerCase() == fd.$1.toLowerCase();
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => ref.read(categoryFilterProvider.notifier).state = fd.$1,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  gradient: isSelected
-                      ? LinearGradient(colors: [cs.primary, cs.primary.withValues(alpha: 0.85)])
-                      : null,
-                  color: isSelected ? null : cs.surface,
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(
-                    color: isSelected ? Colors.transparent : cs.onSurface.withValues(alpha: 0.12),
-                    width: 1.5,
-                  ),
-                  boxShadow: isSelected
-                      ? [BoxShadow(color: cs.primary.withValues(alpha: 0.35), blurRadius: 10)]
-                      : [],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(fd.$2, size: 15, color: isSelected ? cs.onPrimary : cs.onSurface.withValues(alpha: 0.6)),
-                    const SizedBox(width: 6),
-                    Text(fd.$1,
-                        style: TextStyle(
-                          color: isSelected ? cs.onPrimary : cs.onSurface.withValues(alpha: 0.75),
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          fontSize: 13, letterSpacing: 0.3,
-                        )),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }).toList(),
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: cs.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('¿Eliminar punto?'),
+        content: Text('Se eliminará "$name" permanentemente, junto con sus conexiones.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
       ),
     );
+    return result ?? false;
+  }
+
+  Future<void> _createUnifiedPoint({
+    required String name,
+    required LatLng position,
+    required _EditPointTypeInfo typeInfo,
+  }) async {
+    if (_isEditSaving) return;
+    setState(() => _isEditSaving = true);
+    final zoneId = _venue.id;
+    final id = _uuid.v4();
+    try {
+      final node = CampusNode(
+        id: id,
+        zoneId: zoneId,
+        name: name,
+        aliases: const [],
+        type: typeInfo.nodeType,
+        lat: position.latitude,
+        lng: position.longitude,
+        floor: 0,
+        accessible: true,
+        description: '',
+      );
+      await ref.read(venueGraphRepositoryProvider).createNode(node);
+
+      if (typeInfo.placeType != null) {
+        final place = PlaceNode(
+          id: id,
+          zoneId: zoneId,
+          name: name,
+          latitude: position.latitude,
+          longitude: position.longitude,
+          type: typeInfo.placeType!,
+          accessibilityLevel: 'alto',
+        );
+        await ref.read(placeRepositoryProvider).createPlace(place);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('"$name" agregado.'),
+              backgroundColor: Colors.green.shade700),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error al guardar: $e'),
+              backgroundColor: Colors.redAccent),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isEditSaving = false);
+    }
+  }
+
+  /// Reubica un punto. Intenta mover tanto el nodo del grafo como el pin de
+  /// POI (si existe) — no todos los puntos existentes tienen ambos, así que
+  /// los fallos de "documento no existe" en cualquiera de los dos se ignoran
+  /// a propósito.
+  Future<void> _moveUnifiedPoint(String id, LatLng newPos) async {
+    final zoneId = _venue.id;
+    try {
+      await ref.read(venueGraphRepositoryProvider).moveNode(
+            zoneId,
+            id,
+            lat: newPos.latitude,
+            lng: newPos.longitude,
+          );
+    } catch (_) {}
+    try {
+      await ref.read(placeRepositoryProvider).movePlace(
+            zoneId,
+            id,
+            lat: newPos.latitude,
+            lng: newPos.longitude,
+          );
+    } catch (_) {}
+  }
+
+  Future<void> _deleteUnifiedPoint({
+    required String id,
+    required bool hasPlace,
+  }) async {
+    final zoneId = _venue.id;
+    try {
+      await ref.read(venueGraphRepositoryProvider).deleteNode(zoneId, id);
+    } catch (_) {}
+    if (hasPlace) {
+      try {
+        await ref.read(placeRepositoryProvider).deletePlace(zoneId, id);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _connectNodes({
+    required String fromId,
+    required LatLng fromPos,
+    required String toId,
+    required LatLng toPos,
+  }) async {
+    final distance = Geolocator.distanceBetween(
+      fromPos.latitude,
+      fromPos.longitude,
+      toPos.latitude,
+      toPos.longitude,
+    );
+    final edge = CampusEdge(
+      zoneId: _venue.id,
+      from: fromId,
+      to: toId,
+      distance: distance,
+      accessible: true,
+      direction: 'Continúa por el camino.',
+    );
+    try {
+      await ref.read(venueGraphRepositoryProvider).createEdge(edge);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Conexión creada.'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error al conectar: $e'),
+              backgroundColor: Colors.redAccent),
+        );
+      }
+    }
   }
 
   // ──────────────────────────────────────────────────────────
@@ -1326,7 +1716,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
   @override
   Widget build(BuildContext context) {
     // Escuchar cambios de tema global para regenerar marcadores con nuevos colores
+    // (solo aplica a los iconos BitmapDescriptor de GoogleMap; en desktop los
+    // marcadores de flutter_map se reconstruyen solos en cada build)
     ref.listen(themeProvider, (_, __) {
+      if (_isDesktop) return;
       _markerIconCache.clear();
       _rebuildMarkers(ref.read(filteredPlacesProvider));
     });
@@ -1359,9 +1752,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
             CampusLocations.centerLat, CampusLocations.centerLng,
           );
           if (distanceToCampus < 2500) {
-            _googleMapController?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 17.5));
+            _panCamera(latLng, zoom: 17.5);
           } else {
-            _googleMapController?.animateCamera(CameraUpdate.newLatLngZoom(_initialPosition, 17.0));
+            _panCamera(_initialPosition, zoom: 17.0);
             _showOutsideCampusSnackBar();
           }
         }
@@ -1379,20 +1772,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Navegación activa → actualizar polilínea
     ref.listen<NavigationState>(navigationProvider, (previous, next) {
       if (next.currentNode != previous?.currentNode && next.currentNode != null) {
-        _googleMapController?.animateCamera(CameraUpdate.newLatLng(
-          LatLng(next.currentNode!.lat, next.currentNode!.lng),
-        ));
-      }
-
-      // Auto-navegar a NAVIA AR cuando se encuentra una ruta por voz o localmente.
-      if (next.pendingARNavigation && !(previous?.pendingARNavigation ?? false)) {
-        ref.read(navigationProvider.notifier).consumeARNavigation();
-        if (mounted) {
-          Navigator.pushReplacementNamed(
-            context,
-            AppRoutes.scanner,
-          );
-        }
+        _panCamera(LatLng(next.currentNode!.lat, next.currentNode!.lng));
       }
 
       if (next.activeRoute != previous?.activeRoute ||
@@ -1417,100 +1797,215 @@ class _MapScreenState extends ConsumerState<MapScreen>
       }
     });
 
-    // Lugares filtrados → reconstruir marcadores
-    ref.listen<List<PlaceNode>>(filteredPlacesProvider, (_, next) => _rebuildMarkers(next));
+    // Lugares filtrados → reconstruir marcadores (solo GoogleMap; en desktop
+    // los marcadores de flutter_map se derivan directo del provider en build)
+    ref.listen<List<PlaceNode>>(filteredPlacesProvider, (_, next) {
+      if (!_isDesktop) _rebuildMarkers(next);
+    });
 
     final isDark = ref.watch(mapThemeProvider) == 'dark';
 
+    // Grafo en línea (Firestore) de la sede actual — solo se suscribe
+    // mientras el admin está en modo edición, para no gastar lecturas/
+    // listeners de Firestore en usuarios normales que solo navegan.
+    final editNodes = _isEditMode
+        ? (ref.watch(nodesStreamProvider(_venue.id)).value ??
+            const <CampusNode>[])
+        : const <CampusNode>[];
+    final editEdges = _isEditMode
+        ? (ref.watch(edgesStreamProvider(_venue.id)).value ??
+            const <CampusEdge>[])
+        : const <CampusEdge>[];
+    final editNodesById = {for (final n in editNodes) n.id: n};
+
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
-      appBar: _buildAppBar(isDark),
       floatingActionButton: _buildFABs(),
-      bottomNavigationBar: const BottomNav(currentIndex: 1),
+      bottomNavigationBar: const BottomNav(currentIndex: 3),
       body: Stack(
         children: [
-          // ── Mapa Google Maps ──────────────────────────────────
+          // ── Mapa (Google Maps en Android/iOS/Web, flutter_map en desktop) ──
+          // El punto azul del usuario se mueve vía _userPosNotifier dentro de
+          // este ValueListenableBuilder para que solo el mapa se redibuje en
+          // cada frame de GPS — el resto de la pantalla (botones, banners)
+          // vive fuera y no se ve afectado.
           RepaintBoundary(
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: _mapInitialCenter,
-                zoom: _mapInitialZoom,
-              ),
-              onMapCreated: (controller) {
-                _googleMapController = controller;
-                _initializeGpsAndCenter();
-                _rebuildMarkers(ref.read(filteredPlacesProvider));
-              },
-              onCameraMove: (pos) {
-                _currentZoom = pos.zoom;
-                if (_isTrackingActive) setState(() => _isTrackingActive = false);
-                _debounceTimer?.cancel();
-                _debounceTimer = Timer(const Duration(milliseconds: 600),
-                    () => _announceNearestPlace(pos.target));
-              },
-              markers: _googleMarkers,
-              polylines: _googlePolylines,
-              style: _currentMapStyle,
-              myLocationEnabled: false,
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
-              mapToolbarEnabled: false,
-              compassEnabled: false,
-              rotateGesturesEnabled: false,
-              cameraTargetBounds: CameraTargetBounds(_cameraBounds),
-              minMaxZoomPreference: const MinMaxZoomPreference(13, 20),
-              mapType: MapType.normal,
-            ),
+            child: _isDesktop
+                ? _buildDesktopMap(isDark, editNodes, editEdges, editNodesById)
+                : ValueListenableBuilder<LatLng?>(
+                    valueListenable: _userPosNotifier,
+                    builder: (context, userPos, _) {
+                      final markers = {
+                        ..._googleMarkers,
+                        if (_isEditMode)
+                          for (final node in editNodes)
+                            if (node.type == NodeType.corridor)
+                              Marker(
+                                markerId: MarkerId('editnode_${node.id}'),
+                                position: LatLng(node.lat, node.lng),
+                                icon: BitmapDescriptor.defaultMarkerWithHue(
+                                    BitmapDescriptor.hueViolet),
+                                onTap: () => _handleEditTapOnPoint(
+                                  id: node.id,
+                                  name: node.name,
+                                  lat: node.lat,
+                                  lng: node.lng,
+                                  hasPlace: false,
+                                ),
+                              ),
+                        if (userPos != null && _userIconCache != null)
+                          Marker(
+                            markerId: const MarkerId('user_location'),
+                            position: userPos,
+                            icon: _userIconCache!,
+                            zIndexInt: 10,
+                            anchor: const Offset(0.5, 0.5),
+                          ),
+                      };
+                      final polylines = {
+                        ..._googlePolylines,
+                        if (_isEditMode)
+                          for (final edge in editEdges)
+                            if (editNodesById[edge.from] != null &&
+                                editNodesById[edge.to] != null)
+                              Polyline(
+                                polylineId:
+                                    PolylineId('editedge_${edge.docId}'),
+                                points: [
+                                  LatLng(editNodesById[edge.from]!.lat,
+                                      editNodesById[edge.from]!.lng),
+                                  LatLng(editNodesById[edge.to]!.lat,
+                                      editNodesById[edge.to]!.lng),
+                                ],
+                                color: const Color(0xFFFFAB00),
+                                width: 3,
+                                patterns: [PatternItem.dash(12), PatternItem.gap(8)],
+                              ),
+                      };
+                      return GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: _mapInitialCenter,
+                          zoom: _mapInitialZoom,
+                        ),
+                        onMapCreated: (controller) {
+                          _googleMapController = controller;
+                          _initializeGpsAndCenter();
+                          _rebuildMarkers(ref.read(filteredPlacesProvider));
+                        },
+                        onTap: _handleMapBackgroundTap,
+                        onCameraMove: (pos) {
+                          _currentZoom = pos.zoom;
+                          if (_isTrackingActive && !_isProgrammaticCameraMove) {
+                            setState(() => _isTrackingActive = false);
+                          }
+                        },
+                        onCameraIdle: () {
+                          _isProgrammaticCameraMove = false;
+                        },
+                        markers: markers,
+                        polylines: polylines,
+                        style: _currentMapStyle,
+                        myLocationEnabled: false,
+                        myLocationButtonEnabled: false,
+                        zoomControlsEnabled: false,
+                        mapToolbarEnabled: false,
+                        compassEnabled: false,
+                        rotateGesturesEnabled: false,
+                        cameraTargetBounds: CameraTargetBounds(_cameraBounds),
+                        minMaxZoomPreference:
+                            const MinMaxZoomPreference(13, 20),
+                        mapType: MapType.normal,
+                      );
+                    },
+                  ),
           ),
-          // ── Gradient top para legibilidad de filtros ──────────
+          // ── Botón para volver a Inicio ─────────────────────────
           Positioned(
-            top: 0, left: 0, right: 0,
-            child: Container(
-              height: 80,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                  colors: [
-                    (isDark ? const Color(0xFF0F172A) : Colors.white).withValues(alpha: 0.95),
-                    (isDark ? const Color(0xFF0F172A) : Colors.white).withValues(alpha: 0.0),
-                  ],
+            top: 0, left: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: _buildRoundIconButton(
+                  icon: Icons.arrow_back_rounded,
+                  tooltip: 'Volver a Inicio',
+                  onPressed: () =>
+                      Navigator.pushReplacementNamed(context, AppRoutes.home),
                 ),
               ),
             ),
           ),
-          // ── Filtros de categoría ──────────────────────────────
-          Positioned(top: 12, left: 0, right: 0, child: _buildFiltersRow()),
-          // ── Indicador de escucha por voz ──────────────────────
-          if (_isListening)
+          // ── Botón de cambio de tema (antes vivía en el AppBar) ─
+          Positioned(
+            top: 0, right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: _buildThemeToggle(isDark),
+              ),
+            ),
+          ),
+          // ── Banner de modo edición (admin, Fase 2) ─────────────
+          if (_isEditMode)
             Positioned(
-              bottom: 120, left: 20, right: 20,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF38BDF8), width: 1.5),
-                  boxShadow: [BoxShadow(color: const Color(0xFF38BDF8).withValues(alpha: 0.2), blurRadius: 20)],
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.graphic_eq, color: Color(0xFF38BDF8), size: 28),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _lastRecognizedWords.isEmpty ? 'Escuchando...' : _lastRecognizedWords,
-                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
-                      ),
+              top: 0, left: 16, right: 16,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 76),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFAB00),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 12),
+                      ],
                     ),
-                  ],
+                    child: Row(
+                      children: [
+                        const Icon(Icons.edit_location_alt_rounded,
+                            color: Color(0xFF0D1B2A), size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _editConnectFromId != null
+                                ? 'Toca el segundo punto para conectar'
+                                : _editMovingId != null
+                                    ? 'Toca el mapa donde quieres mover el punto'
+                                    : 'MODO EDICIÓN — toca el mapa para agregar un punto',
+                            style: const TextStyle(
+                                color: Color(0xFF0D1B2A),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12.5),
+                          ),
+                        ),
+                        if (_editConnectFromId != null || _editMovingId != null)
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => setState(() {
+                              _editConnectFromId = null;
+                              _editConnectFromPos = null;
+                              _editMovingId = null;
+                            }),
+                            child: const Icon(Icons.close_rounded,
+                                color: Color(0xFF0D1B2A), size: 20),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
           // ── Barra de navegacion activa ────────────────────────
           if (_isNavigating)
             Positioned(
-              top: 70, left: 16, right: 16,
-              child: Container(
+              top: 0, left: 16, right: 16,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 60),
+                  child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E293B),
@@ -1531,32 +2026,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       child: Text('Ruta activa',
                           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
                     ),
-                    // Boton para ir a NAVIA AR
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.pushReplacementNamed(context, AppRoutes.scanner);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF38BDF8),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.view_in_ar_rounded, color: Color(0xFF0D1B2A), size: 14),
-                            SizedBox(width: 4),
-                            Text('AR',
-                                style: TextStyle(
-                                    color: Color(0xFF0D1B2A),
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () {
                         ref.read(navigationProvider.notifier).cancelNavigation();
@@ -1571,10 +2040,271 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     ),
                   ],
                 ),
+                  ),
+                ),
               ),
             ),
         ],
       ),
     );
   }
+
+  // ──────────────────────────────────────────────────────────
+  //  Mapa alterno para desktop (flutter_map + tiles OSM cacheados)
+  // ──────────────────────────────────────────────────────────
+
+  Widget _buildDesktopMap(
+    bool isDark,
+    List<CampusNode> editNodes,
+    List<CampusEdge> editEdges,
+    Map<String, CampusNode> editNodesById,
+  ) {
+    final places = ref.watch(filteredPlacesProvider);
+
+    final tileLayer = fm.TileLayer(
+      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      userAgentPackageName: 'mx.edu.tecnm.colima.navia',
+      maxZoom: 19,
+      errorTileCallback: (tile, error, stack) {
+        debugPrint('MapScreen (desktop): error de tile → $error');
+      },
+    );
+
+    return fm.FlutterMap(
+      mapController: _flutterMapController,
+      options: fm.MapOptions(
+        initialCenter: _toLL(_mapInitialCenter),
+        initialZoom: _mapInitialZoom,
+        minZoom: 13,
+        maxZoom: 20,
+        cameraConstraint: fm.CameraConstraint.contain(
+          bounds: fm.LatLngBounds(
+            _toLL(LatLng(_cameraBounds.southwest.latitude,
+                _cameraBounds.southwest.longitude)),
+            _toLL(LatLng(_cameraBounds.northeast.latitude,
+                _cameraBounds.northeast.longitude)),
+          ),
+        ),
+        onMapReady: () => _initializeGpsAndCenter(),
+        onTap: (tapPosition, point) => _handleMapBackgroundTap(
+            LatLng(point.latitude, point.longitude)),
+        onPositionChanged: (position, hasGesture) {
+          if (position.zoom != null) _currentZoom = position.zoom!;
+          if (hasGesture) {
+            if (_isTrackingActive) {
+              setState(() => _isTrackingActive = false);
+            }
+          }
+        },
+      ),
+      children: [
+        isDark
+            ? ColorFiltered(
+                colorFilter: const ColorFilter.matrix(<double>[
+                  -1, 0, 0, 0, 255, //
+                  0, -1, 0, 0, 255, //
+                  0, 0, -1, 0, 255, //
+                  0, 0, 0, 1, 0, //
+                ]),
+                child: tileLayer,
+              )
+            : tileLayer,
+        fm.PolylineLayer(
+          polylines: [
+            ..._googlePolylines.map((p) => fm.Polyline(
+                  points: p.points.map(_toLL).toList(),
+                  color: const Color(0xFF38BDF8),
+                  strokeWidth: 6,
+                )),
+            if (_isEditMode)
+              for (final edge in editEdges)
+                if (editNodesById[edge.from] != null &&
+                    editNodesById[edge.to] != null)
+                  fm.Polyline(
+                    points: [
+                      _toLL(LatLng(editNodesById[edge.from]!.lat,
+                          editNodesById[edge.from]!.lng)),
+                      _toLL(LatLng(editNodesById[edge.to]!.lat,
+                          editNodesById[edge.to]!.lng)),
+                    ],
+                    color: const Color(0xFFFFAB00),
+                    strokeWidth: 3,
+                  ),
+          ],
+        ),
+        fm.MarkerLayer(
+          markers: [
+            for (final place in places)
+              fm.Marker(
+                point: ll.LatLng(place.latitude, place.longitude),
+                width: 40,
+                height: 40,
+                child: GestureDetector(
+                  onTap: () {
+                    if (_isEditMode || _editConnectFromId != null) {
+                      _handleEditTapOnPoint(
+                        id: place.id,
+                        name: place.name,
+                        lat: place.latitude,
+                        lng: place.longitude,
+                        hasPlace: true,
+                      );
+                    } else {
+                      ref.read(selectedPlaceProvider.notifier).state = place;
+                    }
+                  },
+                  child: _DesktopPoiIcon(place: place),
+                ),
+              ),
+            if (_isEditMode)
+              for (final node in editNodes)
+                if (node.type == NodeType.corridor)
+                  fm.Marker(
+                    point: ll.LatLng(node.lat, node.lng),
+                    width: 22,
+                    height: 22,
+                    child: GestureDetector(
+                      onTap: () => _handleEditTapOnPoint(
+                        id: node.id,
+                        name: node.name,
+                        lat: node.lat,
+                        lng: node.lng,
+                        hasPlace: false,
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFAB00),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                      ),
+                    ),
+                  ),
+          ],
+        ),
+        // Capa aparte y reactiva solo para el punto del usuario: así el
+        // marcador se puede mover en cada frame de GPS sin reconstruir el
+        // tile layer ni los marcadores de POIs (que no cambian con el GPS).
+        ValueListenableBuilder<LatLng?>(
+          valueListenable: _userPosNotifier,
+          builder: (context, userPos, _) {
+            if (userPos == null) return const SizedBox.shrink();
+            return fm.MarkerLayer(
+              markers: [
+                fm.Marker(
+                  point: _toLL(userPos),
+                  width: 30,
+                  height: 30,
+                  child: const _DesktopUserIcon(),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
 }
+
+/// Icono de POI para el mapa alterno de escritorio (flutter_map). Replica el
+/// estilo de los marcadores de GoogleMap sin depender de BitmapDescriptor/
+/// Canvas, que solo tiene sentido junto al plugin nativo de Android/iOS/Web.
+class _DesktopPoiIcon extends StatelessWidget {
+  final PlaceNode place;
+  const _DesktopPoiIcon({required this.place});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isCafe = place.type.toLowerCase() == 'cafetería';
+    final isBuilding = place.type.toLowerCase() == 'edificio';
+
+    String letter = place.letter ?? '';
+    if (letter.isEmpty) {
+      if (isBuilding && place.id.startsWith('edificio_')) {
+        letter = place.id.split('_').last.toUpperCase();
+      } else if (place.id == 'cecum') {
+        letter = 'C';
+      } else if (place.id == 'activididades_extraescolares') {
+        letter = 'Ñ';
+      }
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surface,
+        shape: BoxShape.circle,
+        border: Border.all(color: cs.primary.withValues(alpha: 0.7), width: 2),
+        boxShadow: [
+          BoxShadow(color: cs.primary.withValues(alpha: 0.15), blurRadius: 6),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: letter.isNotEmpty
+          ? Text(
+              letter,
+              style: TextStyle(
+                color: cs.primary,
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+              ),
+            )
+          : Icon(
+              isCafe ? Icons.local_cafe_rounded : Icons.place_rounded,
+              color: isCafe ? const Color(0xFFFFB020) : cs.primary,
+              size: 18,
+            ),
+    );
+  }
+}
+
+/// Punto de ubicación del usuario en el mapa alterno de escritorio.
+class _DesktopUserIcon extends StatelessWidget {
+  const _DesktopUserIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFAB00),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 3),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFAB00).withValues(alpha: 0.5),
+            blurRadius: 10,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tipos de punto que el editor de administrador puede crear. Cada uno se
+/// traduce en un [CampusNode] (para que el punto sea parte del grafo
+/// caminable y las rutas puedan pasar por/hacia él) y, salvo "Corredor", en
+/// un [PlaceNode] con el mismo id (para que además aparezca como pin
+/// tocable en el mapa) — ver [_MapScreenState._createUnifiedPoint].
+class _EditPointTypeInfo {
+  final String label;
+  final IconData icon;
+
+  /// `null` = punto de solo-ruta (corredor/intersección), sin pin visible.
+  final String? placeType;
+  final NodeType nodeType;
+
+  const _EditPointTypeInfo(this.label, this.icon, this.placeType, this.nodeType);
+}
+
+const List<_EditPointTypeInfo> _editPointTypes = [
+  _EditPointTypeInfo('Edificio', Icons.apartment_rounded, 'Edificio', NodeType.building),
+  _EditPointTypeInfo('Cancha / Área deportiva', Icons.sports_soccer_rounded, 'Cancha', NodeType.area),
+  _EditPointTypeInfo('Servicios (baños, primeros auxilios...)',
+      Icons.medical_services_rounded, 'Servicios', NodeType.service),
+  _EditPointTypeInfo('Cafetería / Comida', Icons.restaurant_rounded, 'Cafetería', NodeType.service),
+  _EditPointTypeInfo('Estacionamiento', Icons.local_parking_rounded, 'Estacionamiento', NodeType.service),
+  _EditPointTypeInfo('Entrada / Acceso', Icons.meeting_room_rounded, 'Entrada', NodeType.entrance),
+  _EditPointTypeInfo('Corredor / Intersección (solo ruta, sin pin visible)',
+      Icons.timeline_rounded, null, NodeType.corridor),
+];

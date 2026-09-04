@@ -3,6 +3,9 @@ import 'package:equatable/equatable.dart';
 /// Representa una conexión entre dos nodos del grafo del campus.
 /// Las aristas son bidireccionales: si A->B existe, B->A también.
 class CampusEdge extends Equatable {
+  /// Sede a la que pertenece esta arista.
+  final String zoneId;
+
   /// ID del nodo de origen.
   final String from;
 
@@ -19,6 +22,7 @@ class CampusEdge extends Equatable {
   final String direction;
 
   const CampusEdge({
+    required this.zoneId,
     required this.from,
     required this.to,
     required this.distance,
@@ -26,8 +30,15 @@ class CampusEdge extends Equatable {
     required this.direction,
   });
 
-  factory CampusEdge.fromJson(Map<String, dynamic> json) {
+  /// Id determinístico para usar como id de documento en Firestore
+  /// (las aristas no tienen una llave natural propia).
+  String get docId => buildDocId(from, to);
+
+  static String buildDocId(String from, String to) => '${from}__$to';
+
+  factory CampusEdge.fromJson(Map<String, dynamic> json, {String zoneId = ''}) {
     return CampusEdge(
+      zoneId: (json['zoneId'] as String?) ?? zoneId,
       from: (json['from'] as String?) ?? '',
       to: (json['to'] as String?) ?? '',
       distance: (json['distance'] as num?)?.toDouble() ?? 0.0,
@@ -38,7 +49,29 @@ class CampusEdge extends Equatable {
     );
   }
 
+  /// Deserializa desde un documento de Firestore (`venues/{zoneId}/edges/{docId}`).
+  factory CampusEdge.fromFirestoreMap(String zoneId, Map<String, dynamic> data) {
+    return CampusEdge(
+      zoneId: zoneId,
+      from: (data['from'] as String?) ?? '',
+      to: (data['to'] as String?) ?? '',
+      distance: (data['distance'] as num?)?.toDouble() ?? 0.0,
+      accessible: (data['accessible'] as bool?) ?? true,
+      direction: (data['direction'] as String?) ?? '',
+    );
+  }
+
   Map<String, dynamic> toJson() => {
+        'zoneId': zoneId,
+        'from': from,
+        'to': to,
+        'distance': distance,
+        'accessible': accessible,
+        'direction': direction,
+      };
+
+  /// Serializa a un Map para Firestore (sin `zoneId`: ya está en la ruta de la colección).
+  Map<String, dynamic> toFirestoreMap() => {
         'from': from,
         'to': to,
         'distance': distance,
@@ -47,7 +80,7 @@ class CampusEdge extends Equatable {
       };
 
   @override
-  List<Object?> get props => [from, to];
+  List<Object?> get props => [zoneId, from, to];
 
   @override
   String toString() => 'CampusEdge($from → $to, ${distance}m)';

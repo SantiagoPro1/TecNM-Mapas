@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:navia/core/constants/app_routes.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -17,22 +16,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<_OnboardingPageData> _pages = const [
     _OnboardingPageData(
-      icon: Icons.navigation_rounded,
-      title: 'Navega con tu voz',
+      icon: Icons.map_rounded,
+      title: 'Todas las sedes, un solo mapa',
       description:
-          'Llega a cualquier edificio o laboratorio del campus sin mirar la pantalla. NAVIA te guía paso a paso.',
+          'Encuentra cada sede del Evento Nacional Deportivo del TecNM 2026 y llega sin perderte.',
     ),
     _OnboardingPageData(
-      icon: Icons.view_in_ar_rounded,
-      title: 'Cámara NAVIA AR',
+      icon: Icons.alt_route_rounded,
+      title: 'Ruta paso a paso',
       description:
-          'Usa la cámara NAVIA AR para detectar obstáculos y objetos en tiempo real con inteligencia artificial, facilitando tu navegación.',
+          'Sigue la ruta en el mapa con indicaciones claras hacia tu destino.',
     ),
     _OnboardingPageData(
-      icon: Icons.settings_input_component_rounded,
-      title: 'Permisos Necesarios',
+      icon: Icons.badge_rounded,
+      title: 'Tu credencial digital',
       description:
-          'Para funcionar, requerimos acceso a tu Cámara (para la cámara NAVIA AR) y Micrófono (para el asistente de voz).',
+          'Presenta tu credencial NAVIA con código QR para identificarte durante el evento.',
     ),
     _OnboardingPageData(
       icon: Icons.gavel_rounded,
@@ -42,26 +41,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
   ];
 
-  Future<void> _requestPermissions() async {
-    await [
-      Permission.camera,
-      Permission.microphone,
-    ].request();
-  }
-
   Future<void> _completeOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('showOnboarding', false);
     if (!mounted) return;
-    Navigator.pushReplacementNamed(context, AppRoutes.home);
+    // Elegir Invitado/Iniciar sesión es un paso aparte (ver login_screen.dart),
+    // no algo que "Omitir" también deba saltarse.
+    Navigator.pushReplacementNamed(context, AppRoutes.login);
   }
 
   void _handleNext() async {
-    if (_currentPage == 2) {
-      await _requestPermissions();
-      if (!mounted) return;
-    }
-
     if (_currentPage < _pages.length - 1) {
       _controller.nextPage(
         duration: const Duration(milliseconds: 350),

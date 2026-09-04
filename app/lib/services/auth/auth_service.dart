@@ -6,8 +6,18 @@ import 'package:http/http.dart' as http;
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  /// Acepta cualquier subdominio de tecnm.mx (ej. colima.tecnm.mx,
+  /// leon.tecnm.mx, o tecnm.mx a secas) para el Evento Nacional Deportivo,
+  /// donde asisten estudiantes de otros campus del país.
+  ///
+  /// `hostedDomain` de Google Sign-In solo acepta UN dominio literal exacto
+  /// y no puede expresar un comodín — por eso no se usa aquí y la validación
+  /// recae por completo en este regex.
+  static final RegExp _tecnmDomainPattern =
+      RegExp(r'^[^@\s]+@([a-z0-9-]+\.)*tecnm\.mx$', caseSensitive: false);
+
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    hostedDomain: 'colima.tecnm.mx',
     scopes: [
       'email',
       'profile',
@@ -21,9 +31,9 @@ class AuthService {
       if (googleUser == null) return null;
 
       // --- VALIDACIÓN DE DOMINIO ---
-      if (!googleUser.email.endsWith('@colima.tecnm.mx')) {
+      if (!_tecnmDomainPattern.hasMatch(googleUser.email)) {
         await _googleSignIn.signOut();
-        throw 'Solo se permiten correos @colima.tecnm.mx';
+        throw 'Solo se permiten correos institucionales @*.tecnm.mx';
       }
       // ----------------------------
 

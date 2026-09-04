@@ -49,7 +49,7 @@ class HistoryScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      bottomNavigationBar: const BottomNav(currentIndex: 4),
+      bottomNavigationBar: const BottomNav(currentIndex: 2),
       appBar: AppBar(
         title: const Text('HISTORIAL'),
         backgroundColor: Colors.transparent,

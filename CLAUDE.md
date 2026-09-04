@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SINAIT-APP (branded **NAVIA**) is an institutional mobile app for TecNM Campus Colima (InnovaTecNM 2026). It provides digital credentials, campus navigation, QR scanning, and an AI-powered assistant for students and staff. Access is restricted to `@colima.tecnm.mx` accounts.
+SINAIT-APP (branded **NAVIA**) is an institutional mobile app originally built for TecNM Campus Colima (InnovaTecNM 2026), now expanding to cover multiple venues for the Evento Nacional Deportivo del TecNM 2026. It provides digital credentials, multi-venue campus navigation, and a voice assistant for students and staff. Access is restricted to `@*.tecnm.mx` institutional accounts (any TecNM campus nationwide).
 
 The repo has two independently deployable components:
 - `app/` — Flutter 3.x mobile app (package name: `navia`)
@@ -41,26 +41,27 @@ Clean Architecture with three layers:
 - `theme/app_theme.dart` — 4 selectable themes: TecNM Dark, Industrial HC, Light Clean, Pastel Minimal. `themeProvider` (Riverpod) lives here. Use `Theme.of(context).colorScheme` for reactive theming; `AppTheme.*` constants are only for `const` widget contexts.
 
 **`lib/data/`** — Data layer
-- `models/` — Plain Dart data classes: `CampusNode`, `CampusEdge`, `NavRoute`, `Announcement`, `PlaceNode`
-- `providers/` — Riverpod providers: `auth_provider`, `feed_provider`, `navigation_provider`, `settings_provider`, `vision_provider`, `voice_provider`, `zone_provider`
-- `repositories/` — Abstractions over data sources (Firestore + Hive)
+- `models/` — Plain Dart data classes: `CampusNode`, `CampusEdge`, `NavRoute`, `Announcement`, `PlaceNode`, `Venue`
+- `providers/` — Riverpod providers: `auth_provider` (also `isAdminProvider`, `adminRepositoryProvider`), `feed_provider`, `navigation_provider`, `settings_provider`, `voice_provider`, `venue_provider`, `zone_provider`
+- `repositories/` — Abstractions over data sources (Firestore + Hive): `place_repository.dart` (POI pins, `venues/{zoneId}/places`), `venue_graph_repository.dart` (walkable graph, `venues/{zoneId}/nodes|edges` — nodes/edges providers for the admin editor live in `map/providers/map_providers.dart`), `admin_repository.dart` (`admins/{uid}` role check)
 - `cache/map_cache_service.dart` — Hive-backed offline cache for campus map JSON; initialized in `main()` before `runApp`
 
 **`lib/services/`** — Business logic
-- `auth/auth_service.dart` — Google Sign-In restricted to `hostedDomain: 'colima.tecnm.mx'`
+- `auth/auth_service.dart` — Google Sign-In restricted to any `@*.tecnm.mx` email (regex-checked; Google's `hostedDomain` param is not used since it can't express a wildcard domain)
 - `auth/credential_service.dart` — JWT generation for QR credential cards
 - `feed/feed_service.dart` — Firestore-backed announcements feed
 - `navigation/campus_graph.dart` + `dijkstra.dart` — Graph-based campus pathfinding
 - `navigation/navigation_service.dart` — GPS + voice query → nearest node lookup
 - `offline/offline_manager.dart` — Central offline orchestrator: monitors connectivity, persists last GPS position to SharedPreferences, verifies offline readiness
 - `offline/connectivity_service.dart` — Network connectivity monitoring singleton
-- `vision/vision_service.dart` — ML Kit image labeling + TFLite model inference
 - `voice/voice_service.dart` + `intent_parser.dart` — STT + intent parsing
 
 **`lib/presentation/`** — UI layer
 - Each feature has its own `screens/<feature>/` folder
 - Shared widgets in `widgets/`
 - Screens are thin — they read Riverpod providers and delegate to services
+- `screens/auth/login_screen.dart` — post-onboarding, one-time choice between "Invitado" (guest, no auth) and "Jugador / Staff TecNM" (Google Sign-In). Admin is not a third button: it's auto-detected via `isAdminProvider` after signing in, never user-selected. Gated by the `hasChosenEntryMode` SharedPreferences flag (set in `login_screen.dart`, separate from `showOnboarding`) so it only shows once — see Domain Rules.
+- `screens/map/map_screen.dart` — also hosts the admin map editor (Fase 2): an edit-mode toggle FAB, visible only when `isAdminProvider` is true, that lets an admin tap the map to add a point (creates a `CampusNode` for routing and, unless the type is "Corredor", a `PlaceNode` with the same id so it's also a visible pin — see `_createUnifiedPoint`), tap an existing point to move/rename/connect/delete it, and tap two points in sequence to create a walkable edge (`_connectNodes`). This is the primary way to build the graph for the 8 event venues, which have no bundled JSON and start with an empty Firestore graph.
 
 **`lib/utils/`**
 - `svg_marker_helper.dart` — Preloads SVG map marker icons at startup to prevent render flicker
@@ -77,8 +78,7 @@ Clean Architecture with three layers:
 - `assets/maps/sendera_map.json`, `zentralia_map.json` — Additional campus/zone maps
 - `assets/map_styles/dark_style.json`, `light_style.json` — Google Maps styling JSONs
 - `assets/icons/svg/` — SVG map marker icons, preloaded by `PrecacheSvg.precacheAll()`
-- `assets/models/` — TFLite model files
-- `.env` loaded via `flutter_dotenv`; the committed file is a safe placeholder — sensitive values go in `.env.local` (git-ignored). Set `DEV_MODE=true` to bypass the `@colima.tecnm.mx` domain lock during local development.
+- `.env` loaded via `flutter_dotenv`; the committed file is a safe placeholder — sensitive values go in `.env.local` (git-ignored).
 
 ### Startup sequence (`main.dart`)
 
@@ -122,7 +122,7 @@ src/
 | `/api/directions/*` | Bearer token | Campus navigation |
 
 **Authentication flow:**
-1. Flutter app signs in via Google with `hostedDomain: 'colima.tecnm.mx'`
+1. Flutter app signs in via Google; the resulting email must match `@*.tecnm.mx`
 2. Firebase issues an ID token; Flutter passes it as `Authorization: Bearer <token>`
 3. `auth.middleware.js` calls Firebase Admin SDK to verify the token and checks the email domain
 4. Extracted `matricula` = local part of the institutional email (e.g., `L21450123`)
@@ -143,6 +143,7 @@ Both jobs must pass before merging.
 
 ## Domain Rules
 
-- **Email domain lock:** Only `@colima.tecnm.mx` accounts can authenticate. Enforced in both Flutter (`hostedDomain` + email suffix check in `auth_service.dart`) and backend middleware. Override locally with `DEV_MODE=true` in `app/.env`.
+- **Email domain lock:** Only `@*.tecnm.mx` institutional accounts can authenticate (any TecNM campus, broadened from Colima-only for the national multi-campus sports event). Enforced via regex in both `auth_service.dart` (Flutter) and `auth.middleware.js` (backend) — see `admins/{uid}` in Firestore + `isAdminProvider` for the separate elevated admin role.
 - **Credential QR:** JWT-signed, verified server-side via `/api/auth/verify-credential`.
-- **Onboarding gate:** `SharedPreferences` key `showOnboarding` checked in `main.dart`; first-time users are routed to onboarding before home.
+- **Startup routing gate**, both checked once in `main.dart` against `SharedPreferences` and passed into `NaviaApp`: `showOnboarding` (tutorial slides, `AppRoutes.onboarding`) then `hasChosenEntryMode` (Invitado vs. sign-in choice, `AppRoutes.login`) — in that order, both must be satisfied before `AppRoutes.home`. Guests who skip sign-in can still authenticate later from Perfil (`profile_screen.dart`).
+- **Admin role:** no self-service promotion exists anywhere in the app by design — the first and every admin is granted by hand via a Firestore `admins/{uid}` document (console or direct REST write), never through app UI. `firestore.rules` denies client writes to that collection outright.

@@ -7,6 +7,7 @@ enum NodeType { building, corridor, entrance, service, area }
 /// dentro del grafo de navegación del TecNM Colima.
 class CampusNode extends Equatable {
   final String id;
+  final String zoneId;
   final String name;
   final List<String> aliases;
   final NodeType type;
@@ -18,6 +19,7 @@ class CampusNode extends Equatable {
 
   const CampusNode({
     required this.id,
+    required this.zoneId,
     required this.name,
     required this.aliases,
     required this.type,
@@ -29,9 +31,14 @@ class CampusNode extends Equatable {
   });
 
   /// Deserializa un nodo desde el JSON del mapa.
-  factory CampusNode.fromJson(Map<String, dynamic> json) {
+  ///
+  /// [zoneId] es el default inyectado por el loader (normalmente
+  /// `meta.zoneId` del archivo); un `zoneId` explícito dentro del propio
+  /// nodo en el JSON tiene prioridad si existe.
+  factory CampusNode.fromJson(Map<String, dynamic> json, {String zoneId = ''}) {
     return CampusNode(
       id: (json['id'] as String?) ?? '',
+      zoneId: (json['zoneId'] as String?) ?? zoneId,
       name: (json['name'] as String?) ?? '',
       aliases: (json['aliases'] as List<dynamic>?)
               ?.map((e) => e as String)
@@ -46,8 +53,45 @@ class CampusNode extends Equatable {
     );
   }
 
+  /// Deserializa un nodo desde un documento de Firestore
+  /// (`venues/{zoneId}/nodes/{nodeId}`). El id del documento es el id del nodo.
+  factory CampusNode.fromFirestoreMap(
+    String zoneId,
+    String docId,
+    Map<String, dynamic> data,
+  ) {
+    return CampusNode(
+      id: docId,
+      zoneId: zoneId,
+      name: (data['name'] as String?) ?? '',
+      aliases: (data['aliases'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
+      type: _parseNodeType((data['type'] as String?) ?? 'corridor'),
+      lat: (data['lat'] as num?)?.toDouble() ?? 0.0,
+      lng: (data['lng'] as num?)?.toDouble() ?? 0.0,
+      floor: (data['floor'] as int?) ?? 0,
+      accessible: (data['accessible'] as bool?) ?? true,
+      description: (data['description'] as String?) ?? '',
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
+        'zoneId': zoneId,
+        'name': name,
+        'aliases': aliases,
+        'type': type.name,
+        'lat': lat,
+        'lng': lng,
+        'floor': floor,
+        'accessible': accessible,
+        'description': description,
+      };
+
+  /// Serializa a un Map para Firestore (sin `id`: ese es el id del documento).
+  Map<String, dynamic> toFirestoreMap() => {
         'name': name,
         'aliases': aliases,
         'type': type.name,
@@ -97,7 +141,7 @@ class CampusNode extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id];
+  List<Object?> get props => [id, zoneId];
 
   @override
   String toString() => 'CampusNode($id: $name)';

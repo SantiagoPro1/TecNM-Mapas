@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:navia/data/repositories/admin_repository.dart';
 import 'package:navia/services/auth/auth_service.dart';
 
 // ─── Estado de autenticación ──────────────────────────────────
@@ -36,6 +37,21 @@ class AuthState {
 
   /// URL de la foto de perfil (alta resolución).
   String? get photoUrl => user?.photoURL?.replaceFirst('s96-c', 's400-c');
+
+  /// Campus TecNM derivado del dominio del correo (ej. "colima.tecnm.mx" →
+  /// "TecNM Colima"). Ya no se puede asumir Colima: el dominio permitido se
+  /// amplió a cualquier `@*.tecnm.mx` para el Evento Nacional Deportivo.
+  String get campusLabel {
+    final email = user?.email;
+    if (email == null || !email.contains('@')) return 'TecNM';
+    final domain = email.split('@').last.toLowerCase();
+    if (domain == 'tecnm.mx') return 'TecNM (Nacional)';
+    final sub = domain.replaceAll('.tecnm.mx', '');
+    if (sub.isEmpty) return 'TecNM';
+    final words = sub.split('-').map((w) =>
+        w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}');
+    return 'TecNM ${words.join(' ')}';
+  }
 
   /// ¿Está autenticado?
   bool get isAuthenticated => status == AuthStatus.authenticated;
@@ -145,4 +161,16 @@ final isAuthenticatedProvider = Provider<bool>((ref) {
 /// Provider de conveniencia: matrícula del usuario.
 final matriculaProvider = Provider<String>((ref) {
   return ref.watch(authProvider).matricula;
+});
+
+/// Provider del repositorio de administradores (singleton).
+final adminRepositoryProvider = Provider<AdminRepository>((ref) {
+  return AdminRepository();
+});
+
+/// `true` en tiempo real si el usuario actual es administrador
+/// (existe un documento `admins/{uid}` en Firestore). `false` sin sesión.
+final isAdminProvider = StreamProvider<bool>((ref) {
+  final uid = ref.watch(authProvider).user?.uid;
+  return ref.watch(adminRepositoryProvider).watchIsAdmin(uid);
 });

@@ -1,6 +1,7 @@
 {
   "meta": {
     "version": "3.0.0",
+    "zoneId": "sendera",
     "campus": "Sendera Colima Hábitat Urbano",
     "center": {
       "lat": 19.27620,

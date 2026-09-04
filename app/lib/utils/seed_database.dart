@@ -6,7 +6,7 @@ class DatabaseSeeder {
     debugPrint('--- Iniciando Seeding de Firestore ---');
     final repository = PlaceRepository();
     try {
-      await repository.seedData();
+      await repository.seedBundledVenuesFromAssets();
       debugPrint('--- Seeding completado con éxito ---');
     } catch (e) {
       debugPrint('--- Error en Seeding: $e ---');

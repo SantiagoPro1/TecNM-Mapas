@@ -19,9 +19,6 @@ dependencies:
   flutter_tts: ^4.0.2
   speech_to_text: ^7.3.0
 
-  google_mlkit_image_labeling: ^0.11.0
-  tflite_flutter: ^0.12.0
-  camera: ^0.10.5+9
   image: ^4.0.0
 
   qr_flutter: ^4.1.0
@@ -77,7 +74,6 @@ flutter:
     - assets/maps/tec_colima_map.json
     - assets/maps/sendera_map.json
     - assets/maps/zentralia_map.json
-    - assets/models/
     - assets/icons/svg/                  # Iconos SVG para marcadores del mapa
     - assets/map_styles/
     - assets/map_styles/dark_style.json

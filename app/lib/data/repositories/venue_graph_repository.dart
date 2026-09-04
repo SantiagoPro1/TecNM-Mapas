@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:navia/core/constants/venue_registry.dart';
 import 'package:navia/data/models/campus_edge.dart';
 import 'package:navia/data/models/campus_node.dart';
 
@@ -86,4 +88,18 @@ class VenueGraphRepository {
 
   Future<void> deleteEdge(String zoneId, String from, String to) =>
       _edgesCol(zoneId).doc(CampusEdge.buildDocId(from, to)).delete();
+
+  /// Descarga una vez el grafo (nodos + aristas) de TODAS las sedes para
+  /// dejarlo en la caché local de Firestore, de modo que las rutas se puedan
+  /// calcular sin señal. Ver [PlaceRepository.prefetchAllVenuesForOffline].
+  Future<void> prefetchAllVenuesForOffline() async {
+    for (final venue in VenueRegistry.all) {
+      try {
+        await _nodesCol(venue.id).get();
+        await _edgesCol(venue.id).get();
+      } catch (e) {
+        debugPrint('VenueGraphRepository: precarga falló para ${venue.id} → $e');
+      }
+    }
+  }
 }

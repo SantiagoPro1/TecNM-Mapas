@@ -1,38 +1,28 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:navia/services/voice/voice_service.dart';
-import 'package:navia/services/voice/intent_parser.dart';
 import 'package:navia/data/providers/navigation_provider.dart';
 import 'package:navia/data/providers/settings_provider.dart';
-import 'package:navia/presentation/screens/map/providers/map_providers.dart';
 
 // ─── Estado de voz ────────────────────────────────────────────
 
 class VoiceControlState {
   final VoiceState voiceState;
-  final String recognizedText;
-  final ParsedIntent? lastIntent;
   final String? lastSpokenText;
   final bool isInitialized;
 
   const VoiceControlState({
     this.voiceState = VoiceState.idle,
-    this.recognizedText = '',
-    this.lastIntent,
     this.lastSpokenText,
     this.isInitialized = false,
   });
 
   VoiceControlState copyWith({
     VoiceState? voiceState,
-    String? recognizedText,
-    ParsedIntent? lastIntent,
     String? lastSpokenText,
     bool? isInitialized,
   }) {
     return VoiceControlState(
       voiceState: voiceState ?? this.voiceState,
-      recognizedText: recognizedText ?? this.recognizedText,
-      lastIntent: lastIntent ?? this.lastIntent,
       lastSpokenText: lastSpokenText ?? this.lastSpokenText,
       isInitialized: isInitialized ?? this.isInitialized,
     );
@@ -41,6 +31,9 @@ class VoiceControlState {
 
 // ─── StateNotifier ────────────────────────────────────────────
 
+/// Salida de voz de la app (TTS). El motor de comandos hablados se retiró:
+/// no quedaba ninguna entrada en la interfaz que lo disparara, y para el
+/// Evento Nacional Deportivo la navegación es visual.
 class VoiceNotifier extends StateNotifier<VoiceControlState> {
   final VoiceService _voiceService;
   final NavigationNotifier _navNotifier;
@@ -64,166 +57,6 @@ class VoiceNotifier extends StateNotifier<VoiceControlState> {
     };
 
     state = state.copyWith(isInitialized: true);
-  }
-
-  /// Flujo completo: escuchar → parsear → ejecutar.
-  Future<void> listenAndExecute() async {
-    state = state.copyWith(
-      voiceState: VoiceState.listening,
-      recognizedText: '',
-    );
-
-    await _voiceService.startListening(
-      onResult: (text, isFinal) {
-        state = state.copyWith(recognizedText: text);
-
-        if (isFinal && text.isNotEmpty) {
-          _processCommand(text);
-        }
-      },
-    );
-  }
-
-  /// Procesa un comando de texto (de voz o teclado).
-  Future<void> _processCommand(String text) async {
-    final intent = IntentParser.parse(text);
-    state = state.copyWith(
-      voiceState: VoiceState.processing,
-      lastIntent: intent,
-    );
-
-    switch (intent.type) {
-      case IntentType.navigate:
-        if (intent.destination != null) {
-          final gpsPosition = _ref.read(currentLocationStreamProvider).value;
-          final hasGps = gpsPosition != null;
-
-          if (_navNotifier.state.currentNode == null && !hasGps) {
-            await _speak(
-              'Primero necesito saber dónde estás. '
-              'Activa tu GPS o abre la cámara NAVIA AR para indicar tu posición.',
-            );
-            break;
-          }
-
-          // Intentar resolver el destino en el mapa local
-          final destNode = _navNotifier.findDestination(intent.destination!);
-
-          if (_navNotifier.state.currentNode != null) {
-            // Navegación local Dijkstra si tenemos nodo QR inicial
-            _navNotifier.navigateTo(intent.destination!);
-            final navState = _navNotifier.state;
-            if (navState.activeRoute != null) {
-              await _speak(navState.activeRoute!.voiceSummary);
-              final firstInstruction =
-                  navState.activeRoute!.steps.first.voiceInstruction;
-              await Future.delayed(const Duration(milliseconds: 500));
-              await _speak(firstInstruction);
-            } else {
-              await _speak(
-                'No encontré el lugar ${intent.destination} en el mapa local.',
-              );
-            }
-          } else if (hasGps) {
-            // Navegación externa/Google Routes usando GPS
-            await _speak('Calculando ruta por GPS a ${intent.destination}...');
-
-            final double destLat = destNode?.lat ?? gpsPosition.latitude;
-            final double destLng = destNode?.lng ?? gpsPosition.longitude;
-
-            final success = await _navNotifier.calculateGoogleRoute(
-              originLat: gpsPosition.latitude,
-              originLng: gpsPosition.longitude,
-              destLat: destLat,
-              destLng: destLng,
-              destinationName: destNode?.name ?? intent.destination,
-            );
-
-            if (success) {
-              final navState = _navNotifier.state;
-              if (navState.activeRoute != null) {
-                await _speak(navState.activeRoute!.voiceSummary);
-                final firstInstruction =
-                    navState.activeRoute!.steps.first.voiceInstruction;
-                await Future.delayed(const Duration(milliseconds: 500));
-                await _speak(firstInstruction);
-              }
-            } else {
-              await _speak(
-                'No se pudo trazar la ruta a ${intent.destination} usando GPS.',
-              );
-            }
-          }
-        }
-        break;
-
-      case IntentType.whereIs:
-        if (intent.destination != null) {
-          final node = _navNotifier.findDestination(intent.destination!);
-          if (node != null) {
-            await _speak(
-                '${node.name} se encuentra en el campus. ${node.description}.');
-          } else {
-            await _speak('No encontré ${intent.destination} en el campus.');
-          }
-        }
-        break;
-
-      case IntentType.whereAmI:
-        final current = _navNotifier.state.currentNode;
-        if (current != null) {
-          await _speak(
-              'Te encuentras en ${current.name}. ${current.description}.');
-        } else {
-          await _speak(
-            'No tengo tu ubicación actual. '
-            'Abre la cámara NAVIA AR para posicionarte.',
-          );
-        }
-        break;
-
-      case IntentType.repeat:
-        if (state.lastSpokenText != null) {
-          await _speak(state.lastSpokenText!);
-        } else {
-          await _speak('No hay instrucciones previas para repetir.');
-        }
-        break;
-
-      case IntentType.stop:
-        _navNotifier.cancelNavigation();
-        await _speak('Navegación cancelada.');
-        break;
-
-      case IntentType.help:
-        await _speak(IntentParser.helpText);
-        break;
-
-      case IntentType.nearby:
-        final nearby = _navNotifier.getNearbyDestinations(limit: 3);
-        if (nearby.isNotEmpty) {
-          final names = nearby
-              .map((r) =>
-                  '${r.destination.name}, a ${r.totalDistance.round()} metros')
-              .join('. ');
-          await _speak('Destinos cercanos: $names.');
-        } else {
-          await _speak('No tengo tu ubicación para buscar destinos cercanos.');
-        }
-        break;
-
-      case IntentType.unknown:
-        await _speak(
-          'No entendí tu comando. '
-          'Puedes decir "llévame a" seguido del destino, o "ayuda" para más opciones.',
-        );
-        break;
-    }
-  }
-
-  /// Procesar comando de texto (para uso desde teclado/UI).
-  Future<void> processTextCommand(String text) async {
-    await _processCommand(text);
   }
 
   /// Habla el texto y lo guarda como última instrucción.
@@ -251,10 +84,9 @@ class VoiceNotifier extends StateNotifier<VoiceControlState> {
     await speakCurrentStep();
   }
 
-  /// Detiene todo (TTS + STT).
+  /// Detiene la voz.
   Future<void> stopAll() async {
     await _voiceService.stopSpeaking();
-    await _voiceService.stopListening();
     state = state.copyWith(voiceState: VoiceState.idle);
   }
 

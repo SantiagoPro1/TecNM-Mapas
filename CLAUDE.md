@@ -72,6 +72,9 @@ Clean Architecture with three layers:
 **Local persistence:**
 - Hive for structured local data (campus graph cache, history)
 - SharedPreferences for simple flags (onboarding gate, last GPS position, theme selection)
+- Firestore offline persistence is enabled explicitly in `main.dart` (`Settings(persistenceEnabled: true, cacheSizeBytes: CACHE_SIZE_UNLIMITED)`). Only TecNM Colima ships a bundled map in assets; the 8 event venues live **only** in Firestore, so `OfflineManager.prefetchVenueDataForOffline()` (fire-and-forget at startup) warms every venue's `places`/`nodes`/`edges` into that cache. Without it, someone arriving at a venue they never opened while online sees nothing — the likely scenario at a packed event with saturated cell service.
+
+**Per-venue GPS:** all "is the user here?" logic must measure against the venue being viewed (`_venueCenter` / `_venueRadiusMeters` in `map_screen.dart`), never against `CampusLocations.center*` — that constant is TecNM Colima, and 6 of the 9 event venues sit more than 2.5 km from it (Coquimatlán ~9.5 km). Measuring against the campus made the app treat users as "outside" while standing at the venue.
 
 **Assets:**
 - `assets/maps/tec_colima_map.json` — Primary campus graph (nodes + edges)
@@ -79,6 +82,7 @@ Clean Architecture with three layers:
 - `assets/map_styles/dark_style.json`, `light_style.json` — Google Maps styling JSONs
 - `assets/icons/svg/` — SVG map marker icons, preloaded by `PrecacheSvg.precacheAll()`
 - `.env` loaded via `flutter_dotenv`; the committed file is a safe placeholder — sensitive values go in `.env.local` (git-ignored).
+- `web/config.js` holds the web build's Google Maps key and OAuth client ID. It is **git-ignored and untracked** — copy `web/config.example.js` to `web/config.js` and fill it in. (A real key was committed here before it was untracked, so it still exists in git history; rotating that key is an open task.)
 
 ### Startup sequence (`main.dart`)
 

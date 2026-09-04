@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -50,6 +51,15 @@ void main() async {
   }
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // 3.0. Persistencia offline de Firestore, explícita (en móvil viene activa
+  //      por defecto, pero de esto depende que las 8 sedes del evento —que
+  //      no vienen empaquetadas en assets— sigan viéndose sin señal, así que
+  //      no conviene dejarlo a un valor por defecto).
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
 
   // 3.1. Inicializar Hive y sembrar la caché offline de mapas

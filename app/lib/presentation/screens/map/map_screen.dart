@@ -95,6 +95,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// Guard para no disparar dos escrituras a la vez desde el editor.
   bool _isEditSaving = false;
 
+  /// true mientras una hoja del editor (agregar/editar punto) está abierta.
+  /// GoogleMap en Flutter Web usa un elemento HTML real por debajo (no un
+  /// canvas normal de Flutter), y sus toques a veces se "filtran" a través
+  /// del modal — sin este guard, tocar un ChoiceChip dentro de la hoja
+  /// también llegaba al mapa de fondo y volvía a abrir "Nuevo punto" desde
+  /// cero (por eso siempre "regresaba a Edificio", el tipo por defecto).
+  bool _isEditSheetOpen = false;
+
   static const _uuid = Uuid();
 
   /// Guard para evitar llamadas concurrentes a _fetchRoute cuando el usuario
@@ -113,6 +121,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// Sede que se está mostrando. Se resuelve en [didChangeDependencies] desde
   /// `arguments['venueId']`; por defecto TecNM Colima si no se especifica.
   Venue _venue = VenueRegistry.tecColima;
+
+  /// Centro de la sede que se está viendo. Toda la lógica de GPS se mide
+  /// contra ESTO, no contra el centro del TecNM Colima: 6 de las 9 sedes del
+  /// evento quedan a más de 2.5 km del Tec (Coquimatlán a ~9.5 km), así que
+  /// medir contra el Tec hacía que la app te considerara "fuera del campus"
+  /// estando parado justo en la sede.
+  LatLng get _venueCenter => LatLng(_venue.centerLat, _venue.centerLng);
+
+  /// Radio alrededor del centro de la sede dentro del cual se considera que
+  /// el usuario está "en la sede" y tiene sentido centrar/seguir su GPS.
+  static const double _venueRadiusMeters = 2500;
 
   /// Caja de restricción de cámara de la sede actual (antes era un único
   /// valor global fijo a TecNM Colima — Sendera/Zentralia ya caían fuera de
@@ -712,25 +731,26 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
-  void _showOutsideCampusSnackBar() {
+  void _showOutsideVenueSnackBar() {
     if (!mounted) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Row(
           children: [
-            Icon(Icons.info_outline_rounded, color: Colors.white, size: 20),
-            SizedBox(width: 10),
+            const Icon(Icons.info_outline_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Te encuentras fuera del campus. Centrando vista en el TecNM Colima.',
-                style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                'Estás lejos de ${_venue.label}. Centrando la vista en la sede.',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600, color: Colors.white),
               ),
             ),
           ],
         ),
-        backgroundColor: Color(0xFF1E293B),
-        duration: Duration(seconds: 3),
+        backgroundColor: const Color(0xFF1E293B),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -750,18 +770,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
       if (!mounted) return;
       final latLng = LatLng(position.latitude, position.longitude);
       setState(() => _currentPosition = latLng);
-      
-      final distanceToCampus = Geolocator.distanceBetween(
+
+      final distanceToVenue = Geolocator.distanceBetween(
         latLng.latitude, latLng.longitude,
-        CampusLocations.centerLat, CampusLocations.centerLng,
+        _venueCenter.latitude, _venueCenter.longitude,
       );
-      
+
       _centeredOnUser = true;
-      if (distanceToCampus < 2500) {
+      if (distanceToVenue < _venueRadiusMeters) {
         _panCamera(latLng, zoom: 17.5);
       } else {
-        _panCamera(_initialPosition, zoom: 17.0);
-        _showOutsideCampusSnackBar();
+        _panCamera(_venueCenter, zoom: 17.0);
+        _showOutsideVenueSnackBar();
       }
     } on TimeoutException {
       debugPrint('GPS: timeout — se usará el stream.');
@@ -778,15 +798,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
     LatLng? targetPos = _displayPosition ?? _currentPosition;
 
     if (targetPos != null) {
-      final distanceToCampus = Geolocator.distanceBetween(
+      final distanceToVenue = Geolocator.distanceBetween(
         targetPos.latitude, targetPos.longitude,
-        CampusLocations.centerLat, CampusLocations.centerLng,
+        _venueCenter.latitude, _venueCenter.longitude,
       );
-      if (distanceToCampus < 2500) {
+      if (distanceToVenue < _venueRadiusMeters) {
         _panCamera(targetPos, zoom: _currentZoom);
       } else {
-        _panCamera(_initialPosition, zoom: 17.0);
-        _showOutsideCampusSnackBar();
+        _panCamera(_venueCenter, zoom: 17.0);
+        _showOutsideVenueSnackBar();
       }
     } else {
       _initializeGpsAndCenter(force: true);
@@ -833,11 +853,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _userPosNotifier.value = interpolated;
 
     if (_isTrackingActive) {
-      final distanceToCampus = Geolocator.distanceBetween(
+      final distanceToVenue = Geolocator.distanceBetween(
         interpolated.latitude, interpolated.longitude,
-        CampusLocations.centerLat, CampusLocations.centerLng,
+        _venueCenter.latitude, _venueCenter.longitude,
       );
-      if (distanceToCampus < 2500) {
+      if (distanceToVenue < _venueRadiusMeters) {
         if (_isNavigating) {
           _panCameraNavigating(interpolated, 19.5, _currentHeading);
         } else {
@@ -1296,6 +1316,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// modo edición: agrega un punto nuevo, completa una reubicación pendiente,
   /// o cancela una conexión en curso si se tocó vacío.
   void _handleMapBackgroundTap(LatLng point) {
+    if (_isEditSheetOpen) return;
     if (_editMovingId != null) {
       final id = _editMovingId!;
       setState(() => _editMovingId = null);
@@ -1323,6 +1344,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     required double lng,
     required bool hasPlace,
   }) {
+    if (_isEditSheetOpen) return;
     if (_editConnectFromId != null) {
       final fromId = _editConnectFromId!;
       final fromPos = _editConnectFromPos!;
@@ -1346,6 +1368,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final cs = Theme.of(context).colorScheme;
     final nameController = TextEditingController();
     var selectedType = _editPointTypes.first;
+    setState(() => _isEditSheetOpen = true);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1360,7 +1383,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
             top: 24,
             bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
           ),
-          child: Column(
+          // Con tantos tipos, la lista de chips ya no cabe siempre en
+          // pantallas chicas (o con el teclado abierto) — scroll en vez de
+          // desbordar.
+          child: SingleChildScrollView(
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1424,10 +1451,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ),
               ),
             ],
+            ),
           ),
         ),
       ),
-    );
+    ).whenComplete(() {
+      if (mounted) setState(() => _isEditSheetOpen = false);
+    });
   }
 
   void _showEditPointSheet({
@@ -1438,6 +1468,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     required bool hasPlace,
   }) {
     final cs = Theme.of(context).colorScheme;
+    setState(() => _isEditSheetOpen = true);
     showModalBottomSheet(
       context: context,
       backgroundColor: cs.surface,
@@ -1505,35 +1536,42 @@ class _MapScreenState extends ConsumerState<MapScreen>
           ),
         ),
       ),
-    );
+    ).whenComplete(() {
+      if (mounted) setState(() => _isEditSheetOpen = false);
+    });
   }
 
   Future<String?> _promptRename(String currentName) async {
     final cs = Theme.of(context).colorScheme;
     final controller = TextEditingController(text: currentName);
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: cs.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Cambiar nombre'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(labelText: 'Nombre'),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Guardar'),
+    setState(() => _isEditSheetOpen = true);
+    try {
+      return await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: cs.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Cambiar nombre'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(labelText: 'Nombre'),
           ),
-        ],
-      ),
-    );
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isEditSheetOpen = false);
+    }
   }
 
   Future<void> _renameUnifiedPoint({
@@ -1554,25 +1592,30 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   Future<bool> _confirmDelete(String name) async {
     final cs = Theme.of(context).colorScheme;
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: cs.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('¿Eliminar punto?'),
-        content: Text('Se eliminará "$name" permanentemente, junto con sus conexiones.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
+    setState(() => _isEditSheetOpen = true);
+    try {
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: cs.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('¿Eliminar punto?'),
+          content: Text('Se eliminará "$name" permanentemente, junto con sus conexiones.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
+            ),
+          ],
+        ),
+      );
+      return result ?? false;
+    } finally {
+      if (mounted) setState(() => _isEditSheetOpen = false);
+    }
   }
 
   Future<void> _createUnifiedPoint({
@@ -1747,15 +1790,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
         if (!_centeredOnUser) {
           _centeredOnUser = true;
-          final distanceToCampus = Geolocator.distanceBetween(
+          final distanceToVenue = Geolocator.distanceBetween(
             latLng.latitude, latLng.longitude,
-            CampusLocations.centerLat, CampusLocations.centerLng,
+            _venueCenter.latitude, _venueCenter.longitude,
           );
-          if (distanceToCampus < 2500) {
+          if (distanceToVenue < _venueRadiusMeters) {
             _panCamera(latLng, zoom: 17.5);
           } else {
-            _panCamera(_initialPosition, zoom: 17.0);
-            _showOutsideCampusSnackBar();
+            _panCamera(_venueCenter, zoom: 17.0);
+            _showOutsideVenueSnackBar();
           }
         }
 
@@ -2300,11 +2343,19 @@ class _EditPointTypeInfo {
 const List<_EditPointTypeInfo> _editPointTypes = [
   _EditPointTypeInfo('Edificio', Icons.apartment_rounded, 'Edificio', NodeType.building),
   _EditPointTypeInfo('Cancha / Área deportiva', Icons.sports_soccer_rounded, 'Cancha', NodeType.area),
-  _EditPointTypeInfo('Servicios (baños, primeros auxilios...)',
-      Icons.medical_services_rounded, 'Servicios', NodeType.service),
+  // Salud y logística — lo más consultado en un evento masivo, van primero.
+  _EditPointTypeInfo('Primeros auxilios', Icons.medical_services_rounded, 'Primeros Auxilios', NodeType.service),
+  _EditPointTypeInfo('Hidratación', Icons.water_drop_rounded, 'Hidratación', NodeType.service),
+  _EditPointTypeInfo('Baños', Icons.wc_rounded, 'Baños', NodeType.service),
+  _EditPointTypeInfo('Vestidores', Icons.checkroom_rounded, 'Vestidores', NodeType.service),
   _EditPointTypeInfo('Cafetería / Comida', Icons.restaurant_rounded, 'Cafetería', NodeType.service),
+  _EditPointTypeInfo('Podio / Premiación', Icons.emoji_events_rounded, 'Podio', NodeType.area),
   _EditPointTypeInfo('Estacionamiento', Icons.local_parking_rounded, 'Estacionamiento', NodeType.service),
+  _EditPointTypeInfo('Transporte / Punto de abordaje', Icons.directions_bus_rounded, 'Transporte', NodeType.service),
   _EditPointTypeInfo('Entrada / Acceso', Icons.meeting_room_rounded, 'Entrada', NodeType.entrance),
+  _EditPointTypeInfo('Registro / Acreditación', Icons.how_to_reg_rounded, 'Registro', NodeType.service),
+  _EditPointTypeInfo('Seguridad', Icons.security_rounded, 'Seguridad', NodeType.service),
+  _EditPointTypeInfo('Información', Icons.info_rounded, 'Información', NodeType.service),
   _EditPointTypeInfo('Corredor / Intersección (solo ruta, sin pin visible)',
       Icons.timeline_rounded, null, NodeType.corridor),
 ];

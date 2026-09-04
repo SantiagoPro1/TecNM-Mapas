@@ -133,6 +133,23 @@ class PlaceRepository {
   Future<void> deletePlace(String zoneId, String placeId) =>
       _placesCol(zoneId).doc(placeId).delete();
 
+  /// Descarga una vez los POIs de TODAS las sedes para dejarlos en la caché
+  /// local de Firestore.
+  ///
+  /// Sin esto, quien llega a una sede que nunca abrió con internet no ve
+  /// nada si la red falla — justo el escenario del evento: 4000 personas
+  /// saturando la red celular en una unidad deportiva. Con la caché tibia,
+  /// `watchPlaces` sigue sirviendo datos aunque no haya señal.
+  Future<void> prefetchAllVenuesForOffline() async {
+    for (final venue in VenueRegistry.all) {
+      try {
+        await _placesCol(venue.id).get();
+      } catch (e) {
+        debugPrint('PlaceRepository: precarga falló para ${venue.id} → $e');
+      }
+    }
+  }
+
   /// Siembra Firestore con los POIs de una sede (usado para migrar los datos
   /// locales de las 3 sedes empaquetadas la primera vez que se despliega
   /// esta versión, y por el editor de administrador para poblar sedes nuevas

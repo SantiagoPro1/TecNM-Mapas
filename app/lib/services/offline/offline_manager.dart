@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:navia/data/cache/map_cache_service.dart';
+import 'package:navia/data/repositories/place_repository.dart';
+import 'package:navia/data/repositories/venue_graph_repository.dart';
 import 'package:navia/services/offline/connectivity_service.dart';
 
 /// Orquestador central del modo offline de NAVIA.
@@ -49,6 +53,26 @@ class OfflineManager {
     mgr._initialized = true;
     debugPrint('[OfflineManager] Inicializado ✓ '
         '(${ConnectivityService.instance.isOnline ? "online" : "offline"})');
+
+    // 3. Calentar la caché de Firestore con las 9 sedes, SIN bloquear el
+    //    arranque: solo el TecNM Colima viene empaquetado en assets, las 8
+    //    sedes del evento viven en Firestore y sin esto no existen offline.
+    unawaited(prefetchVenueDataForOffline());
+  }
+
+  /// Descarga una vez los POIs y el grafo de todas las sedes para que queden
+  /// en la caché local de Firestore y la app funcione sin señal.
+  ///
+  /// Es seguro llamarla sin conexión: `get()` cae a la caché local en vez de
+  /// fallar, y cualquier error se registra sin interrumpir nada.
+  static Future<void> prefetchVenueDataForOffline() async {
+    try {
+      await PlaceRepository().prefetchAllVenuesForOffline();
+      await VenueGraphRepository().prefetchAllVenuesForOffline();
+      debugPrint('[OfflineManager] Sedes precargadas para offline ✓');
+    } catch (e) {
+      debugPrint('[OfflineManager] Precarga de sedes incompleta: $e');
+    }
   }
 
   // ── Última posición GPS conocida ────────────────────────────────

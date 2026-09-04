@@ -17,6 +17,13 @@ class AuthService {
   static final RegExp _tecnmDomainPattern =
       RegExp(r'^[^@\s]+@([a-z0-9-]+\.)*tecnm\.mx$', caseSensitive: false);
 
+  /// `true` si [email] es un correo institucional TecNM válido.
+  ///
+  /// Público a propósito: es el candado de acceso de toda la app y tiene
+  /// pruebas en `test/auth_domain_test.dart` — no debe romperse en silencio.
+  static bool isInstitutionalEmail(String email) =>
+      _tecnmDomainPattern.hasMatch(email);
+
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: [
       'email',
@@ -31,7 +38,7 @@ class AuthService {
       if (googleUser == null) return null;
 
       // --- VALIDACIÓN DE DOMINIO ---
-      if (!_tecnmDomainPattern.hasMatch(googleUser.email)) {
+      if (!isInstitutionalEmail(googleUser.email)) {
         await _googleSignIn.signOut();
         throw 'Solo se permiten correos institucionales @*.tecnm.mx';
       }

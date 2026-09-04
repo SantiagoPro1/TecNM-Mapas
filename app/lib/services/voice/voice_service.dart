@@ -1,31 +1,25 @@
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:speech_to_text/speech_to_text.dart';
-import 'package:speech_to_text/speech_recognition_result.dart';
 
 /// Estados posibles del servicio de voz.
 enum VoiceState {
   idle, // Sin actividad
-  listening, // Escuchando al usuario (STT activo)
-  processing, // Procesando el comando
   speaking, // Hablando al usuario (TTS activo)
   error, // Error
 }
 
-/// Servicio de voz que envuelve flutter_tts (Text-to-Speech)
-/// y speech_to_text (Speech-to-Text) para la interfaz de voz
-/// en español mexicano.
+/// Servicio de voz (Text-to-Speech en español mexicano).
+///
+/// Solo salida de voz: la parte de reconocimiento (STT) se retiró junto con
+/// los comandos hablados, que ya no tenían ninguna entrada en la interfaz
+/// para el Evento Nacional Deportivo. Lo que queda se usa para leer en voz
+/// alta la indicación del paso actual cuando el usuario toca "Repetir".
 class VoiceService {
   final FlutterTts _tts = FlutterTts();
-  final SpeechToText _stt = SpeechToText();
 
   VoiceState _state = VoiceState.idle;
   VoiceState get state => _state;
 
   bool _ttsInitialized = false;
-  bool _sttAvailable = false;
-
-  String _lastRecognized = '';
-  String get lastRecognized => _lastRecognized;
 
   String? _lastError;
   String? get lastError => _lastError;
@@ -37,13 +31,9 @@ class VoiceService {
   /// Callback cuando cambia el estado.
   void Function(VoiceState state)? onStateChanged;
 
-  /// Callback cuando se reconoce texto parcial o final.
-  void Function(String text, bool isFinal)? onRecognized;
-
-  /// Inicializa TTS y STT. Llamar una vez al inicio de la app.
+  /// Inicializa el TTS. Llamar una vez al inicio de la app.
   Future<void> initialize() async {
     await _initTts();
-    await _initStt();
   }
 
   Future<void> _initTts() async {
@@ -70,22 +60,6 @@ class VoiceService {
     _ttsInitialized = true;
   }
 
-  Future<void> _initStt() async {
-    _sttAvailable = await _stt.initialize(
-      onError: (error) {
-        _lastError = 'STT Error: ${error.errorMsg}';
-        _setState(VoiceState.error);
-      },
-      onStatus: (status) {
-        if (status == 'done' || status == 'notListening') {
-          if (_state == VoiceState.listening) {
-            _setState(VoiceState.idle);
-          }
-        }
-      },
-    );
-  }
-
   /// Habla el texto proporcionado usando TTS en español mexicano.
   ///
   /// Si ya está hablando, detiene el mensaje anterior.
@@ -99,65 +73,9 @@ class VoiceService {
     await _tts.speak(text);
   }
 
-  /// Habla una lista de instrucciones en secuencia.
-  Future<void> speakSequence(
-    List<String> instructions, {
-    Duration pauseBetween = const Duration(milliseconds: 800),
-  }) async {
-    for (final instruction in instructions) {
-      await speak(instruction);
-      // Esperar a que termine de hablar + pausa
-      await Future.delayed(pauseBetween);
-    }
-  }
-
   /// Detiene el TTS inmediatamente.
   Future<void> stopSpeaking() async {
     await _tts.stop();
-    _setState(VoiceState.idle);
-  }
-
-  /// Comienza a escuchar comandos de voz del usuario.
-  ///
-  /// [onResult] se llama cuando se reconoce texto (parcial o final).
-  /// [timeout] es la duración máxima de escucha.
-  Future<void> startListening({
-    void Function(String text, bool isFinal)? onResult,
-    Duration timeout = const Duration(seconds: 8),
-  }) async {
-    if (!_sttAvailable) {
-      _lastError = 'Reconocimiento de voz no disponible';
-      _setState(VoiceState.error);
-      return;
-    }
-
-    // Detener TTS si está hablando
-    await _tts.stop();
-
-    _lastRecognized = '';
-    _setState(VoiceState.listening);
-
-    await _stt.listen(
-      onResult: (SpeechRecognitionResult result) {
-        _lastRecognized = result.recognizedWords;
-
-        onResult?.call(result.recognizedWords, result.finalResult);
-        onRecognized?.call(result.recognizedWords, result.finalResult);
-
-        if (result.finalResult) {
-          _setState(VoiceState.processing);
-        }
-      },
-      listenFor: timeout,
-      pauseFor: const Duration(seconds: 3),
-      localeId: 'es_MX',
-      listenOptions: SpeechListenOptions(listenMode: ListenMode.dictation),
-    );
-  }
-
-  /// Detiene la escucha de voz.
-  Future<void> stopListening() async {
-    await _stt.stop();
     _setState(VoiceState.idle);
   }
 
@@ -167,19 +85,12 @@ class VoiceService {
     await _tts.setSpeechRate(_speechRate);
   }
 
-  /// ¿Está el servicio escuchando?
-  bool get isListening => _state == VoiceState.listening;
-
   /// ¿Está el servicio hablando?
   bool get isSpeaking => _state == VoiceState.speaking;
-
-  /// ¿Está disponible el STT?
-  bool get isSttAvailable => _sttAvailable;
 
   /// Libera recursos.
   Future<void> dispose() async {
     await _tts.stop();
-    await _stt.stop();
   }
 
   void _setState(VoiceState newState) {

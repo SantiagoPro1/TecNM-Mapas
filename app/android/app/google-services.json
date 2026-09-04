@@ -12,7 +12,20 @@
           "package_name": "mx.edu.tecnm.colima.sinait"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1067379970689-b6j1kgs2kbua3q92208ehs1qqnptlmpg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "mx.edu.tecnm.colima.sinait",
+            "certificate_hash": "6573366b2146a4e010e23921fa1b0cf8c865f700"
+          }
+        },
+        {
+          "client_id": "1067379970689-oiqg0t2c9j9n45nfjjiljalqf1snj7e0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDTt0U-8LaagPsho1M8Qf4Br3cMAQgIUmQ"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1067379970689-oiqg0t2c9j9n45nfjjiljalqf1snj7e0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1067379970689-gm1ba7dlmpv36cvo3n0s60aj0pg6112m.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "mx.edu.tecnm.colima.sinait"
+              }
+            }
+          ]
         }
       }
     }

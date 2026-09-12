@@ -35,8 +35,8 @@ app.use((err, req, res, next) => {
 
 // ─── Iniciar Servidor ─────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`🚀 SINAIT Backend corriendo en puerto ${PORT}`);
-  console.log(`📍 Entorno: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`SINAIT Backend corriendo en puerto ${PORT}`);
+  console.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
 });
 
 module.exports = app;

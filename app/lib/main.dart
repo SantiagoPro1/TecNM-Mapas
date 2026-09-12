@@ -20,6 +20,7 @@ import 'package:navia/utils/svg_marker_helper.dart';
 
 // Providers
 import 'package:navia/data/providers/navigation_provider.dart';
+import 'package:navia/data/providers/voice_provider.dart';
 
 // Pantallas
 import 'package:navia/presentation/screens/splash/splash_screen.dart';
@@ -32,9 +33,17 @@ import 'package:navia/presentation/screens/credential/credential_screen.dart';
 import 'package:navia/presentation/screens/settings/settings_screen.dart';
 import 'package:navia/presentation/screens/settings/profile_screen.dart';
 
+/// Tiempo mínimo que se deja ver la pantalla de bienvenida.
+///
+/// La app arranca en menos de un segundo, así que el splash desaparecía antes
+/// de que diera tiempo de leer "TEC COLIMA". No es una espera artificial
+/// gratuita: es la única pantalla donde el usuario ve de quién es la app.
+const Duration _minimoSplash = Duration(milliseconds: 2600);
+
 void main() async {
   // 1. Asegura que los bindings de Flutter estén listos
   WidgetsFlutterBinding.ensureInitialized();
+  final arranque = DateTime.now();
 
   // 2. Mostrar el splash screen Flutter inmediatamente para una transición
   //    suave desde el splash nativo Android
@@ -82,6 +91,13 @@ void main() async {
   // (se pregunta una sola vez, justo después del onboarding — ver login_screen.dart).
   final bool hasChosenEntryMode = prefs.getBool('hasChosenEntryMode') ?? false;
 
+  // 4.2. Completa el tiempo mínimo de splash. Si la inicialización ya tardó
+  //      más que eso (teléfono lento, primer arranque), no espera nada extra.
+  final transcurrido = DateTime.now().difference(arranque);
+  if (transcurrido < _minimoSplash) {
+    await Future.delayed(_minimoSplash - transcurrido);
+  }
+
   // 5. Una vez listos todos los servicios, reemplazar el splash con la app real
   runApp(
     ProviderScope(
@@ -106,6 +122,15 @@ class _SplashWrapper extends StatelessWidget {
     );
   }
 }
+
+/// Mensajero global de SnackBars — independiente de qué pantalla esté
+/// activa. Necesario para el aviso de "llegaste a tu destino": la llegada
+/// se detecta por GPS mientras la persona camina, y para entonces puede
+/// estar en cualquier pantalla (Inicio, Perfil, Configuración...), no
+/// necesariamente en el mapa. Un SnackBar atado al Scaffold de una pantalla
+/// específica solo se ve si esa pantalla sigue siendo la visible cuando por
+/// fin se muestra.
+final naviaScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 class NaviaApp extends ConsumerStatefulWidget {
   final bool showOnboarding;
@@ -133,11 +158,42 @@ class _NaviaAppState extends ConsumerState<NaviaApp> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = ref.watch(themeProvider);
+    final themeMode = ref.watch(themeProvider);
+    final lightTheme = ref.watch(lightThemeProvider);
+    final darkTheme = ref.watch(darkThemeProvider);
+
+    // Aviso de llegada — a propósito vive aquí (raíz de la app, arriba del
+    // Navigator) y no dentro de MapScreen: así se dispara sin importar en
+    // qué pantalla esté la persona cuando el GPS confirma que llegó.
+    ref.listen<NavigationState>(navigationProvider, (previous, next) {
+      if (next.status == NavStatus.arrived &&
+          previous?.status != NavStatus.arrived) {
+        ref.read(voiceProvider.notifier).speakAnnouncement(
+            'Has llegado a tu destino. NAVIA te desea un excelente día.');
+        naviaScaffoldMessengerKey.currentState?.showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, size: 22),
+                SizedBox(width: 10),
+                Expanded(child: Text('¡Has llegado a tu destino!')),
+              ],
+            ),
+            duration: const Duration(seconds: 4),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md)),
+          ),
+        );
+      }
+    });
+
     return MaterialApp(
       title: 'NAVIA',
       debugShowCheckedModeBanner: false,
-      theme: theme,
+      scaffoldMessengerKey: naviaScaffoldMessengerKey,
+      theme: lightTheme,
+      darkTheme: darkTheme,
+      themeMode: themeMode,
 
       // Lógica de inicio: onboarding (si es nuevo) → elegir Invitado/Iniciar
       // sesión (una sola vez) → home.
@@ -151,6 +207,7 @@ class _NaviaAppState extends ConsumerState<NaviaApp> {
         AppRoutes.login: (context) => const LoginScreen(),
         AppRoutes.home: (context) => const HomeScreen(),
         AppRoutes.map: (context) => const MapScreen(),
+        AppRoutes.openMap: (context) => const MapScreen(openMap: true),
         AppRoutes.credential: (context) => const CredentialScreen(),
         AppRoutes.history: (context) => const HistoryScreen(),
         AppRoutes.settings: (context) => const SettingsScreen(),

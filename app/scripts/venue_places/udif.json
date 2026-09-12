@@ -1,0 +1,81 @@
+{
+  "venueId": "udif",
+  "source": "Google Places API + OpenStreetMap (ambos filtrados por zona)",
+  "center": {
+    "lat": 19.23504,
+    "lon": -103.705402
+  },
+  "radius_m": 450,
+  "places": [
+    {
+      "name": "Unidad Deportiva Infantil UDIF",
+      "lat": 19.23504,
+      "lon": -103.705402,
+      "source": "google",
+      "kind": "sports_complex"
+    },
+    {
+      "name": "Cancha de Básquetbol 1",
+      "lat": 19.235188,
+      "lon": -103.705681,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Pista",
+      "lat": 19.234777,
+      "lon": -103.705021,
+      "source": "osm",
+      "kind": "track"
+    },
+    {
+      "name": "Cancha de Fútbol 1",
+      "lat": 19.234441,
+      "lon": -103.705782,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Campo de Béisbol",
+      "lat": 19.23486,
+      "lon": -103.706332,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Auditorio J. Antonio Sam López",
+      "lat": 19.234259,
+      "lon": -103.706326,
+      "source": "google",
+      "kind": "auditorium"
+    },
+    {
+      "name": "Cancha de Básquetbol 2",
+      "lat": 19.235424,
+      "lon": -103.70738,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Canchas Nuevo Paraíso",
+      "lat": 19.23414,
+      "lon": -103.702194,
+      "source": "google",
+      "kind": "athletic_field"
+    },
+    {
+      "name": "Canchas Techadas",
+      "lat": 19.237537,
+      "lon": -103.70759,
+      "source": "google",
+      "kind": "sports_activity_location"
+    },
+    {
+      "name": "Cancha de Básquetbol 5",
+      "lat": 19.234122,
+      "lon": -103.708694,
+      "source": "osm",
+      "kind": "pitch"
+    }
+  ]
+}

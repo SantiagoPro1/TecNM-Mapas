@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:navia/core/constants/venue_registry.dart';
 import 'package:navia/data/models/campus_node.dart';
+import 'package:navia/data/repositories/venue_bundle.dart';
 import 'package:navia/data/models/campus_edge.dart';
 import 'package:navia/data/models/venue.dart';
 import 'package:navia/data/cache/map_cache_service.dart';
@@ -48,7 +49,15 @@ class CampusGraph {
       if (cachedData != null) {
         final nodes = cachedData['nodes'] as List<dynamic>? ?? [];
         if (nodes.isNotEmpty) {
-          debugPrint('CampusGraph: cargado desde caché Hive ✓');
+          debugPrint('CampusGraph: cargado desde caché Hive');
+          // La caché Hive solo guarda el mapa histórico de TecNM Colima, así
+          // que los caminos de las otras 8 sedes se fusionan encima. Sin
+          // esto, un teléfono con caché previa se quedaba sin los caminos
+          // nuevos y volvía a depender de la API de pago de Google.
+          await _agregarCaminosDelPaquete(
+            cachedData['nodes'] as List<dynamic>,
+            cachedData['edges'] as List<dynamic>? ?? [],
+          );
           return CampusGraph.fromJson(cachedData);
         }
       }
@@ -94,12 +103,47 @@ class CampusGraph {
       }
     }
 
+    await _agregarCaminosDelPaquete(allNodes, allEdges);
+
     final mergedData = {
       'nodes': allNodes,
       'edges': allEdges,
     };
 
     return CampusGraph.fromJson(mergedData);
+  }
+
+  /// Fusiona en [nodos]/[aristas] los caminos peatonales de las 9 sedes del
+  /// evento, trazados desde OpenStreetMap y empaquetados en
+  /// `assets/maps/venues_bundle.json` (ver `scripts/build_walk_graph.py`).
+  ///
+  /// Antes de esto el grafo solo cubría TecNM Colima, así que cualquier ruta
+  /// en las otras 8 sedes tenía que pedírsele a la API de pago de Google.
+  static Future<void> _agregarCaminosDelPaquete(
+    List<dynamic> nodos,
+    List<dynamic> aristas,
+  ) async {
+    try {
+      final raw = await rootBundle.loadString(VenueBundle.assetPath);
+      final bundle = json.decode(raw) as Map<String, dynamic>;
+      final venues = bundle['venues'] as Map<String, dynamic>? ?? {};
+      var n = 0;
+      for (final entry in venues.entries) {
+        final cols = entry.value as Map<String, dynamic>;
+        for (final x in (cols['nodes'] as List<dynamic>? ?? [])) {
+          (x as Map<String, dynamic>).putIfAbsent('zoneId', () => entry.key);
+          nodos.add(x);
+          n++;
+        }
+        for (final x in (cols['edges'] as List<dynamic>? ?? [])) {
+          (x as Map<String, dynamic>).putIfAbsent('zoneId', () => entry.key);
+          aristas.add(x);
+        }
+      }
+      debugPrint('CampusGraph: $n nodos de caminos agregados del paquete');
+    } catch (e) {
+      debugPrint('CampusGraph: no se pudieron leer los caminos del paquete → $e');
+    }
   }
 
   /// Carga el grafo de una sola sede.
@@ -158,7 +202,7 @@ class CampusGraph {
       if (node.id.isEmpty) continue;
       if (kDebugMode && nodesMap.containsKey(node.id)) {
         debugPrint(
-            'CampusGraph: ⚠ id de nodo duplicado entre sedes → "${node.id}" '
+            'CampusGraph: id de nodo duplicado entre sedes → "${node.id}" '
             '(zona "${nodesMap[node.id]!.zoneId}" pisada por "${node.zoneId}")');
       }
       nodesMap[node.id] = node;

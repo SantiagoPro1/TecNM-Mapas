@@ -1,0 +1,60 @@
+{
+  "venueId": "imss",
+  "source": "Google Places API + OpenStreetMap (ambos filtrados por zona)",
+  "center": {
+    "lat": 19.23824,
+    "lon": -103.736741
+  },
+  "radius_m": 450,
+  "places": [
+    {
+      "name": "Alberca",
+      "lat": 19.23724,
+      "lon": -103.736454,
+      "source": "osm",
+      "kind": "swimming_pool"
+    },
+    {
+      "name": "Cancha de Voleibol de Playa",
+      "lat": 19.236923,
+      "lon": -103.736738,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha de Voleibol",
+      "lat": 19.236901,
+      "lon": -103.736522,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha de Fútbol",
+      "lat": 19.236919,
+      "lon": -103.737132,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Jardín Pimentel Llerenas",
+      "lat": 19.23891,
+      "lon": -103.738148,
+      "source": "google",
+      "kind": "park"
+    },
+    {
+      "name": "Cancha de Básquetbol 2",
+      "lat": 19.236534,
+      "lon": -103.736809,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha Pimentel Llerenas",
+      "lat": 19.236213,
+      "lon": -103.737413,
+      "source": "google",
+      "kind": "sports_club"
+    }
+  ]
+}

@@ -38,7 +38,6 @@ class VenueRegistry {
     boundsEastLng: -103.7050,
     defaultZoom: 17.0,
     icon: Icons.school_rounded,
-    color: Color(0xFF38BDF8),
   );
 
   // Morelos: 10 canchas repartidas (vóleibol, básquet, béisbol, atletismo,
@@ -47,15 +46,14 @@ class VenueRegistry {
     id: 'unidad_morelos',
     label: 'Unidad Morelos',
     shortDescription: '10 canchas · Multideporte',
-    centerLat: 19.249242,
-    centerLng: -103.703654,
-    boundsSouthLat: 19.243242,
-    boundsWestLng: -103.710654,
-    boundsNorthLat: 19.255242,
-    boundsEastLng: -103.696654,
-    defaultZoom: 16.0,
+    centerLat: 19.248455,
+    centerLng: -103.702158,
+    boundsSouthLat: 19.243196,
+    boundsWestLng: -103.70773,
+    boundsNorthLat: 19.253714,
+    boundsEastLng: -103.696586,
+    defaultZoom: 16.5,
     icon: Icons.pool_rounded,
-    color: Color(0xFF00E676),
   );
 
   // Gil Cabrera: 4 de 6 canchas son de Tochito.
@@ -63,15 +61,14 @@ class VenueRegistry {
     id: 'gil_cabrera',
     label: 'Gil Cabrera',
     shortDescription: 'Tochito · 4 canchas',
-    centerLat: 19.267265,
-    centerLng: -103.740571,
-    boundsSouthLat: 19.261265,
-    boundsWestLng: -103.747571,
-    boundsNorthLat: 19.273265,
-    boundsEastLng: -103.733571,
-    defaultZoom: 16.0,
+    centerLat: 19.267959,
+    centerLng: -103.740471,
+    boundsSouthLat: 19.263505,
+    boundsWestLng: -103.745007,
+    boundsNorthLat: 19.272414,
+    boundsEastLng: -103.735936,
+    defaultZoom: 17.0,
     icon: Icons.sports_football_rounded,
-    color: Color(0xFF00BCD4),
   );
 
   // IMSS: 5 canchas, una para cada disciplina — sin deporte dominante.
@@ -79,15 +76,14 @@ class VenueRegistry {
     id: 'imss',
     label: 'IMSS',
     shortDescription: '5 canchas · Multideporte',
-    centerLat: 19.238240,
-    centerLng: -103.736741,
-    boundsSouthLat: 19.232240,
-    boundsWestLng: -103.743741,
-    boundsNorthLat: 19.244240,
-    boundsEastLng: -103.729741,
-    defaultZoom: 16.0,
+    centerLat: 19.237561,
+    centerLng: -103.737301,
+    boundsSouthLat: 19.233069,
+    boundsWestLng: -103.741478,
+    boundsNorthLat: 19.242054,
+    boundsEastLng: -103.733124,
+    defaultZoom: 17.0,
     icon: Icons.sports_rounded,
-    color: Color(0xFFFF7043),
   );
 
   // Coquimatlán: 3 de 4 canchas son de Fútbol Soccer. Municipio distinto a
@@ -96,15 +92,14 @@ class VenueRegistry {
     id: 'coquimatlan',
     label: 'Coquimatlán',
     shortDescription: 'Fútbol · 3 canchas',
-    centerLat: 19.216703,
-    centerLng: -103.804600,
-    boundsSouthLat: 19.210703,
-    boundsWestLng: -103.811600,
-    boundsNorthLat: 19.222703,
-    boundsEastLng: -103.797600,
-    defaultZoom: 16.0,
+    centerLat: 19.217095,
+    centerLng: -103.804856,
+    boundsSouthLat: 19.213,
+    boundsWestLng: -103.809441,
+    boundsNorthLat: 19.22119,
+    boundsEastLng: -103.80027,
+    defaultZoom: 17.0,
     icon: Icons.sports_soccer_rounded,
-    color: Color(0xFFAB47BC),
   );
 
   // Gustavo Vázquez: 2 de 4 canchas son de Sóftbol.
@@ -112,15 +107,14 @@ class VenueRegistry {
     id: 'gustavo_vazquez',
     label: 'Gustavo Vázquez',
     shortDescription: 'Sóftbol · 2 canchas',
-    centerLat: 19.291975,
-    centerLng: -103.729561,
-    boundsSouthLat: 19.285975,
-    boundsWestLng: -103.736561,
-    boundsNorthLat: 19.297975,
-    boundsEastLng: -103.722561,
+    centerLat: 19.290478,
+    centerLng: -103.728803,
+    boundsSouthLat: 19.285303,
+    boundsWestLng: -103.734927,
+    boundsNorthLat: 19.295653,
+    boundsEastLng: -103.72268,
     defaultZoom: 16.0,
     icon: Icons.sports_baseball_rounded,
-    color: Color(0xFFFFCA28),
   );
 
   // Sur: sus 2 canchas son de Tenis.
@@ -128,15 +122,14 @@ class VenueRegistry {
     id: 'sur',
     label: 'Sur',
     shortDescription: 'Tenis · 2 canchas',
-    centerLat: 19.216721,
-    centerLng: -103.725576,
-    boundsSouthLat: 19.210721,
-    boundsWestLng: -103.732576,
-    boundsNorthLat: 19.222721,
-    boundsEastLng: -103.718576,
-    defaultZoom: 16.0,
+    centerLat: 19.217443,
+    centerLng: -103.725445,
+    boundsSouthLat: 19.213577,
+    boundsWestLng: -103.729565,
+    boundsNorthLat: 19.221309,
+    boundsEastLng: -103.721324,
+    defaultZoom: 17.5,
     icon: Icons.sports_tennis_rounded,
-    color: Color(0xFF5C6BC0),
   );
 
   // UDIF: su única cancha es de Sóftbol.
@@ -144,31 +137,36 @@ class VenueRegistry {
     id: 'udif',
     label: 'UDIF',
     shortDescription: 'Sóftbol · 1 cancha',
-    centerLat: 19.235040,
-    centerLng: -103.705402,
-    boundsSouthLat: 19.229040,
-    boundsWestLng: -103.712402,
-    boundsNorthLat: 19.241040,
-    boundsEastLng: -103.698402,
+    centerLat: 19.23583,
+    centerLng: -103.705444,
+    boundsSouthLat: 19.230978,
+    boundsWestLng: -103.712024,
+    boundsNorthLat: 19.240681,
+    boundsEastLng: -103.698864,
     defaultZoom: 16.0,
     icon: Icons.sports_baseball_rounded,
-    color: Color(0xFFEC407A),
   );
 
-  // Ezona Militar (Complejo Galván): su única cancha es de Béisbol.
+  // Ezona Militar (Complejo Galván, antes XX Zona Militar): su única cancha
+  // es de Béisbol. Coordenadas verificadas contra Google Places API
+  // ("Complejo Galván (Ex-Zona Militar)" → 19.243554, -103.712445), que
+  // coincide exacto con lo que ya estaba aquí. OJO: OpenStreetMap ubica el
+  // polígono de este complejo ~220m al sur; ese dato es el que está mal, no
+  // este. Google no tiene ninguna instalación deportiva registrada dentro
+  // del complejo, así que sus canchas (incluida la de béisbol) hay que
+  // pinearlas a mano con el editor de admin.
   static const Venue ezonaMilitar = Venue(
     id: 'ezona_militar',
     label: 'Ezona Militar',
     shortDescription: 'Béisbol · 1 cancha',
-    centerLat: 19.243554,
-    centerLng: -103.712445,
-    boundsSouthLat: 19.237554,
-    boundsWestLng: -103.719445,
-    boundsNorthLat: 19.249554,
-    boundsEastLng: -103.705445,
+    centerLat: 19.24196,
+    centerLng: -103.712067,
+    boundsSouthLat: 19.237223,
+    boundsWestLng: -103.718143,
+    boundsNorthLat: 19.246698,
+    boundsEastLng: -103.705991,
     defaultZoom: 16.0,
     icon: Icons.sports_baseball_rounded,
-    color: Color(0xFF26A69A),
   );
 
   /// Todas las sedes registradas.
@@ -190,4 +188,22 @@ class VenueRegistry {
 
   static Venue byId(String id) =>
       all.firstWhere((v) => v.id == id, orElse: () => tecColima);
+
+  /// Punto medio de la caja que contiene a las 9 sedes, para encuadrar el
+  /// mapa abierto de forma que todas queden a la vista al entrar.
+  ///
+  /// Es el centro de la caja envolvente, no el promedio de los centros: con
+  /// 4 sedes juntas al norte y 1 sola en Coquimatlán (a ~9.5 km), el promedio
+  /// se recarga al norte y deja Coquimatlán fuera de pantalla.
+  static (double lat, double lng) centroDeTodasLasSedes() {
+    var minLat = all.first.centerLat, maxLat = all.first.centerLat;
+    var minLng = all.first.centerLng, maxLng = all.first.centerLng;
+    for (final v in all) {
+      if (v.centerLat < minLat) minLat = v.centerLat;
+      if (v.centerLat > maxLat) maxLat = v.centerLat;
+      if (v.centerLng < minLng) minLng = v.centerLng;
+      if (v.centerLng > maxLng) maxLng = v.centerLng;
+    }
+    return ((minLat + maxLat) / 2, (minLng + maxLng) / 2);
+  }
 }

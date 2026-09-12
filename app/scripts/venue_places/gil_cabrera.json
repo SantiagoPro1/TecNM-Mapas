@@ -1,0 +1,137 @@
+{
+  "venueId": "gil_cabrera",
+  "source": "Google Places API + OpenStreetMap (ambos filtrados por zona)",
+  "center": {
+    "lat": 19.2673,
+    "lon": -103.740724
+  },
+  "radius_m": 450,
+  "places": [
+    {
+      "name": "Unidad Deportiva Gil Cabrera",
+      "lat": 19.2673,
+      "lon": -103.740724,
+      "source": "google",
+      "kind": "fitness_center"
+    },
+    {
+      "name": "Unidad deportiva de Villa de Álvarez",
+      "lat": 19.267265,
+      "lon": -103.740571,
+      "source": "google",
+      "kind": "sports_complex"
+    },
+    {
+      "name": "Canchas de la Unidad de la Villa",
+      "lat": 19.267271,
+      "lon": -103.740297,
+      "source": "google",
+      "kind": "fitness_center"
+    },
+    {
+      "name": "Cancha de Fútbol 3",
+      "lat": 19.266925,
+      "lon": -103.741092,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "LEONES RUGBY CLUB COLIMA",
+      "lat": 19.268006,
+      "lon": -103.741397,
+      "source": "google",
+      "kind": "sports_club"
+    },
+    {
+      "name": "Soccer7 Colima",
+      "lat": 19.266649,
+      "lon": -103.741676,
+      "source": "google",
+      "kind": "sports_club"
+    },
+    {
+      "name": "Campo Profesor Carlos Téllez Pimentel",
+      "lat": 19.268238,
+      "lon": -103.740043,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Club Deportivo Villa de Álvarez",
+      "lat": 19.267749,
+      "lon": -103.73959,
+      "source": "google",
+      "kind": "sports_club"
+    },
+    {
+      "name": "Pista de Atletismo",
+      "lat": 19.268461,
+      "lon": -103.740721,
+      "source": "osm",
+      "kind": "track"
+    },
+    {
+      "name": "Tezcatl Club de Arqueria Tradicional",
+      "lat": 19.267174,
+      "lon": -103.739267,
+      "source": "google",
+      "kind": "sports_club"
+    },
+    {
+      "name": "Cancha de Voleibol 2",
+      "lat": 19.268691,
+      "lon": -103.740669,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Pista de Atletismo Villa de Álvarez",
+      "lat": 19.268792,
+      "lon": -103.741588,
+      "source": "google",
+      "kind": "sports_activity_location"
+    },
+    {
+      "name": "Canchas Frontenis",
+      "lat": 19.26901,
+      "lon": -103.740959,
+      "source": "google",
+      "kind": "sports_club"
+    },
+    {
+      "name": "Cancha de Básquetbol 2",
+      "lat": 19.269054,
+      "lon": -103.74057,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha de Fútbol 1",
+      "lat": 19.268857,
+      "lon": -103.73983,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Zamesta Stadium",
+      "lat": 19.268945,
+      "lon": -103.739511,
+      "source": "google",
+      "kind": "athletic_field"
+    },
+    {
+      "name": "Sintético de La Villa",
+      "lat": 19.269262,
+      "lon": -103.739849,
+      "source": "google",
+      "kind": "sports_complex"
+    },
+    {
+      "name": "Pista de Atletismo 3",
+      "lat": 19.26927,
+      "lon": -103.741664,
+      "source": "osm",
+      "kind": "track"
+    }
+  ]
+}

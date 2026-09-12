@@ -48,10 +48,10 @@ class OfflineManager {
 
     // 2. Verificar que la caché del grafo está lista
     final cacheReady = await MapCacheService.isCacheReady;
-    debugPrint('[OfflineManager] Caché del grafo: ${cacheReady ? "✓" : "✗"}');
+    debugPrint('[OfflineManager] Caché del grafo: ${cacheReady ? "lista" : "no disponible"}');
 
     mgr._initialized = true;
-    debugPrint('[OfflineManager] Inicializado ✓ '
+    debugPrint('[OfflineManager] Inicializado '
         '(${ConnectivityService.instance.isOnline ? "online" : "offline"})');
 
     // 3. Calentar la caché de Firestore con las 9 sedes, SIN bloquear el
@@ -65,11 +65,40 @@ class OfflineManager {
   ///
   /// Es seguro llamarla sin conexión: `get()` cae a la caché local en vez de
   /// fallar, y cualquier error se registra sin interrumpir nada.
-  static Future<void> prefetchVenueDataForOffline() async {
+  /// Cada cuánto vale la pena volver a bajar los datos de las 9 sedes.
+  ///
+  /// Sin este límite la precarga se hacía en CADA arranque, y `get()` sin
+  /// `Source` va al servidor aunque el dato ya esté en la caché local: son
+  /// ~277 lecturas facturadas por arranque y por persona. Con 40,000
+  /// asistentes abriendo la app varias veces al día eso son millones de
+  /// lecturas diarias que no aportan nada, porque los puntos de las sedes
+  /// casi no cambian una vez montado el evento.
+  ///
+  /// 12 h es el punto medio: si un administrador mueve un punto, a la
+  /// gente le llega ese mismo día — y además `watchPlaces` es un listener en
+  /// vivo, así que quien tenga abierta la sede editada lo ve al instante.
+  static const Duration _vigenciaPrecarga = Duration(hours: 12);
+  static const String _kUltimaPrecarga = 'offline_ultima_precarga_ms';
+
+  static Future<void> prefetchVenueDataForOffline({bool forzar = false}) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final ultima = prefs.getInt(_kUltimaPrecarga);
+      if (!forzar && ultima != null) {
+        final edad = DateTime.now()
+            .difference(DateTime.fromMillisecondsSinceEpoch(ultima));
+        if (edad < _vigenciaPrecarga) {
+          debugPrint('[OfflineManager] Precarga vigente (hace ${edad.inHours} h);'
+              ' se sirve desde la caché local.');
+          return;
+        }
+      }
+
       await PlaceRepository().prefetchAllVenuesForOffline();
       await VenueGraphRepository().prefetchAllVenuesForOffline();
-      debugPrint('[OfflineManager] Sedes precargadas para offline ✓');
+      await prefs.setInt(
+          _kUltimaPrecarga, DateTime.now().millisecondsSinceEpoch);
+      debugPrint('[OfflineManager] Sedes precargadas para offline');
     } catch (e) {
       debugPrint('[OfflineManager] Precarga de sedes incompleta: $e');
     }

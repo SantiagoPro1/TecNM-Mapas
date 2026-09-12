@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:navia/core/theme/app_theme.dart';
 
 class CreditsScreen extends StatelessWidget {
   const CreditsScreen({super.key});
@@ -86,10 +87,10 @@ class CreditsScreen extends StatelessWidget {
 
           _SectionLabel('EQUIPO DE INGENIERÍA Y SISTEMAS',
               accentColor: cs.primary),
-          const _CreditCard(
+          _CreditCard(
             name: 'Santiago G. García',
             role: 'Ingeniería de Sistemas · Desarrollo y Arquitectura',
-            contributions: [
+            contributions: const [
               'Motor de navegación geoespacial: algoritmo Dijkstra y grafo topológico del campus',
               'Sistema GPS en tiempo real con snap-to-node y posicionamiento indoor',
               'Integración de Google ML Kit Image Labeling para validación cruzada',
@@ -100,14 +101,14 @@ class CreditsScreen extends StatelessWidget {
               'Análisis de errores: matrices de confusión y casos mal clasificados',
               'Integración de accesibilidad: Text-to-Speech, Speech-to-Text y modo alto contraste',
             ],
-            accentColor: Color(0xFF64B5F6),
+            accentColor: cs.primary,
             icon: Icons.code_rounded,
           ),
           const SizedBox(height: 12),
-          const _CreditCard(
+          _CreditCard(
             name: 'Juan J. Rosales C.',
             role: 'Ingeniería de Sistemas · Interfaces y APIs',
-            contributions: [
+            contributions: const [
               'Desarrollo de lógica en las interfaces de usuario interactivas',
               'Gestión, integración y consumo de APIs de geolocalización',
               'Documentación de patrones de UI y guía de estilos (Design System)',
@@ -120,14 +121,14 @@ class CreditsScreen extends StatelessWidget {
               'Creación de formularios interactivos con validación en tiempo real',
               'Soporte técnico en la integración de accesibilidad y VoiceOver',
             ],
-            accentColor: Color(0xFF81C784),
+            accentColor: cs.primary,
             icon: Icons.api_rounded,
           ),
           const SizedBox(height: 12),
-          const _CreditCard(
+          _CreditCard(
             name: 'Brisa A. Rosas O.',
             role: 'Ingeniería de Sistemas · QA & Seguridad',
-            contributions: [
+            contributions: const [
               'Diseño de la estrategia de testing para toda la app',
               'Implementación de pruebas unitarias para módulos críticos (algoritmo Dijkstra, STT, TTS)',
               'Implementación de pruebas de integración: Backend ↔ Frontend ↔ Firebase',
@@ -140,16 +141,16 @@ class CreditsScreen extends StatelessWidget {
               'Revisión de vulnerabilidades y cumplimiento en protección de datos',
               'Despliegue y configuración de servicios en el ecosistema Firebase',
             ],
-            accentColor: Color(0xFFFFB74D),
+            accentColor: cs.primary,
             icon: Icons.shield_rounded,
           ),
           const SizedBox(height: 16),
 
           _SectionLabel('GESTIÓN EMPRESARIAL', accentColor: cs.primary),
-          const _CreditCard(
+          _CreditCard(
             name: 'Aylen Y. González C.',
             role: 'Gestión Empresarial · Estrategia y Legal',
-            contributions: [
+            contributions: const [
               'Diseño del modelo de negocio y análisis de viabilidad técnica-financiera',
               'Estructuración del marco legal, ético y de privacidad de datos',
               'Planificación estratégica, gestión de recursos y cronograma del proyecto',
@@ -162,7 +163,7 @@ class CreditsScreen extends StatelessWidget {
               'Estructura de costos detallada: Firebase, servidor, soporte técnico, dominio',
               'Documento de Propiedad Intelectual: plan de registro INDAUTOR y IMPI',
             ],
-            accentColor: Color(0xFFCE93D8),
+            accentColor: cs.primary,
             icon: Icons.business_center_rounded,
           ),
           const SizedBox(height: 32),
@@ -172,8 +173,8 @@ class CreditsScreen extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: cs.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: cs.outline),
             ),
             child: Column(
               children: [
@@ -249,15 +250,8 @@ class _CreditCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: cs.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: accentColor.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: accentColor.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: cs.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,7 +262,7 @@ class _CreditCard extends StatelessWidget {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: accentColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Icon(icon, color: accentColor, size: 22),
               ),

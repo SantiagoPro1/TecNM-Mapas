@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:navia/core/theme/app_theme.dart';
 import 'package:navia/data/models/announcement.dart';
 
 /// Tarjeta de aviso contextual para el feed del HomeScreen.
@@ -29,7 +30,7 @@ class AnnouncementCard extends StatelessWidget {
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
           color: cs.error.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         child: Icon(Icons.close_rounded, color: cs.error, size: 24),
       ),
@@ -41,9 +42,9 @@ class AnnouncementCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: cs.surface,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(
-              color: _borderColor(cs),
+              color: _borderColor(context, cs),
               width: 1.5,
             ),
           ),
@@ -54,10 +55,10 @@ class AnnouncementCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: _iconColor(cs).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  color: _iconColor(context, cs).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
-                child: Icon(_icon, color: _iconColor(cs), size: 22),
+                child: Icon(_icon, color: _iconColor(context, cs), size: 22),
               ),
               const SizedBox(width: 14),
               // Contenido
@@ -69,7 +70,7 @@ class AnnouncementCard extends StatelessWidget {
                     Text(
                       announcement.typeLabel,
                       style: TextStyle(
-                        color: _iconColor(cs),
+                        color: _iconColor(context, cs),
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
@@ -109,14 +110,19 @@ class AnnouncementCard extends StatelessWidget {
 
   // ─── Estilos según tipo de aviso ─────────────────────────────
 
-  Color _borderColor(ColorScheme cs) {
+  Color _warningColor(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? AppWarning.dark
+          : AppWarning.light;
+
+  Color _borderColor(BuildContext context, ColorScheme cs) {
     switch (announcement.type) {
       case AnnouncementType.warning:
-        return const Color(0xFFFF9800);
+        return _warningColor(context);
       case AnnouncementType.closure:
         return cs.error;
       case AnnouncementType.event:
-        return const Color(0xFF2196F3);
+        return cs.secondary;
       case AnnouncementType.service:
         return cs.tertiary;
       case AnnouncementType.info:
@@ -124,14 +130,14 @@ class AnnouncementCard extends StatelessWidget {
     }
   }
 
-  Color _iconColor(ColorScheme cs) {
+  Color _iconColor(BuildContext context, ColorScheme cs) {
     switch (announcement.type) {
       case AnnouncementType.warning:
-        return const Color(0xFFFF9800);
+        return _warningColor(context);
       case AnnouncementType.closure:
         return cs.error;
       case AnnouncementType.event:
-        return const Color(0xFF2196F3);
+        return cs.secondary;
       case AnnouncementType.service:
         return cs.tertiary;
       case AnnouncementType.info:

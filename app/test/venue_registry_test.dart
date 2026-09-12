@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:navia/core/constants/venue_registry.dart';
 
@@ -7,6 +11,8 @@ import 'package:navia/core/constants/venue_registry.dart';
 /// aquí manda a la gente a otro lado sin que nada falle visiblemente, así
 /// que se protegen con pruebas.
 void main() {
+  _verificarEncuadreConDatosReales();
+
   test('están registradas las 9 sedes', () {
     expect(VenueRegistry.all.length, 9);
   });
@@ -56,4 +62,52 @@ void main() {
     // por error y va a intentar leer un archivo que no existe.
     expect(VenueRegistry.bundledVenues.map((v) => v.id), ['tec_colima']);
   });
+}
+
+/// El centro de cada sede debe caer entre sus canchas, no en el punto donde
+/// originalmente se buscó la sede en Google. Esa fue justo la falla de Unidad
+/// Morelos: su centro apuntaba a la esquina noroeste, ~180 m fuera del
+/// conjunto de canchas, así que el mapa abría encuadrando el terreno vecino.
+///
+/// La fuente de verdad son los datos verificados en `scripts/venue_places/`,
+/// que es de donde salen los puntos que se siembran en Firestore.
+void _verificarEncuadreConDatosReales() {
+  final dir = Directory('scripts/venue_places');
+  if (!dir.existsSync()) return; // el dataset no viaja en el paquete publicado
+
+  for (final file in dir.listSync().whereType<File>()) {
+    if (!file.path.endsWith('.json')) continue;
+    final data = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+    final venueId = data['venueId'] as String;
+    final places = (data['places'] as List).cast<Map<String, dynamic>>();
+    if (places.isEmpty) continue;
+
+    final venue = VenueRegistry.byId(venueId);
+    if (venue.id != venueId) continue; // sede sin registro propio
+
+    final lats = places.map((p) => (p['lat'] as num).toDouble()).toList();
+    final lngs = places.map((p) => (p['lon'] as num).toDouble()).toList();
+    final minLat = lats.reduce(min), maxLat = lats.reduce(max);
+    final minLng = lngs.reduce(min), maxLng = lngs.reduce(max);
+
+    test('$venueId: el centro cae entre sus canchas', () {
+      expect(venue.centerLat, inInclusiveRange(minLat, maxLat));
+      expect(venue.centerLng, inInclusiveRange(minLng, maxLng));
+
+      // Y no solo dentro: a menos de 120 m del medio real del conjunto.
+      final midLat = (minLat + maxLat) / 2, midLng = (minLng + maxLng) / 2;
+      final dy = (venue.centerLat - midLat) * 111320;
+      final dx = (venue.centerLng - midLng) * 111320 * cos(midLat * pi / 180);
+      expect(sqrt(dx * dx + dy * dy), lessThan(120),
+          reason: 'el centro de $venueId quedó descentrado respecto a sus '
+              'puntos reales');
+    });
+
+    test('$venueId: la caja de cámara contiene todas sus canchas', () {
+      expect(venue.boundsSouthLat, lessThanOrEqualTo(minLat));
+      expect(venue.boundsNorthLat, greaterThanOrEqualTo(maxLat));
+      expect(venue.boundsWestLng, lessThanOrEqualTo(minLng));
+      expect(venue.boundsEastLng, greaterThanOrEqualTo(maxLng));
+    });
+  }
 }

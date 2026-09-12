@@ -1,0 +1,81 @@
+{
+  "venueId": "coquimatlan",
+  "source": "Google Places API + OpenStreetMap (ambos filtrados por zona)",
+  "center": {
+    "lat": 19.216703,
+    "lon": -103.8046
+  },
+  "radius_m": 450,
+  "places": [
+    {
+      "name": "Unidad Deportiva Coquimatlán",
+      "lat": 19.216703,
+      "lon": -103.8046,
+      "source": "google",
+      "kind": "sports_complex"
+    },
+    {
+      "name": "Pista de Atletismo",
+      "lat": 19.216763,
+      "lon": -103.804394,
+      "source": "osm",
+      "kind": "track"
+    },
+    {
+      "name": "Cancha de Frontón",
+      "lat": 19.216924,
+      "lon": -103.804176,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha de Fútbol 2",
+      "lat": 19.216292,
+      "lon": -103.804855,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Campo No. 2 \"Efraín Delgado Camarena\"",
+      "lat": 19.216144,
+      "lon": -103.804291,
+      "source": "google",
+      "kind": "athletic_field"
+    },
+    {
+      "name": "Cancha de Voleibol",
+      "lat": 19.216725,
+      "lon": -103.803881,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha de Futbol Rápido",
+      "lat": 19.217259,
+      "lon": -103.804172,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha de Básquetbol",
+      "lat": 19.216944,
+      "lon": -103.803788,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Unidad Deportiva Norte \"Gustavo Alberto Vázquez Montes\"",
+      "lat": 19.216341,
+      "lon": -103.8036,
+      "source": "google",
+      "kind": "sports_complex"
+    },
+    {
+      "name": "Cancha Techada Del Llano",
+      "lat": 19.218046,
+      "lon": -103.806111,
+      "source": "google",
+      "kind": "athletic_field"
+    }
+  ]
+}

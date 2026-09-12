@@ -1,19 +1,50 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:crypto/crypto.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 /// Servicio de credencial digital con QR dinámico.
 ///
 /// Genera un token JWT-like con TTL de 60 segundos para el QR
 /// de la credencial del alumno. El token se regenera automáticamente.
 ///
-/// NOTA: Esto es un JWT simplificado on-device. La validación real
-/// se hace en el backend con la clave secreta compartida.
+/// La firma es HMAC-SHA256 real (RFC 2104) sobre
+/// `base64url(header).base64url(payload)`, con la misma clave compartida que
+/// usa el backend para verificar. Antes era un hash propio de 32 bits
+/// (`hash << 5`), que se puede invertir/forzar en segundos: cualquiera podía
+/// fabricar una credencial válida sin conocer la clave.
+///
+/// LÍMITE CONOCIDO: la clave viaja dentro del APK, así que quien lo
+/// descompile puede firmar credenciales. Eso acota el ataque a alguien con
+/// conocimientos y acceso al binario, en vez de a cualquiera con diez líneas
+/// de script — pero la solución definitiva es que el QR lleve el ID token de
+/// Firebase y el backend lo valide contra Google (no hay secreto que
+/// extraer). Ver `verifyFirebaseToken` en el backend, que ya hace eso.
 class CredentialService {
   /// Duración del token en segundos.
   static const int tokenTtlSeconds = 60;
 
-  /// Clave secreta para firma HMAC (en producción, usar dotenv/secure storage).
-  static const String _secretKey = 'NAVIA_TecNM_2026_SecretKey';
+  /// Clave compartida con el backend. Sale de `.env` (`CREDENTIAL_SECRET`)
+  /// para que se pueda rotar sin recompilar la app a mano y, sobre todo, para
+  /// que sea LA MISMA de los dos lados.
+  ///
+  /// Bug histórico que esto corrige: la app firmaba con
+  /// `NAVIA_TecNM_2026_SecretKey` y el backend verificaba con
+  /// `SINAIT_TecNM_2026_SecretKey`. Ninguna credencial escaneada podía pasar
+  /// la verificación — todas devolvían 401 "Firma de credencial inválida".
+  static String get _secretKey {
+    try {
+      final k = dotenv.env['CREDENTIAL_SECRET'];
+      if (k != null && k.isNotEmpty) return k;
+    } catch (_) {
+      // `dotenv.env` lanza si nunca se llamó a `dotenv.load` — pasa en las
+      // pruebas unitarias, que no arrancan la app completa.
+    }
+    // Mismo valor por defecto que el backend, para que ambos lados sigan
+    // coincidiendo aunque falte el .env.
+    return 'NAVIA_TecNM_2026_SecretKey';
+  }
 
   /// Genera un token JWT-like para el QR de la credencial.
   ///
@@ -129,22 +160,12 @@ class CredentialService {
     return utf8.decode(base64Url.decode(padded));
   }
 
-  /// Firma HMAC simplificada (hash determinístico).
-  /// En producción real, usar package:crypto con HMAC-SHA256.
+  /// Firma HMAC-SHA256 en base64url sin relleno, igual que un JWT HS256 real.
   static String _sign(String data) {
-    // Simple hash basado en la data + secret key
-    final input = '$data.$_secretKey';
-    int hash = 0;
-    for (int i = 0; i < input.length; i++) {
-      hash = ((hash << 5) - hash + input.codeUnitAt(i)) & 0xFFFFFFFF;
-    }
-    // Second pass for better distribution
-    final input2 = '${hash.toRadixString(16)}.$_secretKey';
-    int hash2 = 0;
-    for (int i = 0; i < input2.length; i++) {
-      hash2 = ((hash2 << 5) - hash2 + input2.codeUnitAt(i)) & 0xFFFFFFFF;
-    }
-    return '${hash.toRadixString(16)}${hash2.toRadixString(16)}';
+    final hmac = Hmac(sha256, utf8.encode(_secretKey));
+    return base64Url
+        .encode(hmac.convert(utf8.encode(data)).bytes)
+        .replaceAll('=', '');
   }
 
   /// Genera un ID único para el token (jti claim).

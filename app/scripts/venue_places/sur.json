@@ -1,0 +1,60 @@
+{
+  "venueId": "sur",
+  "source": "Google Places API + OpenStreetMap (ambos filtrados por zona)",
+  "center": {
+    "lat": 19.216721,
+    "lon": -103.725576
+  },
+  "radius_m": 450,
+  "places": [
+    {
+      "name": "Centro Formativo de Fútbol Rey Coliman",
+      "lat": 19.216721,
+      "lon": -103.725576,
+      "source": "google",
+      "kind": "fitness_center"
+    },
+    {
+      "name": "Cancha de Básquetbol",
+      "lat": 19.216917,
+      "lon": -103.725417,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Unidad Deportiva Rey de Colimán",
+      "lat": 19.217194,
+      "lon": -103.725173,
+      "source": "osm",
+      "kind": "sports_centre"
+    },
+    {
+      "name": "Canchas Frontenis",
+      "lat": 19.216829,
+      "lon": -103.726235,
+      "source": "google",
+      "kind": "sports_complex"
+    },
+    {
+      "name": "Pista",
+      "lat": 19.218059,
+      "lon": -103.72614,
+      "source": "osm",
+      "kind": "track"
+    },
+    {
+      "name": "Academia",
+      "lat": 19.218165,
+      "lon": -103.725312,
+      "source": "google",
+      "kind": "park"
+    },
+    {
+      "name": "Cancha de Fútbol",
+      "lat": 19.218046,
+      "lon": -103.724654,
+      "source": "osm",
+      "kind": "pitch"
+    }
+  ]
+}

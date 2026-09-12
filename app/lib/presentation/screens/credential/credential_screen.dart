@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flip_card/flip_card.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:barcode_widget/barcode_widget.dart';
+import 'package:navia/core/theme/app_theme.dart';
 import 'package:navia/data/providers/auth_provider.dart';
+import 'package:navia/data/providers/student_data_provider.dart';
 import 'package:navia/services/auth/credential_service.dart';
 import 'package:navia/presentation/widgets/bottom_nav.dart';
 
@@ -128,6 +130,7 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
 
   Widget _buildCredentialView(AuthState authState) {
     final cs = Theme.of(context).colorScheme;
+    final student = ref.watch(studentDataProvider);
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: Column(
@@ -136,7 +139,7 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: cs.primary.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -155,7 +158,7 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
           const SizedBox(height: 24),
           FlipCard(
             direction: FlipDirection.HORIZONTAL,
-            front: _CredentialFront(authState: authState),
+            front: _CredentialFront(authState: authState, student: student),
             back: _CredentialBack(
               authState: authState,
               pulse: _pulseAnimation,
@@ -177,26 +180,35 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
     );
   }
 
+  /// Datos de emergencia. Antes aquí había tres recuadros fijos para todo
+  /// mundo ("VIGENCIA 2024-2027", "ALUMNO REGULAR", "SEGURO VIGENTE IMSS")
+  /// que la app no puede verificar — y afirmar cobertura médica sin
+  /// respaldo es riesgoso si alguien de servicios médicos actúa confiando
+  /// en ella. Se reemplazaron por lo que de verdad hace falta si un atleta
+  /// se lesiona en una cancha, capturado por cada quien en su perfil.
   Widget _buildStatusList() {
     final cs = Theme.of(context).colorScheme;
+    final student = ref.watch(studentDataProvider);
+    const faltante = 'Sin registrar — agrégalo en tu perfil';
+
     final items = [
       (
-        Icons.calendar_today_rounded,
-        'VIGENCIA',
-        '2024 - 2027',
-        Colors.blueAccent
+        Icons.bloodtype_rounded,
+        'TIPO DE SANGRE',
+        student.bloodType ?? faltante,
+        cs.error,
       ),
       (
-        Icons.verified_user_rounded,
-        'ESTADO',
-        'ALUMNO REGULAR',
-        Colors.greenAccent
+        Icons.contact_emergency_rounded,
+        'CONTACTO DE EMERGENCIA',
+        student.emergencyLabel ?? faltante,
+        cs.primary,
       ),
       (
-        Icons.local_hospital_rounded,
-        'SEGURO',
-        'VIGENTE IMSS',
-        Colors.redAccent
+        Icons.medical_information_rounded,
+        'ALERGIAS / PADECIMIENTOS',
+        student.medicalNotes ?? 'Ninguno registrado',
+        cs.tertiary,
       ),
     ];
     return Column(
@@ -206,12 +218,8 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: cs.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  border:
-                      Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 10)
-                  ],
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(color: cs.outline),
                 ),
                 child: Row(
                   children: [
@@ -219,27 +227,32 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: item.$4.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
                       child: Icon(item.$1, color: item.$4, size: 20),
                     ),
                     const SizedBox(width: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(item.$2,
-                            style: TextStyle(
-                                color: cs.onSurface.withValues(alpha: 0.4),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.0)),
-                        const SizedBox(height: 2),
-                        Text(item.$3,
-                            style: TextStyle(
-                                color: cs.onSurface,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700)),
-                      ],
+                    // Expanded: los datos de emergencia son texto libre
+                    // (nombre + teléfono, lista de alergias) y sin esto se
+                    // desbordan a lo ancho.
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(item.$2,
+                              style: TextStyle(
+                                  color: cs.onSurface.withValues(alpha: 0.4),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.0)),
+                          const SizedBox(height: 2),
+                          Text(item.$3,
+                              style: TextStyle(
+                                  color: cs.onSurface,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700)),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -265,7 +278,7 @@ class _TokenTimer extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
@@ -297,28 +310,21 @@ class _TokenTimer extends StatelessWidget {
 
 class _CredentialFront extends StatelessWidget {
   final AuthState authState;
-  const _CredentialFront({required this.authState});
+  final StudentData student;
+  const _CredentialFront({required this.authState, required this.student});
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       height: 240,
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-              color: cs.primary.withValues(alpha: 0.15),
-              blurRadius: 20,
-              spreadRadius: 2)
-        ],
-        border:
-            Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: const Color(0xFFE0E0E0)),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         child: Stack(
           children: [
             // Decorative background
@@ -329,7 +335,7 @@ class _CredentialFront extends StatelessWidget {
                 width: 150,
                 height: 150,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF005696).withValues(alpha: 0.05),
+                  color: AppTheme.brandNavy.withValues(alpha: 0.05),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -341,10 +347,7 @@ class _CredentialFront extends StatelessWidget {
               right: 0,
               child: Container(
                 height: 48,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                      colors: [Color(0xFF005696), Color(0xFF004070)]),
-                ),
+                color: AppTheme.brandNavy,
                 child: const Center(
                   child: Text('INSTITUTO TECNOLÓGICO DE COLIMA',
                       style: TextStyle(
@@ -365,11 +368,8 @@ class _CredentialFront extends StatelessWidget {
                     height: 140,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[200]!, width: 2),
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black12, blurRadius: 8)
-                      ],
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(color: Colors.grey[300]!, width: 2),
                     ),
                     child: Center(
                       child: CircleAvatar(
@@ -398,7 +398,7 @@ class _CredentialFront extends StatelessWidget {
                       children: [
                         const Text('ESTUDIANTE',
                             style: TextStyle(
-                                color: Color(0xFF005696),
+                                color: AppTheme.brandNavy,
                                 fontWeight: FontWeight.w900,
                                 fontSize: 14,
                                 letterSpacing: 1.5)),
@@ -406,8 +406,16 @@ class _CredentialFront extends StatelessWidget {
                         _labelValue(
                             'NOMBRE:', authState.displayName.toUpperCase()),
                         _labelValue(
-                            'CARRERA:', 'ING. SISTEMAS COMPUTACIONALES'),
+                            'CARRERA:',
+                            (student.carrera == null || student.carrera!.isEmpty)
+                                ? 'NO ESPECIFICADA'
+                                : student.carrera!.toUpperCase()),
                         _labelValue('CONTROL:', authState.matricula),
+                        _labelValue(
+                            'NSS:',
+                            (student.nss == null || student.nss!.isEmpty)
+                                ? 'NO REGISTRADO'
+                                : StudentData.formatNss(student.nss!)),
                       ],
                     ),
                   )
@@ -422,7 +430,10 @@ class _CredentialFront extends StatelessWidget {
 
   Widget _labelValue(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      // 8 y no 10: con NSS ya son cuatro renglones y la carrera puede
+      // ocupar dos líneas — este margen deja aire suficiente para que no
+      // se desborde la tarjeta de 240px.
+      padding: const EdgeInsets.only(bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -473,7 +484,6 @@ class _CredentialBack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final qrData = token ?? authState.matricula;
 
     return Container(
@@ -481,15 +491,8 @@ class _CredentialBack extends StatelessWidget {
       height: 240,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-              color: cs.primary.withValues(alpha: 0.15),
-              blurRadius: 20,
-              spreadRadius: 2)
-        ],
-        border:
-            Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: const Color(0xFFE0E0E0)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -510,10 +513,8 @@ class _CredentialBack extends StatelessWidget {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 10)
-                  ],
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(color: const Color(0xFFE0E0E0)),
                 ),
                 child: QrImageView(
                     data: qrData, size: 100, padding: EdgeInsets.zero),

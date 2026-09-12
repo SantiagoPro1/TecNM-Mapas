@@ -1,0 +1,53 @@
+{
+  "venueId": "ezona_militar",
+  "source": "Google Places API + OpenStreetMap (ambos filtrados por zona)",
+  "center": {
+    "lat": 19.243554,
+    "lon": -103.712445
+  },
+  "radius_m": 450,
+  "places": [
+    {
+      "name": "Complejo Galván (Ex-Zona Militar)",
+      "lat": 19.243554,
+      "lon": -103.712445,
+      "source": "google",
+      "kind": "park"
+    },
+    {
+      "name": "Cancha de Básquetbol 1",
+      "lat": 19.242346,
+      "lon": -103.713329,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha de Fútbol",
+      "lat": 19.240942,
+      "lon": -103.712641,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Sala Alberto Isaac",
+      "lat": 19.242154,
+      "lon": -103.714813,
+      "source": "google",
+      "kind": "auditorium"
+    },
+    {
+      "name": "Cancha de Básquetbol 2",
+      "lat": 19.240367,
+      "lon": -103.713194,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha de Básquetbol 3",
+      "lat": 19.241098,
+      "lon": -103.709321,
+      "source": "osm",
+      "kind": "pitch"
+    }
+  ]
+}

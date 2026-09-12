@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:navia/data/models/campus_edge.dart';
 import 'package:navia/data/models/campus_node.dart';
+import 'package:navia/data/models/nav_route.dart';
+import 'package:navia/data/providers/navigation_provider.dart';
 import 'package:navia/services/navigation/campus_graph.dart';
 
 CampusNode _node(String id, {bool accessible = true}) => CampusNode(
@@ -113,6 +115,92 @@ void main() {
       expect(grafo.nodes.length, 2);
       final ruta = grafo.dijkstra.findShortestPath('A', 'B');
       expect(ruta!.totalDistance, 50);
+    });
+  });
+
+  group('NavigationState: cancelar ruta', () {
+    // Bug real: copyWith usaba `activeRoute ?? this.activeRoute`, así que
+    // pasar `activeRoute: null` para "borrarla" nunca funcionaba (null ??
+    // x siempre regresa x). Resultado: al cancelar, la ruta seguía viva en
+    // el estado global y reaparecía al abrir el mapa de otra sede.
+    final ruta = NavRoute(
+      steps: [
+        RouteStep(node: _node('A'), voiceInstruction: 'Sal por A'),
+        RouteStep(node: _node('B'), voiceInstruction: 'Llega a B'),
+      ],
+      totalDistance: 100,
+      estimatedMinutes: 1.5,
+      fullyAccessible: true,
+      origin: _node('A'),
+      destination: _node('B'),
+    );
+
+    test('clearActiveRoute realmente borra la ruta (no solo la polilínea)',
+        () {
+      final conRuta = const NavigationState().copyWith(
+        status: NavStatus.navigating,
+        activeRoute: ruta,
+        routeVenueId: 'tec_colima',
+        routePolylinePoints: [
+          [19.26, -103.72]
+        ],
+        destinationName: 'Cafetería',
+      );
+      expect(conRuta.activeRoute, isNotNull);
+
+      final cancelada = conRuta.copyWith(
+        status: NavStatus.ready,
+        clearActiveRoute: true,
+        clearRoutePolyline: true,
+        clearDestinationName: true,
+      );
+
+      expect(cancelada.activeRoute, isNull);
+      expect(cancelada.routeVenueId, isNull);
+      expect(cancelada.routePolylinePoints, isNull);
+      expect(cancelada.destinationName, isNull);
+    });
+
+    test('pasar activeRoute: null sin la bandera no borra nada (regresión)',
+        () {
+      // Documenta por qué existe `clearActiveRoute`: sin la bandera, `null`
+      // es indistinguible de "no tocar este campo".
+      final conRuta = const NavigationState().copyWith(activeRoute: ruta);
+      final intentoFallido = conRuta.copyWith();
+      expect(intentoFallido.activeRoute, isNotNull);
+    });
+  });
+
+  group('NavigationState: quitar posición manual ("Estoy Aquí")', () {
+    // Mismo bug de fondo que clearActiveRoute, pero en currentNode: sin
+    // `clearCurrentNode`, "Quitar" en el mapa apagaba `isManualPosition`
+    // pero el chip de Inicio ("Edificio R · CAMBIAR") seguía leyendo el
+    // `currentNode` viejo, que nunca se limpiaba.
+    test('clearCurrentNode realmente borra el nodo fijado', () {
+      final conNodo = const NavigationState().copyWith(
+        currentNode: _node('EDIFICIO_R'),
+        isManualPosition: true,
+        manualPositionLabel: 'Edificio R',
+      );
+      expect(conNodo.currentNode, isNotNull);
+
+      final limpio = conNodo.copyWith(
+        isManualPosition: false,
+        clearManualPositionLabel: true,
+        clearCurrentNode: true,
+      );
+
+      expect(limpio.currentNode, isNull);
+      expect(limpio.isManualPosition, isFalse);
+      expect(limpio.manualPositionLabel, isNull);
+    });
+
+    test('pasar currentNode: null sin la bandera no borra nada (regresión)',
+        () {
+      final conNodo =
+          const NavigationState().copyWith(currentNode: _node('EDIFICIO_R'));
+      final intentoFallido = conNodo.copyWith();
+      expect(intentoFallido.currentNode, isNotNull);
     });
   });
 }

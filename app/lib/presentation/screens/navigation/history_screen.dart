@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:navia/core/theme/app_theme.dart';
 import 'package:navia/presentation/widgets/bottom_nav.dart';
 
 class HistoryScreen extends StatelessWidget {
@@ -49,7 +50,7 @@ class HistoryScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      bottomNavigationBar: const BottomNav(currentIndex: 2),
+      bottomNavigationBar: const BottomNav(currentIndex: -1),
       appBar: AppBar(
         title: const Text('HISTORIAL'),
         backgroundColor: Colors.transparent,
@@ -101,9 +102,8 @@ class _HistoryTile extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: cs.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: cs.outline),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,7 +112,7 @@ class _HistoryTile extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: cs.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
             child: Icon(item.icon, color: cs.primary, size: 24),
           ),
@@ -158,7 +158,7 @@ class _HistoryTile extends StatelessWidget {
                           horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: cs.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
                       child: Text(item.duration,
                           style: TextStyle(
@@ -188,10 +188,10 @@ class _EmptyState extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-                color: cs.onSurface.withValues(alpha: 0.02),
+                color: cs.onSurface.withValues(alpha: 0.03),
                 shape: BoxShape.circle),
             child: Icon(Icons.history_rounded,
-                size: 64, color: cs.onSurface.withValues(alpha: 0.1)),
+                size: 64, color: cs.onSurface.withValues(alpha: 0.15)),
           ),
           const SizedBox(height: 24),
           Text('Sin rutas recientes',

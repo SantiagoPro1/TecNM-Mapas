@@ -54,6 +54,7 @@ dependencies:
   cached_network_image: ^3.4.1
   http: ^1.6.0
   image_picker: ^1.2.2
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:
@@ -74,6 +75,16 @@ flutter:
     - assets/maps/sendera_map.json
     - assets/maps/zentralia_map.json
     - assets/icons/svg/                  # Iconos SVG para marcadores del mapa
+    - assets/categories/                 # Ilustraciones por tipo de lugar
+    - assets/places/                     # Fotos propias de cada punto del mapa
     - assets/map_styles/
     - assets/map_styles/dark_style.json
     - assets/map_styles/light_style.json
+
+  fonts:
+    # Fuente empaquetada localmente (no via red) a propósito: la app está
+    # pensada para funcionar sin señal, así que la tipografía no puede
+    # depender de descargarse la primera vez que se abre.
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope-Variable.ttf

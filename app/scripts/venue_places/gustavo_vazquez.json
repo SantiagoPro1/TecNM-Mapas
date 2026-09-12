@@ -1,0 +1,109 @@
+{
+  "venueId": "gustavo_vazquez",
+  "source": "Google Places API + OpenStreetMap (ambos filtrados por zona)",
+  "center": {
+    "lat": 19.291975,
+    "lon": -103.729561
+  },
+  "radius_m": 450,
+  "places": [
+    {
+      "name": "Unidad Deportiva Gustavo Alberto Vazquez Montes",
+      "lat": 19.291975,
+      "lon": -103.729561,
+      "source": "google",
+      "kind": "athletic_field"
+    },
+    {
+      "name": "Campos de Rugby AREC",
+      "lat": 19.292509,
+      "lon": -103.72976,
+      "source": "google",
+      "kind": "athletic_field"
+    },
+    {
+      "name": "Cancha de Fútbol 6",
+      "lat": 19.292044,
+      "lon": -103.728901,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Canchas y Jardín",
+      "lat": 19.291285,
+      "lon": -103.730482,
+      "source": "google",
+      "kind": "athletic_field"
+    },
+    {
+      "name": "Cancha de usos Multiples Solidaridad I",
+      "lat": 19.29115,
+      "lon": -103.730496,
+      "source": "google",
+      "kind": "playground"
+    },
+    {
+      "name": "Cancha 2",
+      "lat": 19.292476,
+      "lon": -103.728158,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha de Fútbol 4",
+      "lat": 19.2919,
+      "lon": -103.727563,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha 3",
+      "lat": 19.291287,
+      "lon": -103.727674,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha 4",
+      "lat": 19.291225,
+      "lon": -103.726553,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Complejo Deportivo SNTE Sección 6",
+      "lat": 19.291362,
+      "lon": -103.726491,
+      "source": "osm",
+      "kind": "sports_centre"
+    },
+    {
+      "name": "Cancha de Fútbol 1",
+      "lat": 19.291346,
+      "lon": -103.726011,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha de Futbol Rápido Los Almendros",
+      "lat": 19.289156,
+      "lon": -103.731596,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Canchas de Básquetbol Bugambilias",
+      "lat": 19.28856,
+      "lon": -103.729612,
+      "source": "google",
+      "kind": "athletic_field"
+    },
+    {
+      "name": "Pista De Ciclismo",
+      "lat": 19.288447,
+      "lon": -103.730253,
+      "source": "google",
+      "kind": "cycling_park"
+    }
+  ]
+}

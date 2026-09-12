@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:navia/core/constants/app_routes.dart';
+import 'package:navia/core/theme/app_theme.dart';
 import 'package:navia/data/providers/auth_provider.dart';
 import 'package:navia/data/providers/navigation_provider.dart';
 import 'package:navia/data/providers/venue_provider.dart';
@@ -25,14 +26,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     Future.microtask(() {
       ref.read(voiceProvider.notifier).initialize();
       ref.read(feedProvider.notifier).loadAll();
+      _warmUpLocationPermission();
     });
+  }
+
+  /// Pide el permiso de ubicación apenas se abre Inicio, no hasta que se
+  /// llega al mapa. Antes, el primer diálogo del sistema ("¿Permitir que
+  /// NAVIA acceda a tu ubicación?") aparecía justo al entrar al mapa, así
+  /// que la primera vez que alguien lo abría, veía el mapa sin GPS por un
+  /// momento mientras decidía. Pidiéndolo aquí, para cuando de verdad entre
+  /// al mapa el permiso ya está resuelto.
+  ///
+  /// A propósito no muestra ningún diálogo propio ni SnackBar — si el GPS
+  /// está apagado o el permiso queda denegado, el mapa ya tiene su propio
+  /// flujo completo (con avisos claros) para cuando de verdad haga falta.
+  /// Esto es solo un "calentamiento" silencioso.
+  Future<void> _warmUpLocationPermission() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        await Geolocator.requestPermission();
+      }
+    } catch (_) {
+      // Silencioso a propósito — ver comentario arriba.
+    }
   }
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Buenos días 👋';
-    if (hour < 19) return 'Buenas tardes 👋';
-    return 'Buenas noches 👋';
+    if (hour < 12) return 'Buenos días';
+    if (hour < 19) return 'Buenas tardes';
+    return 'Buenas noches';
   }
 
   @override
@@ -70,9 +96,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             content: Text(next.errorMessage!,
                 style: const TextStyle(fontWeight: FontWeight.w600)),
             backgroundColor: cs.error,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md)),
           ),
         );
       }
@@ -171,18 +196,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           behavior: HitTestBehavior.opaque,
           onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
           child: Container(
-            padding: const EdgeInsets.all(3),
+            padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(colors: [cs.primary, cs.secondary]),
-              boxShadow: [
-                BoxShadow(
-                    color: cs.primary.withValues(alpha: 0.3), blurRadius: 12)
-              ],
+              border: Border.all(color: cs.outline),
             ),
             child: CircleAvatar(
-              radius: 22,
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              radius: 21,
+              backgroundColor: cs.surfaceContainerHighest,
               backgroundImage: authState.photoUrl != null
                   ? NetworkImage(authState.photoUrl!)
                   : null,
@@ -233,16 +254,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      v.color.withValues(alpha: 0.15),
-                      v.color.withValues(alpha: 0.05)
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: v.color.withValues(alpha: 0.2)),
+                  color: cs.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(color: cs.outline),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -250,9 +264,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                          color: v.color.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10)),
-                      child: Icon(v.icon, color: v.color, size: 18),
+                          color: cs.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(AppRadius.sm)),
+                      child: Icon(v.icon, color: cs.primary, size: 18),
                     ),
                     const Spacer(),
                     Text(v.label,
@@ -261,15 +275,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         style: TextStyle(
                             color: cs.onSurface,
                             fontSize: 13,
-                            fontWeight: FontWeight.w800)),
+                            fontWeight: FontWeight.w700)),
                     const SizedBox(height: 3),
                     Text(v.shortDescription,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            color: v.color.withValues(alpha: 0.8),
+                            color: cs.onSurface.withValues(alpha: 0.55),
                             fontSize: 10.5,
-                            fontWeight: FontWeight.w600)),
+                            fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),
@@ -286,7 +300,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       context: context,
       backgroundColor: cs.surface,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg))),
       builder: (_) => Container(
         padding: const EdgeInsets.all(32),
         child: Column(
@@ -307,7 +321,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                       color: cs.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(16)),
+                      borderRadius: BorderRadius.circular(AppRadius.lg)),
                   child:
                       Icon(Icons.campaign_rounded, color: cs.primary, size: 32),
                 ),
@@ -337,7 +351,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     foregroundColor: cs.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 20),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20))),
+                        borderRadius: BorderRadius.circular(AppRadius.md))),
                 child: const Text('ENTENDIDO',
                     style:
                         TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
@@ -367,7 +381,7 @@ class _LocationChip extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: cs.tertiary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: cs.tertiary.withValues(alpha: 0.25)),
       ),
       child: Row(
@@ -426,11 +440,8 @@ class _ActiveNavCard extends ConsumerWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: cs.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: cs.primary.withValues(alpha: 0.3)),
-        boxShadow: [
-          BoxShadow(color: cs.primary.withValues(alpha: 0.08), blurRadius: 20)
-        ],
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: cs.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,7 +509,7 @@ class _ActiveNavCard extends ConsumerWidget {
                   height: 1.4)),
           const SizedBox(height: 16),
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
             child: LinearProgressIndicator(
                 value: navState.progress,
                 minHeight: 6,
@@ -510,9 +521,8 @@ class _ActiveNavCard extends ConsumerWidget {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  border:
-                      Border.all(color: cs.primary.withValues(alpha: 0.3)),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(color: cs.outline),
                 ),
                 child: IconButton(
                   onPressed: () =>
@@ -543,12 +553,11 @@ class _ActiveNavCard extends ConsumerWidget {
                         fontWeight: FontWeight.w800, fontSize: 13),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        isArrived ? Colors.greenAccent : cs.primary,
-                    foregroundColor: cs.onPrimary,
+                    backgroundColor: isArrived ? cs.tertiary : cs.primary,
+                    foregroundColor: isArrived ? Colors.white : cs.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
+                        borderRadius: BorderRadius.circular(AppRadius.md)),
                   ),
                 ),
               ),

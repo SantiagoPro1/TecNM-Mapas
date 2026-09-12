@@ -53,7 +53,7 @@ class MapCacheService {
         // Validar que el JSON sea parseable antes de guardarlo
         json.decode(jsonStr);
         await box.put(file, jsonStr);
-        debugPrint('MapCache: sembrado $file ✓');
+        debugPrint('MapCache: sembrado $file');
       } catch (e) {
         debugPrint('MapCache: error sembrando $file → $e');
       }
@@ -117,7 +117,7 @@ class MapCacheService {
     try {
       final box = await Hive.openBox<String>(_boxName);
       await box.put(assetPath, json.encode(data));
-      debugPrint('MapCache: actualizado $assetPath ✓');
+      debugPrint('MapCache: actualizado $assetPath');
     } catch (e) {
       debugPrint('MapCache: error actualizando $assetPath → $e');
     }

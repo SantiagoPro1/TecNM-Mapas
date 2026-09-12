@@ -19,6 +19,21 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Versión de los datos de sedes. Un único documento
+    // (`app_meta/venue_data`, campo `dataVersion`) que le dice a la app si
+    // los puntos empaquetados en el APK siguen al día.
+    //
+    // Es la ÚNICA lectura de Firestore que hace un usuario normal en el
+    // camino feliz: todo lo demás sale del APK. Por eso el consumo se
+    // mantiene dentro del tramo gratuito aun con 40,000 asistentes.
+    //
+    // Cuando el administrador edita puntos, debe subir `dataVersion` en 1
+    // para que los teléfonos vuelvan a leer de Firestore.
+    match /app_meta/{documento} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Sedes (TecNM Colima, Sendera, Zentralia, sedes del Evento Nacional
     // Deportivo) y sus subcolecciones. Lectura pública: los invitados sin
     // cuenta necesitan ver el mapa. Escritura solo para administradores.

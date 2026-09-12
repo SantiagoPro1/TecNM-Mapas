@@ -26,12 +26,183 @@ import 'package:navia/data/providers/navigation_provider.dart';
 import 'package:navia/data/providers/settings_provider.dart';
 import 'package:navia/presentation/widgets/bottom_nav.dart';
 import 'package:navia/core/theme/app_theme.dart';
+import 'package:navia/presentation/screens/map/place_visuals.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
-  const MapScreen({super.key});
+  /// Modo "mapa abierto": la pantalla deja de estar anclada a una sede.
+  ///
+  /// El mapa normal se abre sobre UNA sede y encierra la cámara en su caja
+  /// (`cameraTargetBounds`) para que nadie se pierda navegando a ciegas por
+  /// la ciudad; además, si detecta que estás lejos, te regresa el encuadre a
+  /// la sede. Eso es lo correcto cuando vas a una competencia concreta, pero
+  /// vuelve imposible simplemente explorar. En modo abierto la cámara es
+  /// libre, se ven los puntos de las 9 sedes a la vez, y nada reencuadra por
+  /// su cuenta.
+  final bool openMap;
+
+  const MapScreen({super.key, this.openMap = false});
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
+}
+
+/// Estados del cuadro de estado de ruta (la barra superior del mapa).
+///
+/// Antes estos avisos ("calculando ruta", "ya estás ahí", "ya tienes una
+/// ruta activa") salían como SnackBar. El problema: en Flutter, con un solo
+/// `MaterialApp`/Navigator, el `ScaffoldMessenger` vive ARRIBA de las
+/// pantallas — un SnackBar no se cierra ni se mueve solo al cambiar de
+/// pantalla, se queda flotando encima de lo que sea que esté visible varios
+/// segundos después. Si alguien toca "Trazar Ruta" y se regresa rápido a
+/// Inicio (antes de que el aviso alcance a aparecer), el aviso igual sale,
+/// pero ya sobre Inicio, no sobre el mapa. Por eso ahora estos avisos viven
+/// DENTRO de este mismo cuadro, como parte del árbol de widgets del mapa:
+/// si te vas de esta pantalla, el aviso se va con ella, en vez de perseguirte.
+enum _RouteBannerKind { calculating, active, alreadyThere, blocked, arrived, error }
+
+/// Cuadro de estado de ruta — un solo widget para todos los avisos de
+/// ruteo (ver [_RouteBannerKind]), con el botón de cancelar SOLO visible
+/// cuando de verdad hay una ruta que cancelar (estado `active`).
+class _RouteStatusBanner extends StatelessWidget {
+  final _RouteBannerKind kind;
+  final String? label;
+  final VoidCallback onCancel;
+
+  const _RouteStatusBanner({
+    required this.kind,
+    required this.label,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    late final IconData icon;
+    late final String text;
+    Color accent = cs.primary;
+    bool showCancel = false;
+
+    switch (kind) {
+      case _RouteBannerKind.calculating:
+        icon = Icons.hourglass_top_rounded;
+        text = 'Calculando ruta...';
+        accent = cs.primary;
+      case _RouteBannerKind.active:
+        icon = Icons.navigation_rounded;
+        text = 'Ruta activa';
+        accent = cs.primary;
+        showCancel = true;
+      case _RouteBannerKind.alreadyThere:
+        icon = Icons.check_circle_rounded;
+        text = 'Ya estás en ${label ?? "tu destino"}';
+        accent = cs.tertiary;
+      case _RouteBannerKind.blocked:
+        icon = Icons.info_rounded;
+        text = 'Ya tienes una ruta activa. Cancélala antes de trazar otra.';
+        accent = isDark ? AppWarning.dark : AppWarning.light;
+      case _RouteBannerKind.arrived:
+        icon = Icons.check_circle_rounded;
+        text = '¡Has llegado a tu destino!';
+        accent = cs.tertiary;
+      case _RouteBannerKind.error:
+        icon = Icons.error_outline_rounded;
+        text = 'No se pudo calcular la ruta. Intenta de nuevo.';
+        accent = cs.error;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: accent.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          if (kind == _RouteBannerKind.calculating)
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  valueColor: AlwaysStoppedAnimation(accent)),
+            )
+          else
+            Icon(icon, color: accent, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(text,
+                style: TextStyle(
+                    color: cs.onSurface, fontWeight: FontWeight.w700, fontSize: 14)),
+          ),
+          if (showCancel)
+            IconButton(
+              onPressed: onCancel,
+              tooltip: 'Cancelar ruta',
+              icon: Icon(Icons.close_rounded,
+                  color: cs.onSurface.withValues(alpha: 0.6)),
+              iconSize: 20,
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              padding: EdgeInsets.zero,
+              splashRadius: 22,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Aviso de posición fijada a mano ("Estoy Aquí" en un lugar, o QR
+/// escaneado): mientras está activa, el GPS en tiempo real se ignora por
+/// completo (ver `NavigationService._isManualPosition`). Antes no había
+/// ninguna señal de esto en pantalla ni una forma obvia de quitarlo — solo
+/// funcionaba si sabías que el botón de centrar ubicación también lo hacía
+/// por dentro. Ahora es explícito, con su propio botón "Quitar".
+class _ManualPositionBanner extends StatelessWidget {
+  final String? label;
+  final VoidCallback onClear;
+
+  const _ManualPositionBanner({required this.label, required this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? AppWarning.dark : AppWarning.light;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: accent.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.push_pin_rounded, color: accent, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Ubicación fijada en ${label ?? "un punto"} — el GPS no se actualiza',
+              style: TextStyle(
+                  color: cs.onSurface, fontWeight: FontWeight.w700, fontSize: 13),
+            ),
+          ),
+          TextButton(
+            onPressed: onClear,
+            style: TextButton.styleFrom(
+              minimumSize: const Size(44, 44),
+              foregroundColor: accent,
+            ),
+            child: const Text('QUITAR',
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _MapScreenState extends ConsumerState<MapScreen>
@@ -65,7 +236,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
   double _currentHeading = 0.0;
 
   bool _centeredOnUser = false;
-  bool _isTrackingActive = false;
+  // El seguimiento de cámara empieza ACTIVO por diseño (igual que Google
+  // Maps/Waze): apenas se abre el mapa, la cámara debe seguir al usuario
+  // en cuanto llegue la primera lectura de GPS, sin que tenga que tocar el
+  // botón de ubicación primero. Antes solo se activaba dentro del callback
+  // de "ya llegó una posición Y está dentro del radio de la sede" — si esa
+  // primera lectura tardaba (GPS frío, señal débil) o no llegaba a tiempo,
+  // el seguimiento se quedaba apagado para siempre hasta tocar el botón a
+  // mano (que sí lo prendía de inmediato, sin esperar nada). El botón sigue
+  // sirviendo para RECUPERAR el seguimiento después de mover el mapa.
+  bool _isTrackingActive = true;
   bool _isNavigating = false;
 
   /// true mientras una animación de cámara disparada por nuestro propio
@@ -112,6 +292,39 @@ class _MapScreenState extends ConsumerState<MapScreen>
   LatLng? _destinationLatLng;
   Timer? _routeRecalcTimer;
 
+  /// Estado actual del cuadro de estado de ruta (null = oculto). Ver
+  /// [_RouteBannerKind] arriba del State para por qué esto vive como parte
+  /// del árbol del mapa en vez de como SnackBar.
+  _RouteBannerKind? _routeBanner;
+  String? _routeBannerLabel;
+  Timer? _routeBannerTimer;
+
+  void _showRouteBanner(_RouteBannerKind kind,
+      {String? label, Duration? autoHide}) {
+    _routeBannerTimer?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _routeBanner = kind;
+      _routeBannerLabel = label;
+    });
+    if (autoHide != null) {
+      _routeBannerTimer = Timer(autoHide, () {
+        if (!mounted) return;
+        // Al ocultarse, NO siempre debe irse a "nada": si el aviso
+        // temporal (p. ej. "ya tienes una ruta activa") tapó al cuadro de
+        // "Ruta activa" real, hay que regresar A ESE, no perderlo — antes
+        // se perdía el botón de cancelar hasta recargar la pantalla.
+        final stillNavigating =
+            ref.read(navigationProvider).status == NavStatus.navigating;
+        setState(() {
+          _routeBanner =
+              stillNavigating ? _RouteBannerKind.active : null;
+          _routeBannerLabel = null;
+        });
+      });
+    }
+  }
+
   late final AnimationController _posAnimController;
   final Map<String, BitmapDescriptor> _markerIconCache = {};
 
@@ -132,6 +345,25 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// Radio alrededor del centro de la sede dentro del cual se considera que
   /// el usuario está "en la sede" y tiene sentido centrar/seguir su GPS.
   static const double _venueRadiusMeters = 2500;
+
+  /// ¿Tiene sentido seguir el GPS del usuario en vez de reencuadrar en la
+  /// sede? En modo mapa abierto siempre: no hay una sede a la cual regresar
+  /// la vista, y forzar el encuadre era justo lo que impedía moverse.
+  bool _puedeSeguirAlUsuario(LatLng p) =>
+      widget.openMap ||
+      Geolocator.distanceBetween(p.latitude, p.longitude,
+              _venueCenter.latitude, _venueCenter.longitude) <
+          _venueRadiusMeters;
+
+  /// Distancia (metros) para considerar que el usuario "ya llegó" a un
+  /// destino — usado tanto para detectar la llegada durante una navegación
+  /// activa (como respaldo de la señal autoritativa `NavStatus.arrived`,
+  /// ver [NavigationState]) como para evitar recalcular una ruta hacia un
+  /// lugar donde ya se está parado (ver [_handleTraceRouteTo]). 18m en vez
+  /// de un valor más ajustado porque las coordenadas de un lugar (el pin,
+  /// puesto a mano) casi nunca coinciden exacto con la puerta real, y la
+  /// precisión típica de GPS en exteriores ya anda entre 5 y 15m.
+  static const double _arrivalRadiusMeters = 18.0;
 
   /// Caja de restricción de cámara de la sede actual (antes era un único
   /// valor global fijo a TecNM Colima — Sendera/Zentralia ya caían fuera de
@@ -192,6 +424,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
         settings.highContrast ? 'dark' : 'light';
 
     if (!_initializedWithArgs) {
+      if (widget.openMap) {
+        // Arranca encuadrando todas las sedes del evento: es un mapa para
+        // explorar, así que lo primero que debe verse es dónde está cada una.
+        final centro = VenueRegistry.centroDeTodasLasSedes();
+        _mapInitialCenter = LatLng(centro.$1, centro.$2);
+        _mapInitialZoom = 11.5;
+        _centeredOnUser = true; // no reencuadrar por su cuenta al llegar GPS
+      }
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is Map<String, dynamic>) {
         final venueId = args['venueId'] as String?;
@@ -215,15 +455,30 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // árbol todavía se está montando dispara "Tried to modify a provider
       // while the widget tree was building" en Riverpod.
       final resolvedVenueId = _venue.id;
+      final abierto = widget.openMap;
       Future(() {
         if (mounted) {
           ref.read(currentVenueIdProvider.notifier).state = resolvedVenueId;
+          ref.read(openMapModeProvider.notifier).state = abierto;
         }
       });
       _initializedWithArgs = true;
 
       final navState = ref.read(navigationProvider);
-      if (navState.activeRoute != null) {
+      // Una ruta activa calculada para OTRA sede es una ruta fantasma: no
+      // tiene sentido mostrarla aquí (venía de una navegación anterior que
+      // el usuario canceló, o de la que simplemente salió sin cancelar).
+      // Se descarta y se limpia el estado global para que tampoco reaparezca
+      // la próxima vez.
+      final routeBelongsHere = navState.routeVenueId == null ||
+          navState.routeVenueId == resolvedVenueId;
+      if (navState.activeRoute != null && !routeBelongsHere) {
+        Future(() {
+          if (mounted) {
+            ref.read(navigationProvider.notifier).cancelNavigation();
+          }
+        });
+      } else if (navState.activeRoute != null) {
         final points = navState.activeRoute!.steps
             .map((s) => LatLng(s.node.lat, s.node.lng))
             .toList();
@@ -233,6 +488,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             _isNavigating = true;
             _destinationLatLng = points.last;
           });
+          _showRouteBanner(_RouteBannerKind.active);
         });
         if (_mapInitialCenter == _initialPosition) {
           _mapInitialCenter = points.first;
@@ -267,6 +523,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _posAnimController.removeListener(_onPositionAnimTick);
     _posAnimController.dispose();
     _routeRecalcTimer?.cancel();
+    _routeBannerTimer?.cancel();
     _userPosNotifier.dispose();
     _flutterTts.stop();
     _googleMapController?.dispose();
@@ -279,91 +536,79 @@ class _MapScreenState extends ConsumerState<MapScreen>
   // ──────────────────────────────────────────────────────────
 
   Future<BitmapDescriptor> _buildPoiIcon(
-      String letter, bool isCafe, double devicePixelRatio) async {
-    final cacheKey = '${letter}_${isCafe}_$devicePixelRatio';
+      PlaceCategory category, double devicePixelRatio) async {
+    final cacheKey = '${category.name}_$devicePixelRatio';
     if (_markerIconCache.containsKey(cacheKey)) {
       return _markerIconCache[cacheKey]!;
     }
 
-    const size = 80.0;
+    // Pin de gota, como los de Google Maps: cabeza redonda con la punta
+    // abajo señalando el punto exacto. Relleno plano en azul TecNM, contorno
+    // blanco para que se lea sobre cualquier tesela, y sombra suave. Sin
+    // resplandores ni degradados.
+    const w = 88.0;
+    const h = 112.0;
+    const cx = w / 2;
+    const cy = 40.0; // centro de la cabeza
+    const r = 32.0; // radio de la cabeza
+    const tipY = h - 6; // punta
+
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
-    final cs = Theme.of(context).colorScheme;
-    final primaryColor = cs.primary;
-    final surfaceColor = cs.surface;
+    final fill = PlaceVisuals.colorFor(category);
 
-    // Glow suave
-    canvas.drawCircle(
-      const Offset(size / 2, size / 2),
-      size / 2,
+    final pin = Path()
+      ..moveTo(cx - r, cy)
+      ..arcTo(
+          Rect.fromCircle(center: const Offset(cx, cy), radius: r), math.pi,
+          math.pi, false)
+      ..quadraticBezierTo(cx + r * 0.72, cy + r * 1.05, cx, tipY)
+      ..quadraticBezierTo(cx - r * 0.72, cy + r * 1.05, cx - r, cy)
+      ..close();
+
+    // Sombra proyectada, discreta.
+    canvas.drawPath(
+      pin.shift(const Offset(0, 2)),
       Paint()
-        ..color = primaryColor.withValues(alpha: 0.15)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+        ..color = Colors.black.withValues(alpha: 0.25)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
     );
-
-    // Fondo círculo
-    canvas.drawCircle(
-      const Offset(size / 2, size / 2),
-      size / 2 - 8,
-      Paint()..color = surfaceColor,
-    );
-
-    // Borde accent
-    canvas.drawCircle(
-      const Offset(size / 2, size / 2),
-      size / 2 - 8,
+    canvas.drawPath(pin, Paint()..color = fill);
+    canvas.drawPath(
+      pin,
       Paint()
-        ..color = primaryColor.withValues(alpha: 0.7)
+        ..color = Colors.white
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
+        ..strokeWidth = 4,
     );
 
-    if (letter.isNotEmpty) {
-      final tp = TextPainter(
-        text: TextSpan(
-          text: letter,
-          style: TextStyle(
-            color: primaryColor,
-            fontSize: 28,
-            fontWeight: FontWeight.w900,
-          ),
+    // El glifo que va dentro del pin es el ícono de la categoría (alberca,
+    // básquetbol, béisbol…), como en Google Maps, en vez de la letra del
+    // edificio o un pin genérico para todo.
+    final icon = PlaceVisuals.iconFor(category);
+    final iconPainter = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(icon.codePoint),
+        style: TextStyle(
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
+          fontSize: 34,
+          color: Colors.white,
         ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(
-        canvas,
-        Offset((size - tp.width) / 2, (size - tp.height) / 2),
-      );
-    } else {
-      // Icono material professional en vez de emoji
-      final iconPainter = TextPainter(
-        text: TextSpan(
-          text: String.fromCharCode(
-            isCafe ? Icons.local_cafe_rounded.codePoint : Icons.place_rounded.codePoint
-          ),
-          style: TextStyle(
-            fontFamily: 'MaterialIcons',
-            fontSize: 32,
-            color: isCafe ? const Color(0xFFFFB020) : primaryColor,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      iconPainter.paint(
-        canvas,
-        Offset((size - iconPainter.width) / 2, (size - iconPainter.height) / 2),
-      );
-    }
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    iconPainter.paint(
+        canvas, Offset(cx - iconPainter.width / 2, cy - iconPainter.height / 2));
 
-    final img = await recorder
-        .endRecording()
-        .toImage(size.toInt(), size.toInt());
+    final img =
+        await recorder.endRecording().toImage(w.toInt(), h.toInt());
     final data = await img.toByteData(format: ui.ImageByteFormat.png);
     final descriptor = BitmapDescriptor.bytes(
       data!.buffer.asUint8List(),
-      width: 40,
-      height: 40,
+      width: 36,
+      height: 46,
     );
 
     _markerIconCache[cacheKey] = descriptor;
@@ -376,44 +621,33 @@ class _MapScreenState extends ConsumerState<MapScreen>
       return _markerIconCache[cacheKey]!;
     }
 
+    // Punto de ubicación al estilo Google Maps: halo de precisión muy tenue,
+    // anillo blanco y punto sólido encima. Colores planos, sin pulso ni
+    // resplandor (eso es lo que lo hacía ver "de neón").
     const size = 80.0;
-    final pulse = 1.0 +
-        0.08 *
-            math.sin(DateTime.now().millisecondsSinceEpoch / 600.0);
+    const center = Offset(size / 2, size / 2);
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
-    // Anillo pulsante
+    // Halo de precisión.
     canvas.drawCircle(
-      const Offset(size / 2, size / 2),
-      (size / 2 - 2) * pulse,
-      Paint()
-        ..color = const Color(0xFFFFAB00).withValues(alpha: 0.18)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
+      center,
+      34,
+      Paint()..color = AppMapColors.userLocationHalo.withValues(alpha: 0.14),
     );
 
-    // Punto central
+    // Sombra sutil bajo el punto, para despegarlo del mapa.
     canvas.drawCircle(
-      const Offset(size / 2, size / 2),
-      22,
+      const Offset(size / 2, size / 2 + 1.5),
+      17,
       Paint()
-        ..color = const Color(0xFFFFAB00)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+        ..color = Colors.black.withValues(alpha: 0.22)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
     );
-    canvas.drawCircle(
-      const Offset(size / 2, size / 2),
-      16,
-      Paint()..color = const Color(0xFFFFAB00),
-    );
-    canvas.drawCircle(
-      const Offset(size / 2, size / 2),
-      16,
-      Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
-    );
+
+    // Anillo blanco + punto sólido.
+    canvas.drawCircle(center, 17, Paint()..color = Colors.white);
+    canvas.drawCircle(center, 12, Paint()..color = AppMapColors.userLocation);
 
     final img = await recorder
         .endRecording()
@@ -434,21 +668,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final Set<Marker> newMarkers = {};
 
     for (final place in places) {
-      final isBuilding = place.type.toLowerCase() == 'edificio';
-      final isCafe = place.type.toLowerCase() == 'cafetería';
-
-      String letter = place.letter ?? '';
-      if (letter.isEmpty) {
-        if (isBuilding && place.id.startsWith('edificio_')) {
-          letter = place.id.split('_').last.toUpperCase();
-        } else if (place.id == 'cecum') {
-          letter = 'C';
-        } else if (place.id == 'activididades_extraescolares') {
-          letter = 'Ñ';
-        }
-      }
-
-      final icon = await _buildPoiIcon(letter, isCafe, dpr);
+      final icon = await _buildPoiIcon(PlaceVisuals.categoryOf(place), dpr);
       newMarkers.add(
         Marker(
           markerId: MarkerId(place.id),
@@ -531,26 +751,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
         if (mounted) {
+          final warningColor = Theme.of(context).brightness == Brightness.dark
+              ? AppWarning.dark
+              : AppWarning.light;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Row(
                 children: [
-                  Icon(Icons.location_off_rounded,
-                      color: Color(0xFF0D1B2A), size: 22),
-                  SizedBox(width: 10),
-                  Expanded(
+                  Icon(Icons.location_off_rounded, color: warningColor, size: 22),
+                  const SizedBox(width: 10),
+                  const Expanded(
                     child: Text(
                       'Permiso de ubicación denegado. Algunas funciones estarán limitadas.',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF0D1B2A)),
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
               ),
-              backgroundColor: Color(0xFFFFAB00),
-              behavior: SnackBarBehavior.fixed,
-              duration: Duration(seconds: 4),
+              duration: const Duration(seconds: 4),
             ),
           );
         }
@@ -560,57 +778,45 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     if (permission == LocationPermission.deniedForever) {
       if (mounted) {
+        final cs = Theme.of(context).colorScheme;
         await showDialog<void>(
           context: context,
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
-            backgroundColor: const Color(0xFF0D1B2A),
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24)),
+                borderRadius: BorderRadius.circular(AppRadius.lg)),
             icon: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFFF5252).withValues(alpha: 0.12),
+                color: cs.error.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.location_disabled_rounded,
-                  color: Color(0xFFFF5252), size: 40),
+              child: Icon(Icons.location_disabled_rounded,
+                  color: cs.error, size: 40),
             ),
             title: const Text(
               'Permiso de Ubicación Requerido',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 18),
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
             ),
-            content: const Text(
+            content: Text(
               'Los permisos de ubicación han sido denegados permanentemente. '
               'Para usar la navegación en el campus, abre los ajustes de la aplicación y habilítalos manualmente.',
               textAlign: TextAlign.center,
-              style:
-                  TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+              style: TextStyle(
+                  color: cs.onSurface.withValues(alpha: 0.7),
+                  fontSize: 14,
+                  height: 1.5),
             ),
             actionsAlignment: MainAxisAlignment.center,
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Cancelar',
-                    style: TextStyle(
-                        color: Colors.white54, fontWeight: FontWeight.w600)),
+                child: const Text('Cancelar'),
               ),
               ElevatedButton.icon(
                 icon: const Icon(Icons.settings_rounded, size: 18),
-                label: const Text('Abrir Ajustes',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF38BDF8),
-                  foregroundColor: const Color(0xFF0D1B2A),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                ),
+                label: const Text('Abrir Ajustes'),
                 onPressed: () {
                   Navigator.of(ctx).pop();
                   Geolocator.openAppSettings();
@@ -627,69 +833,54 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   Future<void> _showGpsDisabledDialog() async {
+    final cs = Theme.of(context).colorScheme;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF0D1B2A),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg)),
         icon: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF38BDF8), Color(0xFF0091EA)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: cs.primary,
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF38BDF8).withValues(alpha: 0.3),
-                blurRadius: 20,
-                spreadRadius: 2,
-              ),
-            ],
           ),
-          child: const Icon(Icons.gps_off_rounded,
-              color: Colors.white, size: 36),
+          child: Icon(Icons.gps_off_rounded, color: cs.onPrimary, size: 36),
         ),
         title: const Text(
           'GPS Desactivado',
           textAlign: TextAlign.center,
-          style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 20),
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Para brindarte la mejor experiencia de navegación en el campus, NAVIA necesita acceder a tu ubicación en tiempo real.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: Colors.white70, fontSize: 14, height: 1.5),
+                  color: cs.onSurface.withValues(alpha: 0.7),
+                  fontSize: 14,
+                  height: 1.5),
             ),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFF38BDF8).withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: const Color(0xFF38BDF8).withValues(alpha: 0.2)),
+                color: cs.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.info_outline_rounded,
-                      color: Color(0xFF38BDF8), size: 18),
-                  SizedBox(width: 10),
+                  Icon(Icons.info_outline_rounded, color: cs.primary, size: 18),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'También puedes navegar escaneando los códigos QR de los pasillos.',
                       style: TextStyle(
-                          color: Color(0xFF90CAF9),
+                          color: cs.onSurface.withValues(alpha: 0.7),
                           fontSize: 12,
                           height: 1.4),
                     ),
@@ -703,24 +894,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Continuar sin GPS',
-                style: TextStyle(
-                    color: Colors.white54, fontWeight: FontWeight.w600)),
+            child: const Text('Continuar sin GPS'),
           ),
           const SizedBox(width: 8),
           ElevatedButton.icon(
             icon: const Icon(Icons.gps_fixed_rounded, size: 18),
-            label: const Text('Activar GPS',
-                style: TextStyle(fontWeight: FontWeight.w700)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF38BDF8),
-              foregroundColor: const Color(0xFF0D1B2A),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              elevation: 0,
-            ),
+            label: const Text('Activar GPS'),
             onPressed: () {
               Navigator.of(ctx).pop();
               Geolocator.openLocationSettings();
@@ -743,13 +922,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
             Expanded(
               child: Text(
                 'Estás lejos de ${_venue.label}. Centrando la vista en la sede.',
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600, color: Colors.white),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF1E293B),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -762,6 +939,25 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     ref.invalidate(currentLocationStreamProvider);
 
+    // Mostrar algo DE INMEDIATO con la última posición conocida (instantánea,
+    // no espera nada) mientras se pide un fix fresco abajo — un GPS "frío"
+    // (recién se abrió el mapa, o mala señal en interiores) puede tardar
+    // varios segundos en resolver, y no hay razón para que el punto azul
+    // tarde en aparecer si el teléfono ya sabe más o menos dónde estás.
+    try {
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null && mounted && _currentPosition == null) {
+        final quickLatLng = LatLng(lastKnown.latitude, lastKnown.longitude);
+        setState(() => _currentPosition = quickLatLng);
+        if (_puedeSeguirAlUsuario(quickLatLng)) {
+          _panCamera(quickLatLng, zoom: 17.5);
+        }
+      }
+    } catch (_) {
+      // Sin última posición conocida (primer uso del dispositivo) — no pasa
+      // nada, se sigue esperando el fix fresco de abajo.
+    }
+
     try {
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
@@ -771,13 +967,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
       final latLng = LatLng(position.latitude, position.longitude);
       setState(() => _currentPosition = latLng);
 
-      final distanceToVenue = Geolocator.distanceBetween(
-        latLng.latitude, latLng.longitude,
-        _venueCenter.latitude, _venueCenter.longitude,
-      );
 
       _centeredOnUser = true;
-      if (distanceToVenue < _venueRadiusMeters) {
+      if (_puedeSeguirAlUsuario(latLng)) {
         _panCamera(latLng, zoom: 17.5);
       } else {
         _panCamera(_venueCenter, zoom: 17.0);
@@ -798,12 +990,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
     LatLng? targetPos = _displayPosition ?? _currentPosition;
 
     if (targetPos != null) {
-      final distanceToVenue = Geolocator.distanceBetween(
-        targetPos.latitude, targetPos.longitude,
-        _venueCenter.latitude, _venueCenter.longitude,
-      );
-      if (distanceToVenue < _venueRadiusMeters) {
-        _panCamera(targetPos, zoom: _currentZoom);
+      if (_puedeSeguirAlUsuario(targetPos)) {
+        // No heredar el zoom tal cual: si lo último que pasó fue un
+        // _fitBounds de una ruta (zoom muy abierto para mostrarla completa),
+        // "centrar ubicación" se veía casi vacío porque el punto quedaba
+        // chiquito en una vista muy alejada. Si ya se estaba viendo de
+        // cerca, se respeta ese zoom; si no, se usa uno cercano razonable.
+        final zoom = _currentZoom < 16.5 ? 17.5 : _currentZoom;
+        _panCamera(targetPos, zoom: zoom);
       } else {
         _panCamera(_venueCenter, zoom: 17.0);
         _showOutsideVenueSnackBar();
@@ -853,11 +1047,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _userPosNotifier.value = interpolated;
 
     if (_isTrackingActive) {
-      final distanceToVenue = Geolocator.distanceBetween(
-        interpolated.latitude, interpolated.longitude,
-        _venueCenter.latitude, _venueCenter.longitude,
-      );
-      if (distanceToVenue < _venueRadiusMeters) {
+      if (_puedeSeguirAlUsuario(interpolated)) {
         if (_isNavigating) {
           _panCameraNavigating(interpolated, 19.5, _currentHeading);
         } else {
@@ -891,6 +1081,83 @@ class _MapScreenState extends ConsumerState<MapScreen>
     });
   }
 
+  /// Punto de entrada único para "Trazar Ruta" hacia un lugar concreto
+  /// (llamado desde la hoja de un POI). Antes de calcular nada, revisa si
+  /// el usuario ya está parado en/junto al destino — sin esto, tocar
+  /// "Trazar Ruta" estando ya ahí disparaba una llamada a Google Routes
+  /// (o Dijkstra) para una ruta de un par de metros sin sentido, y encima
+  /// dejaba `_isNavigating = true` con una "ruta" fantasma en el mapa.
+  void _handleTraceRouteTo(LatLng destination, String? destinationName) {
+    // No se permite empalmar una ruta nueva sobre una que sigue en curso —
+    // cambiar de destino a medias es justo lo que dejaba estados raros
+    // (una ruta calculándose mientras otra seguía "activa" a medias). Hay
+    // que cancelar la actual primero (botón "×" de la barra o "FINALIZAR"
+    // una vez que se llega) antes de trazar una nueva.
+    final navState = ref.read(navigationProvider);
+    if (navState.status == NavStatus.navigating) {
+      _showRouteBanner(_RouteBannerKind.blocked,
+          autoHide: const Duration(seconds: 3));
+      return;
+    }
+
+    // "Ya estás ahí" se compara contra dos posibles "dónde estoy": la
+    // posición cruda de GPS, o — si está activa — la posición fijada a
+    // mano con "Estoy Aquí", que tiene prioridad: si alguien fijó su
+    // posición en Edificio R y luego toca "Trazar Ruta" ahí mismo, debe
+    // contar como "ya estás ahí" sin importar lo que diga el GPS crudo en
+    // ese momento (que puede estar impreciso, o simplemente distinto de
+    // lo que la persona declaró a mano).
+    LatLng? origin = _displayPosition ?? _currentPosition;
+    if (navState.isManualPosition && navState.currentNode != null) {
+      origin = LatLng(navState.currentNode!.lat, navState.currentNode!.lng);
+    }
+    if (origin != null) {
+      final distance = Geolocator.distanceBetween(
+        origin.latitude, origin.longitude,
+        destination.latitude, destination.longitude,
+      );
+      if (distance <= _arrivalRadiusMeters) {
+        _announceAlreadyThere(destinationName);
+        return;
+      }
+    }
+
+    // Se guarda SIEMPRE, antes de calcular nada: tanto la llegada por
+    // distancia cruda de GPS como el recálculo automático de ruta
+    // (_scheduleRouteRecalc) dependen de esto.
+    _destinationLatLng = destination;
+
+    // Aviso inmediato: pedir la ruta a Google (o el respaldo por Dijkstra)
+    // toma un instante (viaje de red de ida y vuelta). Este cuadro se queda
+    // en "calculando" hasta que el listener de más abajo lo cambie a
+    // "activa" (o a "error" si no se pudo).
+    _showRouteBanner(_RouteBannerKind.calculating);
+
+    // Google Routes API primero (sigue calles/andadores reales); el grafo
+    // interno por Dijkstra es el ÚLTIMO recurso — `calculateAccessibleRoute`
+    // ya cae a Dijkstra automáticamente por dentro (`_fallbackToDijkstra`)
+    // si Google falla: sin internet, sin API key, o sin resultados.
+    if (_currentPosition != null) {
+      ref.read(navigationProvider.notifier).setPositionByCoordinates(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+          );
+    }
+    calculateAccessibleRoute(destination, destinationName);
+  }
+
+  /// Feedback de "ya estás en tu destino" cuando se pide una ruta estando ya
+  /// ahí — mismo tono que [_handleArrival] pero sin tocar el estado de
+  /// navegación (no había ruta activa que cancelar).
+  void _announceAlreadyThere(String? destinationName) {
+    final label = (destinationName == null || destinationName.isEmpty)
+        ? 'tu destino'
+        : destinationName;
+    _speak('Ya estás en $label.');
+    _showRouteBanner(_RouteBannerKind.alreadyThere,
+        label: label, autoHide: const Duration(seconds: 4));
+  }
+
   // ──────────────────────────────────────────────────────────
   //  Rutas via Google Routes API (backend proxy)
   // ──────────────────────────────────────────────────────────
@@ -902,7 +1169,23 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _destinationLatLng = destination;
 
     try {
-      final origin = _displayPosition ?? _currentPosition;
+      // La posición fijada a mano ("Estoy Aquí") tiene prioridad sobre el
+      // GPS crudo — para eso existe ese botón: declarar "estoy aquí,
+      // ignora el GPS". Sin este chequeo, la ruta calculada CON señal de
+      // GPS disponible (el caso normal, "con internet") siempre partía de
+      // la posición real, ignorando por completo la posición manual; solo
+      // se respetaba la manual cuando el GPS estaba totalmente ausente (el
+      // camino de abajo, vía `navService.currentNodeId`) — de ahí que
+      // "sin internet" (donde el GPS es más probable que falle) sí se
+      // comportara como se esperaba y "con internet" no.
+      final navState = ref.read(navigationProvider);
+      LatLng? origin;
+      if (navState.isManualPosition && navState.currentNode != null) {
+        origin =
+            LatLng(navState.currentNode!.lat, navState.currentNode!.lng);
+      } else {
+        origin = _displayPosition ?? _currentPosition;
+      }
       if (origin == null) {
         final navService = ref.read(navigationServiceProvider);
         final graph = navService.graph;
@@ -915,12 +1198,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
               SnackBar(
                 content: Row(
                   children: [
-                    Icon(Icons.view_in_ar_rounded,
+                    Icon(Icons.gps_off_rounded,
                         color: cs.onPrimary, size: 22),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Activa el GPS o usa la cámara NAVIA AR para trazar tu ruta.',
+                        'Activa el GPS para trazar tu ruta.',
                         style: TextStyle(
                             fontWeight: FontWeight.w600,
                             color: cs.onPrimary),
@@ -939,23 +1222,44 @@ class _MapScreenState extends ConsumerState<MapScreen>
         // Si hay nodo QR fijado, usar sus coordenadas como origen
         final fromNode = graph.nodes[fromId];
         if (fromNode == null) return;
-        await ref.read(navigationProvider.notifier).calculateGoogleRoute(
+        final local = ref.read(navigationProvider.notifier).calcularRutaLocal(
               originLat: fromNode.lat,
               originLng: fromNode.lng,
               destLat: destination.latitude,
               destLng: destination.longitude,
               destinationName: destinationName,
             );
+        if (!local) {
+          await ref.read(navigationProvider.notifier).calculateGoogleRoute(
+                originLat: fromNode.lat,
+                originLng: fromNode.lng,
+                destLat: destination.latitude,
+                destLng: destination.longitude,
+                destinationName: destinationName,
+                venueId: _venue.id,
+              );
+        }
         return;
       }
 
-      await ref.read(navigationProvider.notifier).calculateGoogleRoute(
+      final local = ref.read(navigationProvider.notifier).calcularRutaLocal(
             originLat: origin.latitude,
             originLng: origin.longitude,
             destLat: destination.latitude,
             destLng: destination.longitude,
             destinationName: destinationName,
           );
+      if (!local) {
+        debugPrint('Ruta: el grafo local no cubre el trayecto; se usa Google.');
+        await ref.read(navigationProvider.notifier).calculateGoogleRoute(
+              originLat: origin.latitude,
+              originLng: origin.longitude,
+              destLat: destination.latitude,
+              destLng: destination.longitude,
+              destinationName: destinationName,
+              venueId: _venue.id,
+            );
+      }
     } finally {
       _isFetchingRoute = false;
     }
@@ -967,7 +1271,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         Polyline(
           polylineId: const PolylineId('campus_route'),
           points: points,
-          color: const Color(0xFF38BDF8),
+          color: Theme.of(context).colorScheme.primary,
           width: 6,
           startCap: Cap.roundCap,
           endCap: Cap.roundCap,
@@ -998,6 +1302,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
       if (p.longitude < minLng) minLng = p.longitude;
       if (p.longitude > maxLng) maxLng = p.longitude;
     }
+    // Sin esto, onCameraMove interpreta este zoom-out programático como si
+    // el usuario hubiera arrastrado el mapa a mano, y apaga
+    // _isTrackingActive — la cámara dejaba de seguir al usuario justo al
+    // trazar (o recalcular) cada ruta. _panCamera/_panCameraNavigating ya
+    // ponen esta bandera; a esta función se le había quedado fuera.
+    _isProgrammaticCameraMove = true;
     _googleMapController?.animateCamera(
       CameraUpdate.newLatLngBounds(
         LatLngBounds(
@@ -1028,6 +1338,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
   //  Bottom Sheet y helpers UI
   // ──────────────────────────────────────────────────────────
 
+  // El aviso de llegada por VOZ (y el SnackBar de respaldo si esta pantalla
+  // no está abierta) vive en `main.dart`, a nivel raíz de la app — para que
+  // suene sin importar en qué pantalla esté la persona en el momento exacto
+  // en que el GPS confirma la llegada. Pero si el mapa SÍ está abierto (que
+  // es el caso normal), además se muestra aquí mismo, dentro del cuadro de
+  // estado de ruta, para que quien está viendo el mapa lo vea justo ahí.
   void _handleArrival() {
     ref.read(navigationProvider.notifier).cancelNavigation();
     setState(() {
@@ -1036,28 +1352,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
       _destinationLatLng = null;
       _isTrackingActive = false;
     });
-    _speak('Has llegado a tu destino. NAVIA te desea un excelente dia.');
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: Color(0xFF0D1B2A), size: 24),
-            SizedBox(width: 10),
-            Text('Has llegado a tu destino!',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0D1B2A))),
-          ],
-        ),
-        backgroundColor: const Color(0xFF38BDF8),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+    _showRouteBanner(_RouteBannerKind.arrived,
+        autoHide: const Duration(seconds: 5));
   }
 
   void _showAccessibleBottomSheet(PlaceNode place) {
     final cs = Theme.of(context).colorScheme;
+    final placeAccent = PlaceVisuals.colorOf(place);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1065,14 +1366,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
       builder: (ctx) => Container(
         decoration: BoxDecoration(
           color: cs.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 20,
-              spreadRadius: 5,
-            )
-          ],
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+          border: Border(top: BorderSide(color: cs.outline)),
         ),
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
         child: Column(
@@ -1084,24 +1379,29 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 width: 50, height: 5,
                 decoration: BoxDecoration(
                   color: cs.onSurface.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            // Foto real del lugar (Street View o satelital de Google), igual
+            // que el encabezado de una ficha de Google Maps.
+            PlacePhotoBanner(place: place),
+            const SizedBox(height: 16),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: cs.primary.withValues(alpha: 0.3)),
+                    color: placeAccent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(color: placeAccent.withValues(alpha: 0.3)),
                   ),
                   child: Icon(
-                    place.type.toLowerCase().contains('cafetería') ? Icons.coffee_rounded : Icons.business_rounded,
-                    color: cs.primary, size: 32,
+                    PlaceVisuals.iconOf(place),
+                    color: placeAccent,
+                    size: 32,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -1117,11 +1417,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             letterSpacing: -0.5,
                           )),
                       const SizedBox(height: 4),
-                      Text(place.type.toUpperCase(),
+                      Text(PlaceVisuals.labelOf(place).toUpperCase(),
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: cs.primary.withValues(alpha: 0.8),
+                            color: placeAccent.withValues(alpha: 0.9),
                             letterSpacing: 1.2,
                           )),
                     ],
@@ -1134,69 +1434,54 @@ class _MapScreenState extends ConsumerState<MapScreen>
               children: [
                 _buildInfoBadge(Icons.accessible_rounded,
                     'Nivel: ${place.accessibilityLevel.toUpperCase()}',
-                    place.accessibilityLevel.toLowerCase() == 'alto' ? Colors.greenAccent : Colors.orangeAccent),
+                    place.accessibilityLevel.toLowerCase() == 'alto'
+                        ? cs.tertiary
+                        : (Theme.of(context).brightness == Brightness.dark
+                            ? AppWarning.dark
+                            : AppWarning.light)),
                 const SizedBox(width: 12),
-                _buildInfoBadge(Icons.map_rounded, 'Piso: Planta Baja', Colors.blueAccent),
+                _buildInfoBadge(Icons.map_rounded, 'Piso: Planta Baja', cs.primary),
               ],
             ),
             const SizedBox(height: 32),
             Row(
               children: [
                 Expanded(
-                  child: Container(
+                  child: SizedBox(
                     height: 54,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: LinearGradient(colors: [cs.primary, cs.primary.withValues(alpha: 0.85)]),
-                    ),
                     child: ElevatedButton.icon(
                       icon: Icon(Icons.directions_walk_rounded, size: 22, color: cs.onPrimary),
                       label: Text('Trazar Ruta',
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: cs.onPrimary)),
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent, shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                          backgroundColor: cs.primary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md))),
                       onPressed: () {
                         Navigator.pop(ctx);
-                        final navService = ref.read(navigationServiceProvider);
-                        var node = navService.findDestination(place.id);
-                        node ??= navService.findDestination(place.name);
-                        if (node != null) {
-                          if (_currentPosition != null) {
-                            ref.read(navigationProvider.notifier).setPositionByCoordinates(
-                                  _currentPosition!.latitude,
-                                  _currentPosition!.longitude,
-                                );
-                          }
-                          ref.read(navigationProvider.notifier).navigateTo(node.id);
-                        } else {
-                          calculateAccessibleRoute(
-                              LatLng(place.latitude, place.longitude),
-                              place.name);
-                        }
+                        _handleTraceRouteTo(
+                          LatLng(place.latitude, place.longitude),
+                          place.name,
+                        );
                       },
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Container(
+                  child: SizedBox(
                     height: 54,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: cs.primary.withValues(alpha: 0.4)),
-                      color: cs.primary.withValues(alpha: 0.05),
-                    ),
                     child: ElevatedButton.icon(
                       icon: Icon(Icons.location_on_rounded, size: 22, color: cs.primary),
                       label: Text('Estoy Aquí',
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: cs.primary)),
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent, shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                          backgroundColor: cs.primary.withValues(alpha: 0.05),
+                          side: BorderSide(color: cs.primary.withValues(alpha: 0.4)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md))),
                       onPressed: () {
                         Navigator.pop(ctx);
-                        ref.read(navigationProvider.notifier).setPosition(place.id);
+                        ref.read(navigationProvider.notifier)
+                            .setPosition(place.id, label: place.name);
                       },
                     ),
                   ),
@@ -1214,7 +1499,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
@@ -1252,9 +1537,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       decoration: BoxDecoration(
         color: cs.surface,
         shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8),
-        ],
+        border: Border.all(color: cs.outline),
       ),
       child: IconButton(
         icon: Icon(icon, color: cs.primary),
@@ -1266,7 +1549,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   Widget _buildFABs() {
     final cs = Theme.of(context).colorScheme;
-    final isAdmin = ref.watch(isAdminProvider).value ?? false;
+    // El editor se apaga en el mapa abierto: ahí no hay una sede activa, así
+    // que un punto nuevo se guardaría en TecNM Colima (la sede por defecto)
+    // sin importar en qué parte de Colima se haya tocado.
+    final isAdmin =
+        !widget.openMap && (ref.watch(isAdminProvider).value ?? false);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
@@ -1277,7 +1564,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             FloatingActionButton(
               heroTag: 'edit_btn',
               tooltip: _isEditMode ? 'Salir del modo edición' : 'Editar sede (admin)',
-              backgroundColor: _isEditMode ? const Color(0xFFFFAB00) : cs.surface,
+              backgroundColor: _isEditMode ? cs.primary : cs.surface,
               onPressed: () => setState(() {
                 _isEditMode = !_isEditMode;
                 _editMovingId = null;
@@ -1286,7 +1573,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               }),
               child: Icon(
                 _isEditMode ? Icons.close_rounded : Icons.edit_location_alt_rounded,
-                color: _isEditMode ? const Color(0xFF0D1B2A) : cs.primary,
+                color: _isEditMode ? cs.onPrimary : cs.primary,
               ),
             ),
             const SizedBox(height: 12),
@@ -1524,8 +1811,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
-                title: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
+                leading: Icon(Icons.delete_outline_rounded,
+                    color: Theme.of(context).colorScheme.error),
+                title: Text('Eliminar',
+                    style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 onTap: () async {
                   Navigator.pop(ctx);
                   final confirmed = await _confirmDelete(name);
@@ -1550,7 +1839,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: cs.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
           title: const Text('Cambiar nombre'),
           content: TextField(
             controller: controller,
@@ -1598,7 +1887,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: cs.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
           title: const Text('¿Eliminar punto?'),
           content: Text('Se eliminará "$name" permanentemente, junto con sus conexiones.'),
           actions: [
@@ -1607,7 +1896,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 child: const Text('Cancelar')),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
+              child: Text('Eliminar',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ),
           ],
         ),
@@ -1658,7 +1948,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text('"$name" agregado.'),
-              backgroundColor: Colors.green.shade700),
+              backgroundColor: Theme.of(context).colorScheme.tertiary),
         );
       }
     } catch (e) {
@@ -1666,7 +1956,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text('Error al guardar: $e'),
-              backgroundColor: Colors.redAccent),
+              backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     } finally {
@@ -1737,8 +2027,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
       await ref.read(venueGraphRepositoryProvider).createEdge(edge);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Conexión creada.'), backgroundColor: Colors.green),
+          SnackBar(
+              content: const Text('Conexión creada.'),
+              backgroundColor: Theme.of(context).colorScheme.tertiary),
         );
       }
     } catch (e) {
@@ -1746,7 +2037,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text('Error al conectar: $e'),
-              backgroundColor: Colors.redAccent),
+              backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     }
@@ -1790,11 +2081,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
         if (!_centeredOnUser) {
           _centeredOnUser = true;
-          final distanceToVenue = Geolocator.distanceBetween(
-            latLng.latitude, latLng.longitude,
-            _venueCenter.latitude, _venueCenter.longitude,
-          );
-          if (distanceToVenue < _venueRadiusMeters) {
+          if (_puedeSeguirAlUsuario(latLng)) {
+            _isTrackingActive = true;
             _panCamera(latLng, zoom: 17.5);
           } else {
             _panCamera(_venueCenter, zoom: 17.0);
@@ -1807,13 +2095,36 @@ class _MapScreenState extends ConsumerState<MapScreen>
             latLng.latitude, latLng.longitude,
             _destinationLatLng!.latitude, _destinationLatLng!.longitude,
           );
-          if (dist <= 10.0) _handleArrival();
+          if (dist <= _arrivalRadiusMeters) _handleArrival();
         }
       });
     });
 
     // Navegación activa → actualizar polilínea
     ref.listen<NavigationState>(navigationProvider, (previous, next) {
+      // Señal autoritativa de llegada: `setPositionByCoordinates` (llamado
+      // en cada lectura de GPS, arriba) ya calcula esto correctamente tanto
+      // para rutas de Google como para rutas por Dijkstra — pero nadie en
+      // esta pantalla la escuchaba, así que la ruta terminaba "atorada" en
+      // rutas por Dijkstra: el estado interno decía `arrived` pero la UI
+      // nunca se enteraba ni mostraba el aviso de llegada.
+      if (next.status == NavStatus.arrived &&
+          previous?.status != NavStatus.arrived) {
+        _handleArrival();
+        return;
+      }
+
+      // Si se estaba esperando una ruta ("calculando...") y la petición
+      // terminó en error (sin internet, sin resultados, etc.), avisar en
+      // el mismo cuadro en vez de dejarlo pegado en "calculando" para
+      // siempre.
+      if (next.status == NavStatus.error &&
+          previous?.status != NavStatus.error &&
+          _routeBanner == _RouteBannerKind.calculating) {
+        _showRouteBanner(_RouteBannerKind.error,
+            autoHide: const Duration(seconds: 4));
+      }
+
       if (next.currentNode != previous?.currentNode && next.currentNode != null) {
         _panCamera(LatLng(next.currentNode!.lat, next.currentNode!.lng));
       }
@@ -1826,6 +2137,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               .toList();
           _setRoutePolyline(points);
           setState(() => _isNavigating = true);
+          _showRouteBanner(_RouteBannerKind.active);
           _fitBounds(points);
         } else if (next.activeRoute != null) {
           final points = next.activeRoute!.steps
@@ -1833,6 +2145,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               .toList();
           _setRoutePolyline(points);
           setState(() => _isNavigating = true);
+          _showRouteBanner(_RouteBannerKind.active);
           _fitBounds(points);
         } else {
           setState(() { _googlePolylines = {}; _isNavigating = false; });
@@ -1848,6 +2161,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     final isDark = ref.watch(mapThemeProvider) == 'dark';
 
+    // Posición fijada a mano ("Estoy Aquí" en un lugar, o QR escaneado):
+    // antes esto vivía escondido dentro de NavigationService, sin ninguna
+    // señal en la UI de que el GPS se había "congelado" ahí a propósito ni
+    // una forma obvia de quitarlo. Ahora se ve como un aviso persistente
+    // con botón para soltarlo (ver [_ManualPositionBanner] más abajo).
+    final isManualPosition = ref.watch(
+        navigationProvider.select((s) => s.isManualPosition));
+    final manualPositionLabel = ref.watch(
+        navigationProvider.select((s) => s.manualPositionLabel));
+
     // Grafo en línea (Firestore) de la sede actual — solo se suscribe
     // mientras el admin está en modo edición, para no gastar lecturas/
     // listeners de Firestore en usuarios normales que solo navegan.
@@ -1860,11 +2183,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
             const <CampusEdge>[])
         : const <CampusEdge>[];
     final editNodesById = {for (final n in editNodes) n.id: n};
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       floatingActionButton: _buildFABs(),
-      bottomNavigationBar: const BottomNav(currentIndex: 3),
+      bottomNavigationBar: BottomNav(currentIndex: widget.openMap ? 3 : -1),
       body: Stack(
         children: [
           // ── Mapa (Google Maps en Android/iOS/Web, flutter_map en desktop) ──
@@ -1920,7 +2244,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                   LatLng(editNodesById[edge.to]!.lat,
                                       editNodesById[edge.to]!.lng),
                                 ],
-                                color: const Color(0xFFFFAB00),
+                                color: cs.primary,
                                 width: 3,
                                 patterns: [PatternItem.dash(12), PatternItem.gap(8)],
                               ),
@@ -1954,9 +2278,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         mapToolbarEnabled: false,
                         compassEnabled: false,
                         rotateGesturesEnabled: false,
-                        cameraTargetBounds: CameraTargetBounds(_cameraBounds),
-                        minMaxZoomPreference:
-                            const MinMaxZoomPreference(13, 20),
+                        // En modo abierto la cámara no se encierra en la caja
+                        // de ninguna sede, y se permite alejar más para poder
+                        // ver las 9 sedes de Colima de un vistazo.
+                        cameraTargetBounds: widget.openMap
+                            ? CameraTargetBounds.unbounded
+                            : CameraTargetBounds(_cameraBounds),
+                        minMaxZoomPreference: widget.openMap
+                            ? const MinMaxZoomPreference(9, 20)
+                            : const MinMaxZoomPreference(13, 20),
                         mapType: MapType.normal,
                       );
                     },
@@ -1998,18 +2328,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFAB00),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.25),
-                            blurRadius: 12),
-                      ],
+                      color: cs.primary,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.edit_location_alt_rounded,
-                            color: Color(0xFF0D1B2A), size: 20),
+                        Icon(Icons.edit_location_alt_rounded,
+                            color: cs.onPrimary, size: 20),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -2018,8 +2343,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                 : _editMovingId != null
                                     ? 'Toca el mapa donde quieres mover el punto'
                                     : 'MODO EDICIÓN — toca el mapa para agregar un punto',
-                            style: const TextStyle(
-                                color: Color(0xFF0D1B2A),
+                            style: TextStyle(
+                                color: cs.onPrimary,
                                 fontWeight: FontWeight.w800,
                                 fontSize: 12.5),
                           ),
@@ -2032,8 +2357,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                               _editConnectFromPos = null;
                               _editMovingId = null;
                             }),
-                            child: const Icon(Icons.close_rounded,
-                                color: Color(0xFF0D1B2A), size: 20),
+                            child: Icon(Icons.close_rounded,
+                                color: cs.onPrimary, size: 20),
                           ),
                       ],
                     ),
@@ -2041,48 +2366,72 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ),
               ),
             ),
-          // ── Barra de navegacion activa ────────────────────────
-          if (_isNavigating)
+          // ── Avisos superiores: posición manual + estado de ruta ────
+          // Van en una sola columna (no dos Positioned independientes) para
+          // que si algún día coinciden los dos a la vez, se acomoden uno
+          // debajo del otro en vez de encimarse.
+          if (isManualPosition || _routeBanner != null)
             Positioned(
               top: 0, left: 16, right: 16,
               child: SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 60),
-                  child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.5)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
-                      blurRadius: 16,
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.navigation_rounded, color: Color(0xFF38BDF8), size: 20),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text('Ruta activa',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        ref.read(navigationProvider.notifier).cancelNavigation();
-                        setState(() {
-                          _isNavigating = false;
-                          _googlePolylines = {};
-                          _destinationLatLng = null;
-                          _isTrackingActive = false;
-                        });
-                      },
-                      child: const Icon(Icons.close_rounded, color: Colors.white54, size: 18),
-                    ),
-                  ],
-                ),
+                  // El botón de volver y el de tema (arriba, top:0 + padding
+                  // 16 + ~48 de alto) terminan alrededor de los 64px — este
+                  // cuadro debe empezar claramente después de eso, no a los
+                  // 60px de antes (prácticamente encimados).
+                  padding: const EdgeInsets.only(top: 84),
+                  child: Column(
+                    children: [
+                      if (isManualPosition) ...[
+                        _ManualPositionBanner(
+                          label: manualPositionLabel,
+                          onClear: () {
+                            final notifier =
+                                ref.read(navigationProvider.notifier);
+                            notifier.clearManualPosition();
+                            // Sin esto, la posición real no se actualizaba
+                            // hasta la SIGUIENTE lectura de GPS — y si la
+                            // persona está parada quieta (`distanceFilter:
+                            // 2` no dispara nada hasta moverse 2m), eso
+                            // podía tardar o no llegar nunca, dejando la
+                            // sensación de que "Quitar" no hizo nada. Se
+                            // fuerza el resync YA con la última posición de
+                            // GPS que ya se tenía, en vez de esperar.
+                            final lastKnown =
+                                _displayPosition ?? _currentPosition;
+                            if (lastKnown != null) {
+                              notifier.setPositionByCoordinates(
+                                lastKnown.latitude,
+                                lastKnown.longitude,
+                              );
+                            }
+                            // Igual que el botón de centrar ubicación:
+                            // volver a seguir el GPS de inmediato en vez de
+                            // esperar a que alguien toque algo más.
+                            setState(() => _isTrackingActive = true);
+                          },
+                        ),
+                        if (_routeBanner != null)
+                          const SizedBox(height: 8),
+                      ],
+                      if (_routeBanner != null)
+                        _RouteStatusBanner(
+                          kind: _routeBanner!,
+                          label: _routeBannerLabel,
+                          onCancel: () {
+                            ref
+                                .read(navigationProvider.notifier)
+                                .cancelNavigation();
+                            setState(() {
+                              _isNavigating = false;
+                              _googlePolylines = {};
+                              _destinationLatLng = null;
+                              _isTrackingActive = false;
+                              _routeBanner = null;
+                            });
+                          },
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -2103,6 +2452,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     Map<String, CampusNode> editNodesById,
   ) {
     final places = ref.watch(filteredPlacesProvider);
+    final cs = Theme.of(context).colorScheme;
 
     final tileLayer = fm.TileLayer(
       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -2156,7 +2506,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           polylines: [
             ..._googlePolylines.map((p) => fm.Polyline(
                   points: p.points.map(_toLL).toList(),
-                  color: const Color(0xFF38BDF8),
+                  color: cs.primary,
                   strokeWidth: 6,
                 )),
             if (_isEditMode)
@@ -2170,7 +2520,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       _toLL(LatLng(editNodesById[edge.to]!.lat,
                           editNodesById[edge.to]!.lng)),
                     ],
-                    color: const Color(0xFFFFAB00),
+                    color: cs.primary,
                     strokeWidth: 3,
                   ),
           ],
@@ -2216,7 +2566,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       ),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFAB00),
+                          color: cs.primary,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -2258,45 +2608,20 @@ class _DesktopPoiIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isCafe = place.type.toLowerCase() == 'cafetería';
-    final isBuilding = place.type.toLowerCase() == 'edificio';
-
-    String letter = place.letter ?? '';
-    if (letter.isEmpty) {
-      if (isBuilding && place.id.startsWith('edificio_')) {
-        letter = place.id.split('_').last.toUpperCase();
-      } else if (place.id == 'cecum') {
-        letter = 'C';
-      } else if (place.id == 'activididades_extraescolares') {
-        letter = 'Ñ';
-      }
-    }
-
+    final category = PlaceVisuals.categoryOf(place);
     return Container(
       decoration: BoxDecoration(
-        color: cs.surface,
+        color: PlaceVisuals.colorFor(category),
         shape: BoxShape.circle,
-        border: Border.all(color: cs.primary.withValues(alpha: 0.7), width: 2),
-        boxShadow: [
-          BoxShadow(color: cs.primary.withValues(alpha: 0.15), blurRadius: 6),
-        ],
+        border: const Border.fromBorderSide(
+            BorderSide(color: Colors.white, width: 2)),
       ),
       alignment: Alignment.center,
-      child: letter.isNotEmpty
-          ? Text(
-              letter,
-              style: TextStyle(
-                color: cs.primary,
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-              ),
-            )
-          : Icon(
-              isCafe ? Icons.local_cafe_rounded : Icons.place_rounded,
-              color: isCafe ? const Color(0xFFFFB020) : cs.primary,
-              size: 18,
-            ),
+      child: Icon(
+        PlaceVisuals.iconFor(category),
+        color: Colors.white,
+        size: 18,
+      ),
     );
   }
 }
@@ -2308,17 +2633,10 @@ class _DesktopUserIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFAB00),
+      decoration: const BoxDecoration(
+        color: AppMapColors.userLocation,
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFFAB00).withValues(alpha: 0.5),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ],
+        border: Border.fromBorderSide(BorderSide(color: Colors.white, width: 3)),
       ),
     );
   }

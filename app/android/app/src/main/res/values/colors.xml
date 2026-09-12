@@ -2,5 +2,8 @@
 <resources>
     <!-- Color de fondo de la pantalla de carga NAVIA -->
     <!-- Azul corporativo extraído del logo: #1D2E5E -->
-    <color name="splash_background">#1D2E5E</color>
+    <!-- Azul marino real del logo TecNM, el mismo que usa AppTheme.brandNavy.
+         Debe coincidir con el fondo del splash de Flutter para que no se vea
+         un salto de color entre el arranque nativo y el primer frame. -->
+    <color name="splash_background">#002E6D</color>
 </resources>

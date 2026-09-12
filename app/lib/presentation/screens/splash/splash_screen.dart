@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:navia/core/theme/app_theme.dart';
 
 /// Pantalla de bienvenida de NAVIA.
 /// Se muestra durante el arranque mientras los servicios se inicializan.
@@ -16,18 +17,27 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1D2E5E),
+      backgroundColor: AppTheme.brandNavy,
       body: SafeArea(
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logo principal NAVIA
-              Image.asset(
-                'assets/images/logo_navia.png',
+              // Escudo del TecNM Campus Colima, sobre un disco blanco: el
+              // escudo es amarillo con trazo azul marino, y sobre el fondo
+              // azul de marca los contornos se pierden. El disco lo separa.
+              Container(
                 width: 160,
                 height: 160,
-                fit: BoxFit.contain,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                padding: const EdgeInsets.all(14),
+                child: Image.asset(
+                  'assets/images/logo_itcolima.png',
+                  fit: BoxFit.contain,
+                ),
               )
                   .animate()
                   .fadeIn(duration: 600.ms, curve: Curves.easeOut)
@@ -42,12 +52,12 @@ class _SplashScreenState extends State<SplashScreen>
 
               // Nombre de la app
               const Text(
-                'NAVIA',
+                'TEC COLIMA',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 36,
+                  fontSize: 32,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: 6,
+                  letterSpacing: 4,
                 ),
               )
                   .animate()
@@ -58,10 +68,10 @@ class _SplashScreenState extends State<SplashScreen>
 
               // Subtítulo descriptivo
               const Text(
-                'Sistema de Navegación Inteligente Accesible',
+                'Mapas y navegación del campus',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Color(0xFFB0BEC5),
+                  color: Colors.white70,
                   fontSize: 12,
                   letterSpacing: 0.5,
                 ),

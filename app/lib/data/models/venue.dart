@@ -27,7 +27,6 @@ class Venue extends Equatable {
 
   final double defaultZoom;
   final IconData icon;
-  final Color color;
 
   const Venue({
     required this.id,
@@ -42,7 +41,6 @@ class Venue extends Equatable {
     required this.boundsEastLng,
     required this.defaultZoom,
     required this.icon,
-    required this.color,
   });
 
   /// `true` si el grafo/mapa de esta sede viene empaquetado con la app

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:navia/core/constants/app_routes.dart';
+import 'package:navia/core/theme/app_theme.dart';
 import 'package:navia/data/providers/auth_provider.dart';
 
 /// Pantalla de entrada mostrada una sola vez, justo después del onboarding:
@@ -54,20 +55,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             children: [
               const Spacer(),
               Container(
-                width: 84,
-                height: 84,
+                width: 72,
+                height: 72,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(colors: [cs.primary, cs.secondary]),
-                  boxShadow: [
-                    BoxShadow(
-                        color: cs.primary.withValues(alpha: 0.35),
-                        blurRadius: 24,
-                        spreadRadius: 2),
-                  ],
+                  color: cs.primary,
                 ),
-                child: Icon(Icons.near_me_rounded, color: cs.onPrimary, size: 40),
+                child: Icon(Icons.near_me_rounded, color: cs.onPrimary, size: 32),
               ),
               const SizedBox(height: 28),
               Text(
@@ -92,7 +87,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: cs.error.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                     border: Border.all(color: cs.error.withValues(alpha: 0.25)),
                   ),
                   child: Row(
@@ -113,17 +108,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 title: 'Jugador / Staff TecNM',
                 description:
                     'Inicia sesión con tu correo institucional (@tecnm.mx) para tu credencial digital con QR.',
-                accent: cs.primary,
                 filled: true,
                 loading: authState.isLoading,
                 onTap: authState.isLoading ? null : _signIn,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               _EntryOptionCard(
                 icon: Icons.explore_rounded,
                 title: 'Invitado',
                 description: 'Explora el mapa y las sedes del evento sin iniciar sesión.',
-                accent: cs.onSurface,
                 filled: false,
                 loading: false,
                 onTap: authState.isLoading ? null : _continueAsGuest,
@@ -142,7 +135,6 @@ class _EntryOptionCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String description;
-  final Color accent;
   final bool filled;
   final bool loading;
   final VoidCallback? onTap;
@@ -151,7 +143,6 @@ class _EntryOptionCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.description,
-    required this.accent,
     required this.filled,
     required this.loading,
     required this.onTap,
@@ -160,38 +151,37 @@ class _EntryOptionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final badgeColor = filled ? cs.primary : cs.surfaceContainerHighest;
+    final iconColor = filled ? cs.onPrimary : cs.onSurface;
     return Material(
-      color: filled ? accent.withValues(alpha: 0.12) : cs.surface,
-      borderRadius: BorderRadius.circular(20),
+      color: cs.surface,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-                color: filled
-                    ? accent.withValues(alpha: 0.35)
-                    : cs.onSurface.withValues(alpha: 0.08)),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: filled ? cs.primary : cs.outline),
           ),
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 42,
+                height: 42,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(14)),
+                    color: badgeColor,
+                    borderRadius: BorderRadius.circular(AppRadius.md)),
                 child: loading
                     ? SizedBox(
-                        width: 20,
-                        height: 20,
+                        width: 18,
+                        height: 18,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2.4, color: accent),
+                            strokeWidth: 2.2, color: iconColor),
                       )
-                    : Icon(icon, color: accent, size: 22),
+                    : Icon(icon, color: iconColor, size: 20),
               ),
               const SizedBox(width: 14),
               Expanded(

@@ -165,7 +165,7 @@ class SettingsScreen extends ConsumerWidget {
                           padding: const EdgeInsets.symmetric(vertical: 20),
                           backgroundColor: cs.error.withValues(alpha: 0.05),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
                             side: BorderSide(
                                 color: cs.error.withValues(alpha: 0.2)),
                           ),
@@ -200,7 +200,7 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
         title: Text('NAVIA',
             style: TextStyle(
                 color: cs.onSurface,
@@ -244,8 +244,7 @@ class SettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
         title: Text('Privacidad',
             style: TextStyle(
                 color: cs.onSurface,
@@ -258,8 +257,8 @@ class SettingsScreen extends ConsumerWidget {
             Text(
               '• Los datos de tu cuenta se almacenan de forma segura en Firebase con encriptación de extremo a extremo.\n\n'
               '• Tu ubicación se usa exclusivamente para navegación dentro del campus y NO se comparte con terceros bajo ninguna circunstancia.\n\n'
-              '• Las grabaciones de voz se procesan localmente mediante procesamiento On-Device y no se envían a servidores externos, garantizando tu anonimato.\n\n'
-              '• El escaneo de cámara para NAVIA AR se procesa sin almacenar imágenes.\n\n'
+              '• El asistente de voz solo lee indicaciones en voz alta (texto a voz); la app no graba ni envía audio a servidores externos.\n\n'
+              '• Los datos que capturas tú mismo en tu perfil (carrera, NSS del IMSS, tipo de sangre, contacto de emergencia y padecimientos) se guardan ÚNICAMENTE en este dispositivo: no se suben a internet, no se comparten y no viajan dentro del código QR de tu credencial. Solo son visibles para quien tenga tu teléfono en la mano.\n\n'
               '• Cumplimos estrictamente con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares.',
               style: TextStyle(
                   color: cs.onSurface.withValues(alpha: 0.6),
@@ -283,91 +282,69 @@ class SettingsScreen extends ConsumerWidget {
 
 // ─── Theme Selector ─────────────────────────────────────────────
 
+/// Selector de apariencia: claro / oscuro / seguir sistema. NAVIA tiene una
+/// sola identidad visual — esto no elige "un tema" distinto, solo su brillo.
 class _ThemeSelector extends ConsumerWidget {
+  static const _options = [
+    (mode: ThemeMode.system, label: 'Automático', icon: Icons.brightness_auto_rounded),
+    (mode: ThemeMode.light, label: 'Claro', icon: Icons.light_mode_rounded),
+    (mode: ThemeMode.dark, label: 'Oscuro', icon: Icons.dark_mode_rounded),
+  ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeNotifier = ref.read(themeProvider.notifier);
-    final currentIndex = themeNotifier.currentIndex;
+    final current = ref.watch(themeProvider);
     final cs = Theme.of(context).colorScheme;
 
-    return Column(
-      children: List.generate(availableThemes.length, (i) {
-        final info = availableThemes[i];
-        final isSelected = currentIndex == i;
-
-        return GestureDetector(
-          onTap: () => ref.read(themeProvider.notifier).setTheme(i),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOut,
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? info.previewColor.withValues(alpha: 0.12)
-                  : cs.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isSelected
-                    ? info.previewColor.withValues(alpha: 0.6)
-                    : cs.onSurface.withValues(alpha: 0.05),
-                width: isSelected ? 2 : 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                // Preview circle
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: info.previewColor,
-                    shape: BoxShape.circle,
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                                color: info.previewColor.withValues(alpha: 0.4),
-                                blurRadius: 12)
-                          ]
-                        : null,
-                  ),
-                  child: isSelected
-                      ? const Icon(Icons.check_rounded,
-                          color: Colors.white, size: 20)
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Row(
+        children: _options.map((option) {
+          final isSelected = current == option.mode;
+          return Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => ref.read(themeProvider.notifier).setMode(option.mode),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: isSelected ? cs.surface : Colors.transparent,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  border: isSelected
+                      ? Border.all(color: cs.outline)
                       : null,
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        info.label,
-                        style: TextStyle(
-                          color: cs.onSurface,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(option.icon,
+                        size: 20,
+                        color: isSelected
+                            ? cs.primary
+                            : cs.onSurface.withValues(alpha: 0.5)),
+                    const SizedBox(height: 6),
+                    Text(
+                      option.label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected
+                            ? cs.onSurface
+                            : cs.onSurface.withValues(alpha: 0.5),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        info.description,
-                        style: TextStyle(
-                          color: cs.onSurface.withValues(alpha: 0.4),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                if (isSelected)
-                  Icon(Icons.palette_rounded,
-                      color: info.previewColor, size: 20),
-              ],
+              ),
             ),
-          ),
-        );
-      }),
+          );
+        }).toList(),
+      ),
     );
   }
 }
@@ -418,15 +395,15 @@ class _SwitchTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: cs.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: cs.outline),
       ),
       child: SwitchListTile(
         secondary: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
               color: cs.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10)),
+              borderRadius: BorderRadius.circular(AppRadius.sm)),
           child: Icon(icon, color: cs.primary, size: 22),
         ),
         title: Text(label,
@@ -476,8 +453,8 @@ class _SliderTile extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: cs.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: cs.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -497,7 +474,7 @@ class _SliderTile extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                     color: cs.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8)),
+                    borderRadius: BorderRadius.circular(AppRadius.sm)),
                 child: Text(display,
                     style: TextStyle(
                         color: cs.primary,
@@ -547,15 +524,15 @@ class _NavTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: cs.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: cs.outline),
       ),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
               color: cs.onSurface.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(10)),
+              borderRadius: BorderRadius.circular(AppRadius.sm)),
           child:
               Icon(icon, color: cs.onSurface.withValues(alpha: 0.7), size: 22),
         ),
@@ -567,7 +544,7 @@ class _NavTile extends StatelessWidget {
         trailing: Icon(Icons.arrow_forward_ios_rounded,
             size: 14, color: cs.onSurface.withValues(alpha: 0.24)),
         onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
       ),
     );
   }

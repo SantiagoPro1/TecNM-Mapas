@@ -50,7 +50,17 @@ class NavigationService {
   }
 
   /// Desbloquea la posición manual para volver a usar GPS real.
+  ///
+  /// También limpia [_currentNodeId] — sin esto, aunque la bandera se
+  /// apagara, el nodo fijado por "Estoy Aquí" seguía viviendo aquí. Eso
+  /// importaba porque `calculateAccessibleRoute` (en map_screen.dart) usa
+  /// `currentNodeId` como respaldo de origen cuando todavía no hay una
+  /// lectura de GPS real disponible (p. ej. sin señal/GPS lento) — sin
+  /// limpiarlo, una ruta trazada justo después de "Quitar" (y antes de que
+  /// llegara una lectura de GPS nueva) terminaba usando el lugar viejo como
+  /// si la persona siguiera parada ahí.
   void resetManualPosition() {
+    if (_isManualPosition) _currentNodeId = null;
     _isManualPosition = false;
   }
 

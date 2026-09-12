@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:navia/core/constants/app_routes.dart';
+import 'package:navia/core/theme/app_theme.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -68,8 +69,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 style: TextStyle(fontWeight: FontWeight.bold)),
             backgroundColor: cs.error,
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md)),
           ),
         );
       }
@@ -86,7 +87,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final isLastPage = _currentPage == _pages.length - 1;
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -125,27 +125,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             const SizedBox(height: 32),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (isLastPage && !_termsAccepted)
-                          ? Colors.transparent
-                          : cs.primary.withValues(alpha: 0.2),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
-                    )
-                  ],
+              child: ElevatedButton(
+                onPressed:
+                    (isLastPage && !_termsAccepted) ? null : _handleNext,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 60),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md)),
                 ),
-                child: ElevatedButton(
-                  onPressed:
-                      (isLastPage && !_termsAccepted) ? null : _handleNext,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 60),
-                  ),
-                  child: Text(isLastPage ? 'COMENZAR' : 'SIGUIENTE'),
-                ),
+                child: Text(isLastPage ? 'COMENZAR' : 'SIGUIENTE'),
               ),
             ),
             const SizedBox(height: 40),
@@ -236,7 +224,7 @@ class _TermsCheckbox extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: value ? cs.primary.withValues(alpha: 0.05) : cs.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
             color: value
                 ? cs.primary.withValues(alpha: 0.3)

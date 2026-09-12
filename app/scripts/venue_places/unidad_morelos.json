@@ -1,0 +1,165 @@
+{
+  "venueId": "unidad_morelos",
+  "source": "Google Places API + OpenStreetMap (ambos filtrados por zona)",
+  "center": {
+    "lat": 19.249242,
+    "lon": -103.703654
+  },
+  "radius_m": 450,
+  "places": [
+    {
+      "name": "Unidad Deportiva \"Morelos\"",
+      "lat": 19.249242,
+      "lon": -103.703654,
+      "source": "google",
+      "kind": "sports_complex"
+    },
+    {
+      "name": "Alberca Olímpica Unidad Morelos",
+      "lat": 19.248784,
+      "lon": -103.703206,
+      "source": "google",
+      "kind": "swimming_pool"
+    },
+    {
+      "name": "Pista de Atletismo",
+      "lat": 19.249564,
+      "lon": -103.703082,
+      "source": "osm",
+      "kind": "track"
+    },
+    {
+      "name": "Auditorio Porfirio Gutiérrez Romero",
+      "lat": 19.249037,
+      "lon": -103.7044,
+      "source": "google",
+      "kind": "auditorium"
+    },
+    {
+      "name": "Gimnasio Paralímpico \"Hilda Ceballos\"",
+      "lat": 19.248245,
+      "lon": -103.70351,
+      "source": "google",
+      "kind": "gym"
+    },
+    {
+      "name": "Pista de Atletismo Colima",
+      "lat": 19.249209,
+      "lon": -103.702561,
+      "source": "google",
+      "kind": "sports_activity_location"
+    },
+    {
+      "name": "Fosa de Clavados",
+      "lat": 19.248471,
+      "lon": -103.702778,
+      "source": "osm",
+      "kind": "swimming_pool"
+    },
+    {
+      "name": "Pista 1",
+      "lat": 19.248911,
+      "lon": -103.702501,
+      "source": "osm",
+      "kind": "track"
+    },
+    {
+      "name": "Unidad Deportiva \"Morelos\"",
+      "lat": 19.248577,
+      "lon": -103.702351,
+      "source": "osm",
+      "kind": "sports_centre"
+    },
+    {
+      "name": "Cancha de Tenis",
+      "lat": 19.247945,
+      "lon": -103.702813,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha de Básquetbol 1",
+      "lat": 19.247687,
+      "lon": -103.7041,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Pista 2",
+      "lat": 19.248896,
+      "lon": -103.701907,
+      "source": "osm",
+      "kind": "track"
+    },
+    {
+      "name": "Estadio de Voleibol y Handball de Playa",
+      "lat": 19.248552,
+      "lon": -103.701563,
+      "source": "google",
+      "kind": "athletic_field"
+    },
+    {
+      "name": "Estadio de Béisbol de Colima",
+      "lat": 19.247757,
+      "lon": -103.702033,
+      "source": "osm",
+      "kind": "stadium"
+    },
+    {
+      "name": "Pabellón de Balónmano",
+      "lat": 19.248862,
+      "lon": -103.701316,
+      "source": "google",
+      "kind": "athletic_field"
+    },
+    {
+      "name": "Auditorio Bachilleratos 1, 2 y 3",
+      "lat": 19.249907,
+      "lon": -103.701383,
+      "source": "google",
+      "kind": "auditorium"
+    },
+    {
+      "name": "Cancha",
+      "lat": 19.248288,
+      "lon": -103.701243,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Auditorio Multifuncional",
+      "lat": 19.24857,
+      "lon": -103.701033,
+      "source": "google",
+      "kind": "auditorium"
+    },
+    {
+      "name": "Cancha de Básquetbol 2",
+      "lat": 19.246557,
+      "lon": -103.703248,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha de Voleibol",
+      "lat": 19.246567,
+      "lon": -103.702929,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Estadio de Fútbol Rápido",
+      "lat": 19.24634,
+      "lon": -103.702073,
+      "source": "osm",
+      "kind": "stadium"
+    },
+    {
+      "name": "Auditorio Benjamín Fuentes González",
+      "lat": 19.25057,
+      "lon": -103.699916,
+      "source": "google",
+      "kind": "auditorium"
+    }
+  ]
+}

@@ -1,6 +1,12 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'SINAIT_TecNM_2026_SecretKey';
+// Clave compartida con la app (credential_service.dart lee CREDENTIAL_SECRET
+// de su propio .env). Antes este archivo usaba JWT_SECRET, que valía
+// 'SINAIT_TecNM_2026_SecretKey', mientras la app firmaba con
+// 'NAVIA_TecNM_2026_SecretKey': ninguna credencial escaneada podía verificar.
+const CREDENTIAL_SECRET =
+  process.env.CREDENTIAL_SECRET || 'NAVIA_TecNM_2026_SecretKey';
 
 /**
  * Controlador de autenticación.
@@ -64,7 +70,7 @@ const authController = {
       const dataToSign = `${parts[0]}.${parts[1]}`;
       const expectedSig = _simpleSign(dataToSign);
 
-      if (parts[2] !== expectedSig) {
+      if (!_firmasIguales(parts[2], expectedSig)) {
         return res.status(401).json({
           success: false,
           error: 'Firma de credencial inválida',
@@ -120,22 +126,26 @@ const authController = {
  * Debe producir el mismo resultado que _sign() en credential_service.dart.
  */
 function _simpleSign(data) {
-  const input = `${data}.${JWT_SECRET}`;
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    hash = ((hash << 5) - hash + input.charCodeAt(i)) & 0xFFFFFFFF;
-  }
-  // Convert to unsigned
-  hash = hash >>> 0;
+  return crypto
+    .createHmac('sha256', CREDENTIAL_SECRET)
+    .update(data)
+    .digest('base64url')
+    .replace(/=/g, '');
+}
 
-  const input2 = `${hash.toString(16)}.${JWT_SECRET}`;
-  let hash2 = 0;
-  for (let i = 0; i < input2.length; i++) {
-    hash2 = ((hash2 << 5) - hash2 + input2.charCodeAt(i)) & 0xFFFFFFFF;
-  }
-  hash2 = hash2 >>> 0;
-
-  return `${hash.toString(16)}${hash2.toString(16)}`;
+/**
+ * Compara dos firmas sin filtrar información por el tiempo de ejecución.
+ *
+ * Un `===` normal corta en el primer byte distinto, así que el tiempo de
+ * respuesta revela cuántos bytes acertó quien lo intenta — con suficientes
+ * escaneos se puede reconstruir una firma byte por byte. `timingSafeEqual`
+ * siempre tarda lo mismo.
+ */
+function _firmasIguales(a, b) {
+  const ba = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
 }
 
 module.exports = authController;

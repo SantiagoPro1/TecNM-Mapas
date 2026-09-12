@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:navia/core/constants/venue_registry.dart';
 import 'package:navia/data/models/place_node.dart';
 import 'package:navia/data/models/venue.dart';
+import 'package:navia/data/repositories/venue_bundle.dart';
 
 class PlaceRepository {
   final FirebaseFirestore _firestore;
@@ -27,6 +28,28 @@ class PlaceRepository {
   /// datos reales en Firestore.
   Stream<List<PlaceNode>> watchPlaces(String zoneId) async* {
     final venue = VenueRegistry.byId(zoneId);
+    final delPaquete = await VenueBundle.places(zoneId);
+    final versionLocal = await VenueBundle.version();
+
+    // Se escucha en vivo la versión publicada por el admin. Mientras no
+    // supere a la del APK, los puntos salen del paquete: sin lecturas de
+    // Firestore, al instante y sin señal. En cuanto el admin publique algo
+    // nuevo, se cambia a Firestore y ya no se vuelve — de ahí en adelante los
+    // datos llegan en vivo, que es justo lo que se quiere tras una
+    // corrección.
+    await for (final versionRemota in VenueDataVersion.versionEnVivo()) {
+      if (versionRemota <= versionLocal && delPaquete.isNotEmpty) {
+        yield delPaquete;
+        continue;
+      }
+      yield* _escucharFirestore(zoneId, venue);
+      return;
+    }
+  }
+
+  /// Puntos en vivo desde Firestore, con respaldo local si la sede aún no
+  /// tiene datos ahí o si la consulta falla.
+  Stream<List<PlaceNode>> _escucharFirestore(String zoneId, Venue venue) async* {
     try {
       await for (final snapshot in _placesCol(zoneId).snapshots()) {
         final places = snapshot.docs
@@ -34,15 +57,27 @@ class PlaceRepository {
             .toList();
         if (places.isNotEmpty) {
           yield places;
-        } else if (venue.isBundled) {
-          yield await _loadLocalPlaces(venue);
         } else {
-          yield [_genericVenuePin(venue)];
+          final respaldo = await VenueBundle.places(zoneId);
+          if (respaldo.isNotEmpty) {
+            yield respaldo;
+          } else if (venue.isBundled) {
+            yield await _loadLocalPlaces(venue);
+          } else {
+            yield [_genericVenuePin(venue)];
+          }
         }
       }
     } catch (e) {
       debugPrint('PlaceRepository: error leyendo Firestore ($zoneId) → $e');
-      yield venue.isBundled ? await _loadLocalPlaces(venue) : [_genericVenuePin(venue)];
+      final respaldo = await VenueBundle.places(zoneId);
+      if (respaldo.isNotEmpty) {
+        yield respaldo;
+      } else {
+        yield venue.isBundled
+            ? await _loadLocalPlaces(venue)
+            : [_genericVenuePin(venue)];
+      }
     }
   }
 
@@ -141,6 +176,12 @@ class PlaceRepository {
   /// saturando la red celular en una unidad deportiva. Con la caché tibia,
   /// `watchPlaces` sigue sirviendo datos aunque no haya señal.
   Future<void> prefetchAllVenuesForOffline() async {
+    // Con el paquete vigente los datos ya están en el APK: bajarlos otra vez
+    // sería pagar lecturas por algo que ya se tiene.
+    if (await VenueDataVersion.paqueteVigente()) {
+      debugPrint('PlaceRepository: precarga omitida (datos del APK vigentes)');
+      return;
+    }
     for (final venue in VenueRegistry.all) {
       try {
         await _placesCol(venue.id).get();
@@ -172,7 +213,7 @@ class PlaceRepository {
       if (places.isNotEmpty) {
         await seedPlacesForVenue(venue.id, places);
         debugPrint(
-            'PlaceRepository: ${places.length} POIs sembrados para "${venue.id}" ✓');
+            'PlaceRepository: ${places.length} POIs sembrados para "${venue.id}"');
       }
     }
   }

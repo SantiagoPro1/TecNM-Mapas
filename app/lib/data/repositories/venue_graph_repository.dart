@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:navia/core/constants/venue_registry.dart';
 import 'package:navia/data/models/campus_edge.dart';
 import 'package:navia/data/models/campus_node.dart';
+import 'package:navia/data/repositories/venue_bundle.dart';
 
 /// CRUD en tiempo real contra el grafo caminable de una sede
 /// (`venues/{zoneId}/nodes`, `venues/{zoneId}/edges`).
@@ -93,6 +94,11 @@ class VenueGraphRepository {
   /// dejarlo en la caché local de Firestore, de modo que las rutas se puedan
   /// calcular sin señal. Ver [PlaceRepository.prefetchAllVenuesForOffline].
   Future<void> prefetchAllVenuesForOffline() async {
+    if (await VenueDataVersion.paqueteVigente()) {
+      debugPrint(
+          'VenueGraphRepository: precarga omitida (datos del APK vigentes)');
+      return;
+    }
     for (final venue in VenueRegistry.all) {
       try {
         await _nodesCol(venue.id).get();

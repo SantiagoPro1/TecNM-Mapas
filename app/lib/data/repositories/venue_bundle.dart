@@ -99,6 +99,7 @@ class VenueBundle {
         type: (d['type'] as String?) ?? 'Punto',
         accessibilityLevel: (d['accessibilityLevel'] as String?) ?? 'medio',
         letter: d['letter'] as String?,
+        imageUrl: d['imageUrl'] as String?,
       );
 
   static CampusNode _nodoDesdeMapa(String zoneId, Map<String, dynamic> d) =>

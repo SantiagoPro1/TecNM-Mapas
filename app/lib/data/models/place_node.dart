@@ -14,6 +14,7 @@ class PlaceNode extends Equatable {
   final String type; // ej. 'Edificio', 'Cafetería', 'Parque', 'Servicios'
   final String accessibilityLevel; // ej. 'alto', 'medio', 'bajo'
   final String? letter; // Letra de identificación del edificio
+  final String? imageUrl; // URL de la imagen del lugar (Firebase Storage o externa)
 
   const PlaceNode({
     required this.id,
@@ -24,6 +25,7 @@ class PlaceNode extends Equatable {
     required this.type,
     required this.accessibilityLevel,
     this.letter,
+    this.imageUrl,
   });
 
   /// Factory para parsear documentos desde Firestore.
@@ -44,6 +46,7 @@ class PlaceNode extends Equatable {
       accessibilityLevel:
           data?['accessibilityLevel'] as String? ?? 'desconocido',
       letter: data?['letter'] as String?,
+      imageUrl: data?['imageUrl'] as String?,
     );
   }
 
@@ -57,6 +60,7 @@ class PlaceNode extends Equatable {
       'type': type,
       'accessibilityLevel': accessibilityLevel,
       'letter': letter,
+      'imageUrl': imageUrl,
     };
   }
 
@@ -67,6 +71,7 @@ class PlaceNode extends Equatable {
     String? type,
     String? accessibilityLevel,
     String? letter,
+    String? imageUrl,
   }) {
     return PlaceNode(
       id: id,
@@ -77,10 +82,11 @@ class PlaceNode extends Equatable {
       type: type ?? this.type,
       accessibilityLevel: accessibilityLevel ?? this.accessibilityLevel,
       letter: letter ?? this.letter,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 
   @override
   List<Object?> get props =>
-      [id, zoneId, name, latitude, longitude, type, accessibilityLevel, letter];
+      [id, zoneId, name, latitude, longitude, type, accessibilityLevel, letter, imageUrl];
 }

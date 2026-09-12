@@ -18,27 +18,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final List<_OnboardingPageData> _pages = const [
     _OnboardingPageData(
       icon: Icons.map_rounded,
-      title: 'Todas las sedes, un solo mapa',
+      title: 'Navegación institucional',
       description:
-          'Encuentra cada sede del Evento Nacional Deportivo del TecNM 2026 y llega sin perderte.',
+          'Localiza cada sede del Evento Nacional Deportivo del TecNM 2026 y desplázate entre instalaciones.',
     ),
     _OnboardingPageData(
       icon: Icons.alt_route_rounded,
-      title: 'Ruta paso a paso',
+      title: 'Sistema de ruteo',
       description:
-          'Sigue la ruta en el mapa con indicaciones claras hacia tu destino.',
+          'Traza rutas optimizadas con indicaciones precisas hacia cualquier punto del campus.',
     ),
     _OnboardingPageData(
       icon: Icons.badge_rounded,
-      title: 'Tu credencial digital',
+      title: 'Credencial digital',
       description:
-          'Presenta tu credencial NAVIA con código QR para identificarte durante el evento.',
+          'Accede a tu credencial NAVIA con código QR para identificación durante el evento.',
     ),
     _OnboardingPageData(
       icon: Icons.gavel_rounded,
       title: 'Legal y Privacidad',
       description:
-          'Tus datos están protegidos bajo los lineamientos del TecNM. Al continuar, aceptas el uso ético.',
+          'Tus datos están protegidos bajo los lineamientos del TecNM. Al continuar, aceptas el uso conforme a la normativa institucional.',
     ),
   ];
 

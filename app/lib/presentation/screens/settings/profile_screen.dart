@@ -71,7 +71,7 @@ class ProfileScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          'Inicia sesión para acceder a tu credencial y sincronizar tu progreso en el campus.',
+          'Inicia sesión con tu cuenta institucional para acceder a tu credencial digital.',
           textAlign: TextAlign.center,
           style: TextStyle(
               color: cs.onSurface.withValues(alpha: 0.5),

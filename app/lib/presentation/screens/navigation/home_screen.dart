@@ -127,7 +127,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(height: 20),
                     ],
                     // Venues Section
-                    _sectionTitle('Explora un lugar'),
+                    _sectionTitle('Sedes'),
                     const SizedBox(height: 14),
                     _buildVenueCards(),
                     // Announcements

@@ -104,7 +104,7 @@ class _RouteStatusBanner extends StatelessWidget {
         accent = isDark ? AppWarning.dark : AppWarning.light;
       case _RouteBannerKind.arrived:
         icon = Icons.check_circle_rounded;
-        text = '¡Has llegado a tu destino!';
+        text = 'Has llegado a tu destino';
         accent = cs.tertiary;
       case _RouteBannerKind.error:
         icon = Icons.error_outline_rounded;

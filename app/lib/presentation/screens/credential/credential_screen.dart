@@ -118,7 +118,7 @@ class _CredentialScreenState extends ConsumerState<CredentialScreen>
                 size: 80, color: cs.primary.withValues(alpha: 0.5)),
           ),
           const SizedBox(height: 24),
-          Text('Inicia sesión para generar tu credencial',
+          Text('Inicia sesión para acceder a tu credencial',
               style: TextStyle(
                   color: cs.onSurface.withValues(alpha: 0.55),
                   fontSize: 16,

@@ -42,11 +42,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: AppTheme.brandNavy,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -54,49 +52,58 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(),
-              Container(
-                width: 72,
-                height: 72,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: cs.primary,
+              Center(
+                child: Container(
+                  width: 96,
+                  height: 96,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: Image.asset(
+                    'assets/images/logo_itcolima.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
-                child: Icon(Icons.near_me_rounded, color: cs.onPrimary, size: 32),
               ),
               const SizedBox(height: 28),
-              Text(
-                '¿Cómo quieres continuar?',
+              const Text(
+                'Selecciona tu modo de acceso',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: cs.onSurface,
+                    color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
                     letterSpacing: -0.5),
               ),
               const SizedBox(height: 10),
               Text(
-                'Puedes cambiar esto después desde tu perfil.',
+                'Esta configuración puede modificarse desde tu perfil.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: cs.onSurface.withValues(alpha: 0.5), fontSize: 13.5),
+                    color: Colors.white.withValues(alpha: 0.7), fontSize: 13.5),
               ),
               const SizedBox(height: 36),
               if (authState.errorMessage != null) ...[
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: cs.error.withValues(alpha: 0.1),
+                    color: Colors.white.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(color: cs.error.withValues(alpha: 0.25)),
+                    border: Border.all(
+                        color: AppTheme.error.withValues(alpha: 0.5)),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_rounded, color: cs.error, size: 18),
+                      const Icon(Icons.error_rounded,
+                          color: AppTheme.error, size: 18),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(authState.errorMessage!,
-                            style: TextStyle(color: cs.error, fontSize: 12.5)),
+                            style: const TextStyle(
+                                color: AppTheme.error, fontSize: 12.5)),
                       ),
                     ],
                   ),
@@ -107,7 +114,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 icon: Icons.badge_rounded,
                 title: 'Jugador / Staff TecNM',
                 description:
-                    'Inicia sesión con tu correo institucional (@tecnm.mx) para tu credencial digital con QR.',
+                    'Acceso con correo institucional @tecnm.mx para credencial digital con código QR.',
                 filled: true,
                 loading: authState.isLoading,
                 onTap: authState.isLoading ? null : _signIn,
@@ -116,7 +123,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               _EntryOptionCard(
                 icon: Icons.explore_rounded,
                 title: 'Invitado',
-                description: 'Explora el mapa y las sedes del evento sin iniciar sesión.',
+                description: 'Acceso al mapa y navegación de sedes sin credencial.',
                 filled: false,
                 loading: false,
                 onTap: authState.isLoading ? null : _continueAsGuest,

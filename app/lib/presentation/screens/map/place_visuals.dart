@@ -383,10 +383,6 @@ class PlacePhoto {
       final ruta = '$_carpeta/$placeId.$ext';
       if (rutas.contains(ruta)) return ruta;
     }
-    if (categoria != null) {
-      final ruta = '$_carpetaCategorias/${categoria.name}.png';
-      if (rutas.contains(ruta)) return ruta;
-    }
     return null;
   }
 }
@@ -442,19 +438,25 @@ class _PlacePhotoBannerState extends State<PlacePhotoBanner> {
       child: SizedBox(
         height: widget.height,
         width: double.infinity,
-        child: FutureBuilder<String?>(
-          future: _asset,
-          builder: (context, snap) {
-            if (snap.connectionState != ConnectionState.done) return sinFoto();
-            final ruta = snap.data;
-            if (ruta == null) return sinFoto();
-            return Image.asset(
-              ruta,
-              fit: BoxFit.cover,
-              errorBuilder: (context, _, __) => sinFoto(),
-            );
-          },
-        ),
+        child: widget.place.imageUrl != null
+            ? Image.network(
+                widget.place.imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (context, _, __) => sinFoto(),
+              )
+            : FutureBuilder<String?>(
+                future: _asset,
+                builder: (context, snap) {
+                  if (snap.connectionState != ConnectionState.done) return sinFoto();
+                  final ruta = snap.data;
+                  if (ruta == null) return sinFoto();
+                  return Image.asset(
+                    ruta,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, _, __) => sinFoto(),
+                  );
+                },
+              ),
       ),
     );
   }

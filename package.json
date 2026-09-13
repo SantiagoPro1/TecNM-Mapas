@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "duckduckgo-images-api": "^1.0.5"
   }
 }

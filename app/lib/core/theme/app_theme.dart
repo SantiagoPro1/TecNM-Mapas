@@ -192,33 +192,32 @@ TextTheme _textTheme(Color primary, Color secondary) {
 }
 
 ThemeData _buildLight() {
-  // Fondo con tinte azul institucional (no blanco/gris neutro): el mismo
-  // azul marino de marca, muy aclarado. Las tarjetas/superficies siguen en
-  // blanco para que el contenido legible contraste contra el fondo.
-  const background = _Navy.pale;
-  const surface = _Neutral.white;
-  const primary = _Navy.base;
-  const textPrimary = _Neutral.n800;
-  const textSecondary = _Neutral.n500;
-  const outline = _Neutral.n200;
+  // Tema principal inmersivo azul institucional (TecNM).
+  // Se abandona el fondo blanco a petición del usuario.
+  const background = _Navy.base;
+  const surface = _Navy.deep; // Tarjetas levemente más oscuras para contrastar con el fondo
+  const primary = _Neutral.white; // Acentos en blanco/celeste
+  const textPrimary = _Neutral.white;
+  const textSecondary = _Navy.light; // Textos secundarios en azul claro
+  const outline = _Navy.mid; // Bordes en azul medio
 
   const colorScheme = ColorScheme.light(
     primary: primary,
-    onPrimary: _Neutral.white,
-    secondary: _Navy.mid,
-    onSecondary: _Neutral.white,
+    onPrimary: _Navy.base,
+    secondary: _Navy.pale,
+    onSecondary: _Navy.deep,
     surface: surface,
     onSurface: textPrimary,
-    surfaceContainerHighest: _Neutral.n50,
-    error: _Semantic.errorLight,
+    surfaceContainerHighest: _Navy.mid,
+    error: _Semantic.errorDark,
     onError: _Neutral.white,
-    tertiary: _Semantic.successLight,
+    tertiary: _Semantic.successDark,
     outline: outline,
-    outlineVariant: _Neutral.n100,
+    outlineVariant: _Navy.deep,
   );
 
   return _theme(
-    brightness: Brightness.light,
+    brightness: Brightness.dark, // Usamos dark para que la status bar y elementos respondan correctamente a fondos oscuros
     background: background,
     colorScheme: colorScheme,
     textPrimary: textPrimary,

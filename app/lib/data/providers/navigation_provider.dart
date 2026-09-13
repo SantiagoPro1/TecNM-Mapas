@@ -1,9 +1,8 @@
 import 'dart:async';
-import 'package:dio/dio.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:navia/data/models/campus_node.dart';
 import 'package:navia/data/models/nav_route.dart';
 import 'package:navia/services/navigation/navigation_service.dart';
@@ -160,7 +159,6 @@ class NavigationState extends Equatable {
 
 class NavigationNotifier extends StateNotifier<NavigationState> {
   final NavigationService _navService;
-  final Dio _dio = Dio();
 
   NavigationNotifier(this._navService) : super(const NavigationState());
 
@@ -518,238 +516,13 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
   /// que el grafo cubre ese punto. Más allá, la ruta local sería una mentira.
   static const double _maxEnganche = 400.0;
 
-  /// Calcula una ruta usando la API de Google Routes y la establece como activa.
-  /// Si falla, intenta una ruta de respaldo usando el sistema Dijkstra local del campus.
-  Future<bool> calculateGoogleRoute({
-    required double originLat,
-    required double originLng,
-    required double destLat,
-    required double destLng,
-    String? destinationName,
-    String? venueId,
-  }) async {
+  /// Establece un estado de error al calcular una ruta (ej. por estar demasiado lejos)
+  void setRouteError(String errorMessage) {
     _autoFinishTimer?.cancel();
-    state = state.copyWith(status: NavStatus.calculating);
-    try {
-      final apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) {
-        _fallbackToDijkstra(destLat, destLng);
-        return true;
-      }
-
-      final response = await _dio.post(
-        'https://routes.googleapis.com/directions/v2:computeRoutes',
-        data: {
-          "origin": {
-            "location": {
-              "latLng": {
-                "latitude": originLat,
-                "longitude": originLng
-              }
-            }
-          },
-          "destination": {
-            "location": {
-              "latLng": {
-                "latitude": destLat,
-                "longitude": destLng
-              }
-            }
-          },
-          "travelMode": "WALK",
-        },
-        options: Options(
-          headers: {
-            'X-Goog-Api-Key': apiKey,
-            'X-Goog-FieldMask':
-                'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.legs.steps.navigationInstruction.instructions,routes.legs.steps.endLocation',
-            'Content-Type': 'application/json',
-          },
-          receiveTimeout: const Duration(seconds: 15),
-        ),
-      );
-
-      final routes = response.data['routes'] as List<dynamic>?;
-      if (routes != null && routes.isNotEmpty) {
-        final route = routes.first;
-        final encodedPolyline = route['polyline']['encodedPolyline'] as String;
-        final points = _decodePolyline(encodedPolyline);
-        final distance = route['distanceMeters'] as int? ?? 0;
-
-        if (points.isEmpty) {
-          _fallbackToDijkstra(destLat, destLng);
-          return true;
-        }
-
-        // Decodificar los pasos (turn-by-turn instructions) para NAVIA AR
-        final legs = route['legs'] as List<dynamic>?;
-        final List<RouteStep> routeSteps = [];
-        if (legs != null && legs.isNotEmpty) {
-          final stepsJson = legs.first['steps'] as List<dynamic>?;
-          if (stepsJson != null) {
-            for (int idx = 0; idx < stepsJson.length; idx++) {
-              final s = stepsJson[idx];
-              final instruction = s['navigationInstruction']?['instructions'] as String? ?? 'Sigue derecho';
-              final endLoc = s['endLocation']?['latLng'];
-              final lat = (endLoc?['latitude'] as num?)?.toDouble() ?? originLat;
-              final lng = (endLoc?['longitude'] as num?)?.toDouble() ?? originLng;
-
-              routeSteps.add(
-                RouteStep(
-                  node: CampusNode(
-                    id: 'google_step_$idx',
-                    zoneId: 'google_route',
-                    name: instruction,
-                    aliases: const [],
-                    type: NodeType.corridor,
-                    lat: lat,
-                    lng: lng,
-                    floor: 0,
-                    accessible: true,
-                    description: '',
-                  ),
-                  voiceInstruction: instruction,
-                ),
-              );
-            }
-          }
-        }
-
-        // Paso final si la lista de pasos está vacía
-        if (routeSteps.isEmpty) {
-          routeSteps.add(
-            RouteStep(
-              node: CampusNode(
-                id: 'google_step_final',
-                zoneId: 'google_route',
-                name: destinationName ?? 'Destino',
-                aliases: const [],
-                type: NodeType.corridor,
-                lat: destLat,
-                lng: destLng,
-                floor: 0,
-                accessible: true,
-                description: '',
-              ),
-              voiceInstruction: 'Llegando a ${destinationName ?? "tu destino"}.',
-            ),
-          );
-        }
-
-        final originNode = CampusNode(
-          id: 'google_origin',
-          zoneId: 'google_route',
-          name: 'Mi Ubicación',
-          aliases: const [],
-          type: NodeType.corridor,
-          lat: originLat,
-          lng: originLng,
-          floor: 0,
-          accessible: true,
-          description: '',
-        );
-
-        final destNode = CampusNode(
-          id: 'google_dest',
-          zoneId: 'google_route',
-          name: destinationName ?? 'Destino',
-          aliases: const [],
-          type: NodeType.corridor,
-          lat: destLat,
-          lng: destLng,
-          floor: 0,
-          accessible: true,
-          description: '',
-        );
-
-        final googleRoute = NavRoute(
-          steps: routeSteps,
-          totalDistance: distance.toDouble(),
-          estimatedMinutes: (distance / 72.0),
-          fullyAccessible: true,
-          origin: originNode,
-          destination: destNode,
-        );
-
-        state = state.copyWith(
-          status: NavStatus.navigating,
-          activeRoute: googleRoute,
-          routePolylinePoints: points,
-          destinationName: destinationName,
-          routeDistanceMeters: distance,
-          pendingARNavigation: true,
-          routeVenueId: venueId,
-        );
-        return true;
-      }
-
-      _fallbackToDijkstra(destLat, destLng);
-      return true;
-    } catch (e) {
-      _fallbackToDijkstra(destLat, destLng);
-      return true;
-    }
-  }
-
-  void _fallbackToDijkstra(double destLat, double destLng) {
-    final graph = _navService.graph;
-    if (graph == null) {
-      state = state.copyWith(
-        status: NavStatus.error,
-        errorMessage: 'Grafo no cargado para navegación de respaldo.',
-      );
-      return;
-    }
-
-    CampusNode? absoluteNearest;
-    double minDistance = double.infinity;
-
-    for (final node in graph.nodes.values) {
-      final d = Geolocator.distanceBetween(destLat, destLng, node.lat, node.lng);
-      if (d < minDistance) {
-        minDistance = d;
-        absoluteNearest = node;
-      }
-    }
-
-    if (absoluteNearest != null) {
-      navigateTo(absoluteNearest.name);
-    } else {
-      state = state.copyWith(
-        status: NavStatus.error,
-        errorMessage: 'No se pudo calcular la ruta de respaldo.',
-      );
-    }
-  }
-
-  List<List<double>> _decodePolyline(String encoded) {
-    final List<List<double>> poly = [];
-    int index = 0, len = encoded.length;
-    int lat = 0, lng = 0;
-
-    while (index < len) {
-      int b, shift = 0, result = 0;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lat += dlat;
-
-      shift = 0;
-      result = 0;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lng += dlng;
-
-      poly.add([lat / 1E5, lng / 1E5]);
-    }
-    return poly;
+    state = state.copyWith(
+      status: NavStatus.error,
+      errorMessage: errorMessage,
+    );
   }
 
   /// Consume el flag de navegación a AR (llamar justo antes de hacer push).

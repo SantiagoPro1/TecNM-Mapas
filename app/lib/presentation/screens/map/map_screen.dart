@@ -12,6 +12,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:uuid/uuid.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:navia/data/models/place_node.dart';
 import 'package:navia/data/models/campus_node.dart';
@@ -1230,14 +1231,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               destinationName: destinationName,
             );
         if (!local) {
-          await ref.read(navigationProvider.notifier).calculateGoogleRoute(
-                originLat: fromNode.lat,
-                originLng: fromNode.lng,
-                destLat: destination.latitude,
-                destLng: destination.longitude,
-                destinationName: destinationName,
-                venueId: _venue.id,
-              );
+          _launchExternalGoogleMaps(destination);
         }
         return;
       }
@@ -1250,18 +1244,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
             destinationName: destinationName,
           );
       if (!local) {
-        debugPrint('Ruta: el grafo local no cubre el trayecto; se usa Google.');
-        await ref.read(navigationProvider.notifier).calculateGoogleRoute(
-              originLat: origin.latitude,
-              originLng: origin.longitude,
-              destLat: destination.latitude,
-              destLng: destination.longitude,
-              destinationName: destinationName,
-              venueId: _venue.id,
-            );
+        debugPrint('Ruta: el grafo local no cubre el trayecto; se abre Google Maps nativo.');
+        _launchExternalGoogleMaps(destination);
       }
     } finally {
       _isFetchingRoute = false;
+    }
+  }
+
+  Future<void> _launchExternalGoogleMaps(LatLng dest) async {
+    final url = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&destination=${dest.latitude},${dest.longitude}&travelmode=walking');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+      // Cancel internal route calculation
+      ref.read(navigationProvider.notifier).cancelNavigation();
+    } else {
+      ref.read(navigationProvider.notifier).setRouteError(
+          'Estás demasiado lejos de la sede para trazar una ruta a pie y no se pudo abrir Google Maps.');
     }
   }
 

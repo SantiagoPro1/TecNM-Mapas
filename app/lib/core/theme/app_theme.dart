@@ -28,7 +28,6 @@ const ThemeMode _modoPorDefecto = ThemeMode.light;
 /// vive aquí. El color de marca se reserva para acciones y estados activos.
 class _Neutral {
   static const Color white = Color(0xFFFFFFFF);
-  static const Color n25 = Color(0xFFFAFAFA);
   static const Color n50 = Color(0xFFF4F4F4);
   static const Color n100 = Color(0xFFE7E7E7);
   static const Color n200 = Color(0xFFD6D6D6);
@@ -193,7 +192,10 @@ TextTheme _textTheme(Color primary, Color secondary) {
 }
 
 ThemeData _buildLight() {
-  const background = _Neutral.n25;
+  // Fondo con tinte azul institucional (no blanco/gris neutro): el mismo
+  // azul marino de marca, muy aclarado. Las tarjetas/superficies siguen en
+  // blanco para que el contenido legible contraste contra el fondo.
+  const background = _Navy.pale;
   const surface = _Neutral.white;
   const primary = _Navy.base;
   const textPrimary = _Neutral.n800;

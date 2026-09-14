@@ -188,7 +188,7 @@ class _NaviaAppState extends ConsumerState<NaviaApp> {
     });
 
     return MaterialApp(
-      title: 'NAVIA',
+      title: 'TecNM Mapas Nacional Deportivo',
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: naviaScaffoldMessengerKey,
       theme: lightTheme,

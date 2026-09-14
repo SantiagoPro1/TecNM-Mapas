@@ -144,11 +144,18 @@ class PlaceRepository {
   //  Escritura (usada por el futuro editor de administrador)
   // ──────────────────────────────────────────────────────────
 
+  // Cada escritura sube `dataVersion`: mientras no supere la del APK,
+  // `watchPlaces` ignora Firestore y el cambio no se vería fuera del editor.
+  Future<void> _publicar(Future<void> escritura) async {
+    await escritura;
+    await VenueDataVersion.publicarCambio(_firestore);
+  }
+
   Future<void> createPlace(PlaceNode place) =>
-      _placesCol(place.zoneId).doc(place.id).set(place.toMap());
+      _publicar(_placesCol(place.zoneId).doc(place.id).set(place.toMap()));
 
   Future<void> updatePlace(PlaceNode place) =>
-      _placesCol(place.zoneId).doc(place.id).update(place.toMap());
+      _publicar(_placesCol(place.zoneId).doc(place.id).update(place.toMap()));
 
   /// Actualización parcial de solo lat/lng — para el arrastre en el editor,
   /// sin pisar el resto de los campos del punto.
@@ -158,15 +165,17 @@ class PlaceRepository {
     required double lat,
     required double lng,
   }) =>
-      _placesCol(zoneId).doc(placeId).update({'latitude': lat, 'longitude': lng});
+      _publicar(_placesCol(zoneId)
+          .doc(placeId)
+          .update({'latitude': lat, 'longitude': lng}));
 
   /// Actualización parcial de solo el nombre — igual que [movePlace], sin
   /// pisar el resto de los campos.
   Future<void> renamePlace(String zoneId, String placeId, String name) =>
-      _placesCol(zoneId).doc(placeId).update({'name': name});
+      _publicar(_placesCol(zoneId).doc(placeId).update({'name': name}));
 
   Future<void> deletePlace(String zoneId, String placeId) =>
-      _placesCol(zoneId).doc(placeId).delete();
+      _publicar(_placesCol(zoneId).doc(placeId).delete());
 
   /// Descarga una vez los POIs de TODAS las sedes para dejarlos en la caché
   /// local de Firestore.

@@ -234,6 +234,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// PNG ~60 veces por segundo, carísimo para un simple punto que se mueve.
   BitmapDescriptor? _userIconCache;
   double _currentZoom = 17.0;
+
+  // Zona visible del mapa, solo para el modo edición: se dibujan únicamente
+  // los nodos dentro de ella. Algunas sedes traen 600+ nodos y 900+ aristas,
+  // y mandarlos todos a Google Maps agotaba la memoria (OutOfMemoryError al
+  // tocar el botón de editar).
+  LatLngBounds? _editVisibleRegion;
+  static const int _maxEditNodes = 150;
+  static const int _maxEditEdges = 300;
   double _currentHeading = 0.0;
 
   bool _centeredOnUser = false;
@@ -1641,12 +1649,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
               heroTag: 'edit_btn',
               tooltip: _isEditMode ? 'Salir del modo edición' : 'Editar sede (admin)',
               backgroundColor: _isEditMode ? cs.primary : cs.surface,
-              onPressed: () => setState(() {
-                _isEditMode = !_isEditMode;
-                _editMovingId = null;
-                _editConnectFromId = null;
-                _editConnectFromPos = null;
-              }),
+              onPressed: () async {
+                // Al entrar, primero se lee la zona visible: sin ella se
+                // dibujarían nodos de toda la sede hasta mover la cámara.
+                final region = _isEditMode
+                    ? null
+                    : await _googleMapController?.getVisibleRegion();
+                if (!mounted) return;
+                setState(() {
+                  _isEditMode = !_isEditMode;
+                  _editVisibleRegion = region;
+                  _editMovingId = null;
+                  _editConnectFromId = null;
+                  _editConnectFromPos = null;
+                });
+              },
               child: Icon(
                 _isEditMode ? Icons.close_rounded : Icons.edit_location_alt_rounded,
                 color: _isEditMode ? cs.onPrimary : cs.primary,
@@ -2270,16 +2287,36 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (_isEditMode) {
       final navService = ref.read(navigationServiceProvider);
       if (navService.graph != null) {
-        for (final n in navService.graph!.nodes.values) editNodesMap[n.id] = n;
-        for (final e in navService.graph!.edges) editEdgesMap[e.docId] = e;
+        for (final n in navService.graph!.nodes.values) {
+          editNodesMap[n.id] = n;
+        }
+        for (final e in navService.graph!.edges) {
+          editEdgesMap[e.docId] = e;
+        }
       }
-      for (final n in firestoreNodes) editNodesMap[n.id] = n;
-      for (final e in firestoreEdges) editEdgesMap[e.docId] = e;
+      for (final n in firestoreNodes) {
+        editNodesMap[n.id] = n;
+      }
+      for (final e in firestoreEdges) {
+        editEdgesMap[e.docId] = e;
+      }
     }
 
-    final editNodes = editNodesMap.values.toList();
-    final editEdges = editEdgesMap.values.toList();
-    final editNodesById = editNodesMap;
+    // Solo nodos de esta sede y dentro de la zona visible, con tope: ver
+    // `_editVisibleRegion`.
+    final region = _editVisibleRegion;
+    final editNodes = editNodesMap.values
+        .where((n) => n.zoneId.isEmpty || n.zoneId == _venue.id)
+        .where((n) => region == null || region.contains(LatLng(n.lat, n.lng)))
+        .take(_maxEditNodes)
+        .toList();
+    final editNodesById = {for (final n in editNodes) n.id: n};
+    final editEdges = editEdgesMap.values
+        .where((e) =>
+            editNodesById.containsKey(e.from) &&
+            editNodesById.containsKey(e.to))
+        .take(_maxEditEdges)
+        .toList();
 
     final cs = Theme.of(context).colorScheme;
 
@@ -2301,23 +2338,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     valueListenable: _userPosNotifier,
                     builder: (context, userPos, _) {
                       final markers = {
+                        // En modo edición solo se muestran los puntos
+                        // importantes (_googleMarkers): los puntos de ruta
+                        // morados y sus líneas hacían que el mapa se trabara.
                         ..._googleMarkers,
-                        if (_isEditMode)
-                          for (final node in editNodes)
-                            if (node.type == NodeType.corridor)
-                              Marker(
-                                markerId: MarkerId('editnode_${node.id}'),
-                                position: LatLng(node.lat, node.lng),
-                                icon: BitmapDescriptor.defaultMarkerWithHue(
-                                    BitmapDescriptor.hueViolet),
-                                onTap: () => _handleEditTapOnPoint(
-                                  id: node.id,
-                                  name: node.name,
-                                  lat: node.lat,
-                                  lng: node.lng,
-                                  hasPlace: false,
-                                ),
-                              ),
                         if (userPos != null && _userIconCache != null)
                           Marker(
                             markerId: const MarkerId('user_location'),
@@ -2329,23 +2353,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       };
                       final polylines = {
                         ..._googlePolylines,
-                        if (_isEditMode)
-                          for (final edge in editEdges)
-                            if (editNodesById[edge.from] != null &&
-                                editNodesById[edge.to] != null)
-                              Polyline(
-                                polylineId:
-                                    PolylineId('editedge_${edge.docId}'),
-                                points: [
-                                  LatLng(editNodesById[edge.from]!.lat,
-                                      editNodesById[edge.from]!.lng),
-                                  LatLng(editNodesById[edge.to]!.lat,
-                                      editNodesById[edge.to]!.lng),
-                                ],
-                                color: cs.primary,
-                                width: 3,
-                                patterns: [PatternItem.dash(12), PatternItem.gap(8)],
-                              ),
                       };
                       return GoogleMap(
                         initialCameraPosition: CameraPosition(
@@ -2364,8 +2371,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             setState(() => _isTrackingActive = false);
                           }
                         },
-                        onCameraIdle: () {
+                        onCameraIdle: () async {
                           _isProgrammaticCameraMove = false;
+                          if (!_isEditMode) return;
+                          final region =
+                              await _googleMapController?.getVisibleRegion();
+                          if (region != null && mounted) {
+                            setState(() => _editVisibleRegion = region);
+                          }
                         },
                         markers: markers,
                         polylines: polylines,

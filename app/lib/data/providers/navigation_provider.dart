@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/foundation.dart';
 import 'package:navia/data/models/campus_node.dart';
 import 'package:navia/data/models/nav_route.dart';
 import 'package:navia/services/navigation/navigation_service.dart';

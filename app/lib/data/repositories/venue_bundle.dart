@@ -169,6 +169,28 @@ class VenueDataVersion {
         });
   }
 
+  /// Sube `dataVersion` para que los teléfonos (incluido el del propio admin)
+  /// dejen el paquete del APK y lean de Firestore. Se llama tras cada
+  /// escritura del editor: sin esto, `watchPlaces` seguía sirviendo el
+  /// paquete y el punto recién creado desaparecía al salir del modo edición.
+  ///
+  /// Nunca queda por debajo de la versión del APK (si el documento no existe,
+  /// un simple incremento daría 1 y seguiría "vigente" el paquete).
+  static Future<void> publicarCambio(FirebaseFirestore firestore) async {
+    final local = await VenueBundle.version();
+    final ref = firestore.collection(coleccion).doc(documento);
+    try {
+      await firestore.runTransaction((tx) async {
+        final snap = await tx.get(ref);
+        final remota = (snap.data()?['dataVersion'] as num?)?.toInt() ?? 0;
+        final base = remota > local ? remota : local;
+        tx.set(ref, {'dataVersion': base + 1}, SetOptions(merge: true));
+      });
+    } catch (e) {
+      debugPrint('VenueDataVersion: no se pudo publicar el cambio ($e)');
+    }
+  }
+
   static Future<void> _recordar(int version) async {
     try {
       final prefs = await SharedPreferences.getInstance();

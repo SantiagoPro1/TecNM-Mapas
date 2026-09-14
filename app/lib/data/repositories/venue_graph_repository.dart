@@ -46,11 +46,19 @@ class VenueGraphRepository {
     return snap.docs.map((d) => CampusEdge.fromFirestoreMap(zoneId, d.data())).toList();
   }
 
-  Future<void> createNode(CampusNode node) =>
-      _nodesCol(node.zoneId).doc(node.id).set(node.toFirestoreMap());
+  // Igual que en PlaceRepository: sin subir `dataVersion`, las rutas siguen
+  // saliendo del paquete del APK y el cambio no llega a nadie.
+  Future<void> _publicar(Future<void> escritura) async {
+    await escritura;
+    await VenueDataVersion.publicarCambio(_firestore);
+  }
 
-  Future<void> updateNode(CampusNode node) =>
-      _nodesCol(node.zoneId).doc(node.id).set(node.toFirestoreMap(), SetOptions(merge: true));
+  Future<void> createNode(CampusNode node) =>
+      _publicar(_nodesCol(node.zoneId).doc(node.id).set(node.toFirestoreMap()));
+
+  Future<void> updateNode(CampusNode node) => _publicar(_nodesCol(node.zoneId)
+      .doc(node.id)
+      .set(node.toFirestoreMap(), SetOptions(merge: true)));
 
   /// Actualización parcial de solo lat/lng — para el arrastre en el editor,
   /// sin pisar el resto de los campos del nodo.
@@ -60,12 +68,16 @@ class VenueGraphRepository {
     required double lat,
     required double lng,
   }) =>
-      _nodesCol(zoneId).doc(nodeId).set({'lat': lat, 'lng': lng}, SetOptions(merge: true));
+      _publicar(_nodesCol(zoneId)
+          .doc(nodeId)
+          .set({'lat': lat, 'lng': lng}, SetOptions(merge: true)));
 
   /// Actualización parcial de solo el nombre — igual que [moveNode], sin
   /// pisar el resto de los campos.
   Future<void> renameNode(String zoneId, String nodeId, String name) =>
-      _nodesCol(zoneId).doc(nodeId).set({'name': name}, SetOptions(merge: true));
+      _publicar(_nodesCol(zoneId)
+          .doc(nodeId)
+          .set({'name': name}, SetOptions(merge: true)));
 
   /// Borra un nodo y, en batch, cualquier arista que lo referencie (para que
   /// el grafo nunca quede apuntando a un vértice fantasma).
@@ -78,17 +90,17 @@ class VenueGraphRepository {
     for (final doc in [...outgoing.docs, ...incoming.docs]) {
       batch.delete(doc.reference);
     }
-    await batch.commit();
+    await _publicar(batch.commit());
   }
 
-  Future<void> createEdge(CampusEdge edge) =>
-      _edgesCol(edge.zoneId).doc(edge.docId).set(edge.toFirestoreMap());
+  Future<void> createEdge(CampusEdge edge) => _publicar(
+      _edgesCol(edge.zoneId).doc(edge.docId).set(edge.toFirestoreMap()));
 
-  Future<void> updateEdge(CampusEdge edge) =>
-      _edgesCol(edge.zoneId).doc(edge.docId).update(edge.toFirestoreMap());
+  Future<void> updateEdge(CampusEdge edge) => _publicar(
+      _edgesCol(edge.zoneId).doc(edge.docId).update(edge.toFirestoreMap()));
 
   Future<void> deleteEdge(String zoneId, String from, String to) =>
-      _edgesCol(zoneId).doc(CampusEdge.buildDocId(from, to)).delete();
+      _publicar(_edgesCol(zoneId).doc(CampusEdge.buildDocId(from, to)).delete());
 
   /// Descarga una vez el grafo (nodos + aristas) de TODAS las sedes para
   /// dejarlo en la caché local de Firestore, de modo que las rutas se puedan

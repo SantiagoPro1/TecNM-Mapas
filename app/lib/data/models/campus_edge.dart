@@ -21,6 +21,9 @@ class CampusEdge extends Equatable {
   /// Instrucción de dirección para guía por voz (ej. "Gira a la derecha").
   final String direction;
 
+  /// Puntos intermedios de la ruta (curvas/caminos reales) decodificados.
+  final List<List<double>>? polylinePoints;
+
   const CampusEdge({
     required this.zoneId,
     required this.from,
@@ -28,6 +31,7 @@ class CampusEdge extends Equatable {
     required this.distance,
     required this.accessible,
     required this.direction,
+    this.polylinePoints,
   });
 
   /// Id determinístico para usar como id de documento en Firestore
@@ -37,6 +41,12 @@ class CampusEdge extends Equatable {
   static String buildDocId(String from, String to) => '${from}__$to';
 
   factory CampusEdge.fromJson(Map<String, dynamic> json, {String zoneId = ''}) {
+    List<List<double>>? points;
+    if (json['polylinePoints'] != null) {
+      points = (json['polylinePoints'] as List)
+          .map((e) => (e as List).map((n) => (n as num).toDouble()).toList())
+          .toList();
+    }
     return CampusEdge(
       zoneId: (json['zoneId'] as String?) ?? zoneId,
       from: (json['from'] as String?) ?? '',
@@ -46,11 +56,18 @@ class CampusEdge extends Equatable {
       direction: (json['direction'] as String?) ??
           (json['description'] as String?) ??
           '',
+      polylinePoints: points,
     );
   }
 
   /// Deserializa desde un documento de Firestore (`venues/{zoneId}/edges/{docId}`).
   factory CampusEdge.fromFirestoreMap(String zoneId, Map<String, dynamic> data) {
+    List<List<double>>? points;
+    if (data['polylinePoints'] != null) {
+      points = (data['polylinePoints'] as List)
+          .map((e) => (e as List).map((n) => (n as num).toDouble()).toList())
+          .toList();
+    }
     return CampusEdge(
       zoneId: zoneId,
       from: (data['from'] as String?) ?? '',
@@ -58,6 +75,7 @@ class CampusEdge extends Equatable {
       distance: (data['distance'] as num?)?.toDouble() ?? 0.0,
       accessible: (data['accessible'] as bool?) ?? true,
       direction: (data['direction'] as String?) ?? '',
+      polylinePoints: points,
     );
   }
 
@@ -68,6 +86,7 @@ class CampusEdge extends Equatable {
         'distance': distance,
         'accessible': accessible,
         'direction': direction,
+        if (polylinePoints != null) 'polylinePoints': polylinePoints,
       };
 
   /// Serializa a un Map para Firestore (sin `zoneId`: ya está en la ruta de la colección).
@@ -77,6 +96,7 @@ class CampusEdge extends Equatable {
         'distance': distance,
         'accessible': accessible,
         'direction': direction,
+        if (polylinePoints != null) 'polylinePoints': polylinePoints,
       };
 
   @override

@@ -326,6 +326,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
+  void _hideRouteBanner() {
+    _routeBannerTimer?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _routeBanner = null;
+      _routeBannerLabel = null;
+    });
+  }
+
   late final AnimationController _posAnimController;
   final Map<String, BitmapDescriptor> _markerIconCache = {};
 
@@ -1218,6 +1227,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
             );
           }
+          _hideRouteBanner();
           return;
         }
         // Si hay nodo QR fijado, usar sus coordenadas como origen
@@ -1231,7 +1241,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               destinationName: destinationName,
             );
         if (!local) {
-          _launchExternalGoogleMaps(destination);
+          _showFarAwayDialog(destination);
         }
         return;
       }
@@ -1244,22 +1254,77 @@ class _MapScreenState extends ConsumerState<MapScreen>
             destinationName: destinationName,
           );
       if (!local) {
-        debugPrint('Ruta: el grafo local no cubre el trayecto; se abre Google Maps nativo.');
-        _launchExternalGoogleMaps(destination);
+        debugPrint('Ruta: el grafo local no cubre el trayecto; se muestra el diálogo.');
+        _showFarAwayDialog(destination);
       }
     } finally {
       _isFetchingRoute = false;
     }
   }
 
+  void _showFarAwayDialog(LatLng destination) {
+    // Cancelar el estado "Calculando..." para que no se quede bloqueado
+    ref.read(navigationProvider.notifier).cancelNavigation();
+    _hideRouteBanner();
+
+    final cs = Theme.of(context).colorScheme;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: cs.primary.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.map_rounded, color: cs.primary, size: 40),
+        ),
+        title: const Text(
+          'Estás lejos de la sede',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+        ),
+        content: Text(
+          'El mapa interno de navegación es exclusivo para moverse dentro de las instalaciones.\n\n¿Quieres usar Google Maps para llegar hasta aquí primero?',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+              color: cs.onSurface.withValues(alpha: 0.7),
+              fontSize: 14,
+              height: 1.5),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton.icon(
+            icon: Icon(Icons.directions_rounded, size: 18, color: cs.onPrimary),
+            label: Text('Usar Google Maps', style: TextStyle(color: cs.onPrimary, fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: cs.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _launchExternalGoogleMaps(destination);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _launchExternalGoogleMaps(LatLng dest) async {
     final url = Uri.parse(
         'https://www.google.com/maps/dir/?api=1&destination=${dest.latitude},${dest.longitude}&travelmode=walking');
-    if (await canLaunchUrl(url)) {
+    try {
       await launchUrl(url, mode: LaunchMode.externalApplication);
       // Cancel internal route calculation
       ref.read(navigationProvider.notifier).cancelNavigation();
-    } else {
+    } catch (e) {
+      debugPrint('Error launching Google Maps: $e');
       ref.read(navigationProvider.notifier).setRouteError(
           'Estás demasiado lejos de la sede para trazar una ruta a pie y no se pudo abrir Google Maps.');
     }
@@ -1269,13 +1334,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
     setState(() {
       _googlePolylines = {
         Polyline(
+          polylineId: const PolylineId('campus_route_border'),
+          points: points,
+          color: Colors.white,
+          width: 10,
+          startCap: Cap.roundCap,
+          endCap: Cap.roundCap,
+          jointType: JointType.round,
+          zIndex: 1,
+        ),
+        Polyline(
           polylineId: const PolylineId('campus_route'),
           points: points,
-          color: Theme.of(context).colorScheme.primary,
+          color: Colors.blueAccent.shade700,
           width: 6,
           startCap: Cap.roundCap,
           endCap: Cap.roundCap,
           jointType: JointType.round,
+          zIndex: 2,
         ),
       };
     });
@@ -2125,6 +2201,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
             autoHide: const Duration(seconds: 4));
       }
 
+      if (next.status == NavStatus.ready &&
+          previous?.status != NavStatus.ready) {
+        _hideRouteBanner();
+      }
+
       if (next.currentNode != previous?.currentNode && next.currentNode != null) {
         _panCamera(LatLng(next.currentNode!.lat, next.currentNode!.lng));
       }
@@ -2140,8 +2221,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
           _showRouteBanner(_RouteBannerKind.active);
           _fitBounds(points);
         } else if (next.activeRoute != null) {
-          final points = next.activeRoute!.steps
-              .map((s) => LatLng(s.node.lat, s.node.lng))
+          final points = next.activeRoute!.getPolylinePoints()
+              .map((p) => LatLng(p[0], p[1]))
               .toList();
           _setRoutePolyline(points);
           setState(() => _isNavigating = true);
@@ -2174,15 +2255,32 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Grafo en línea (Firestore) de la sede actual — solo se suscribe
     // mientras el admin está en modo edición, para no gastar lecturas/
     // listeners de Firestore en usuarios normales que solo navegan.
-    final editNodes = _isEditMode
-        ? (ref.watch(nodesStreamProvider(_venue.id)).value ??
-            const <CampusNode>[])
+    // Grafo en línea (Firestore) de la sede actual combinado con el grafo offline
+    // para que el admin pueda ver y editar los puntos que vienen del JSON.
+    final firestoreNodes = _isEditMode
+        ? (ref.watch(nodesStreamProvider(_venue.id)).value ?? const <CampusNode>[])
         : const <CampusNode>[];
-    final editEdges = _isEditMode
-        ? (ref.watch(edgesStreamProvider(_venue.id)).value ??
-            const <CampusEdge>[])
+    final firestoreEdges = _isEditMode
+        ? (ref.watch(edgesStreamProvider(_venue.id)).value ?? const <CampusEdge>[])
         : const <CampusEdge>[];
-    final editNodesById = {for (final n in editNodes) n.id: n};
+
+    final editNodesMap = <String, CampusNode>{};
+    final editEdgesMap = <String, CampusEdge>{};
+
+    if (_isEditMode) {
+      final navService = ref.read(navigationServiceProvider);
+      if (navService.graph != null) {
+        for (final n in navService.graph!.nodes.values) editNodesMap[n.id] = n;
+        for (final e in navService.graph!.edges) editEdgesMap[e.docId] = e;
+      }
+      for (final n in firestoreNodes) editNodesMap[n.id] = n;
+      for (final e in firestoreEdges) editEdgesMap[e.docId] = e;
+    }
+
+    final editNodes = editNodesMap.values.toList();
+    final editEdges = editEdgesMap.values.toList();
+    final editNodesById = editNodesMap;
+
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -2506,8 +2604,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
           polylines: [
             ..._googlePolylines.map((p) => fm.Polyline(
                   points: p.points.map(_toLL).toList(),
-                  color: cs.primary,
-                  strokeWidth: 6,
+                  color: p.color,
+                  strokeWidth: p.width.toDouble(),
                 )),
             if (_isEditMode)
               for (final edge in editEdges)

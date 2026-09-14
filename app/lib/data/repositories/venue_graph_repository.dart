@@ -50,7 +50,7 @@ class VenueGraphRepository {
       _nodesCol(node.zoneId).doc(node.id).set(node.toFirestoreMap());
 
   Future<void> updateNode(CampusNode node) =>
-      _nodesCol(node.zoneId).doc(node.id).update(node.toFirestoreMap());
+      _nodesCol(node.zoneId).doc(node.id).set(node.toFirestoreMap(), SetOptions(merge: true));
 
   /// Actualización parcial de solo lat/lng — para el arrastre en el editor,
   /// sin pisar el resto de los campos del nodo.
@@ -60,12 +60,12 @@ class VenueGraphRepository {
     required double lat,
     required double lng,
   }) =>
-      _nodesCol(zoneId).doc(nodeId).update({'lat': lat, 'lng': lng});
+      _nodesCol(zoneId).doc(nodeId).set({'lat': lat, 'lng': lng}, SetOptions(merge: true));
 
   /// Actualización parcial de solo el nombre — igual que [moveNode], sin
   /// pisar el resto de los campos.
   Future<void> renameNode(String zoneId, String nodeId, String name) =>
-      _nodesCol(zoneId).doc(nodeId).update({'name': name});
+      _nodesCol(zoneId).doc(nodeId).set({'name': name}, SetOptions(merge: true));
 
   /// Borra un nodo y, en batch, cualquier arista que lo referencie (para que
   /// el grafo nunca quede apuntando a un vértice fantasma).

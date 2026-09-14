@@ -55,6 +55,19 @@ class NavRoute extends Equatable {
   /// Cantidad de pasos en la ruta.
   int get stepCount => steps.length;
 
+  /// Obtiene todos los puntos LatLng (nodos y puntos intermedios) de la ruta.
+  List<List<double>> getPolylinePoints() {
+    final points = <List<double>>[];
+    for (int i = 0; i < steps.length; i++) {
+      final step = steps[i];
+      points.add([step.node.lat, step.node.lng]);
+      if (step.edge?.polylinePoints != null) {
+        points.addAll(step.edge!.polylinePoints!);
+      }
+    }
+    return points;
+  }
+
   /// Resumen legible para voz.
   String get voiceSummary {
     final distStr = totalDistance < 100

@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:navia/data/cache/map_cache_service.dart';
 import 'package:navia/data/repositories/place_repository.dart';
-import 'package:navia/data/repositories/venue_graph_repository.dart';
 import 'package:navia/services/offline/connectivity_service.dart';
 
 /// Orquestador central del modo offline de NAVIA.
@@ -94,8 +93,11 @@ class OfflineManager {
         }
       }
 
+      // Solo los puntos. El grafo (nodos + aristas, ~6,500 documentos entre
+      // las 9 sedes) NO se precarga: las rutas se calculan con el grafo del
+      // APK (`CampusGraph.load`), así que bajarlo solo costaba lecturas —
+      // ~264 millones cada 12 h con 40,000 asistentes tras una edición.
       await PlaceRepository().prefetchAllVenuesForOffline();
-      await VenueGraphRepository().prefetchAllVenuesForOffline();
       await prefs.setInt(
           _kUltimaPrecarga, DateTime.now().millisecondsSinceEpoch);
       debugPrint('[OfflineManager] Sedes precargadas para offline');

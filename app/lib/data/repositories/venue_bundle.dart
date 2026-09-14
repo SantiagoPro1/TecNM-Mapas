@@ -183,7 +183,11 @@ class VenueDataVersion {
       await firestore.runTransaction((tx) async {
         final snap = await tx.get(ref);
         final remota = (snap.data()?['dataVersion'] as num?)?.toInt() ?? 0;
-        final base = remota > local ? remota : local;
+        // Si ya supera al APK, los teléfonos ya leen de Firestore y ven los
+        // cambios en vivo: volver a subirla solo haría que los 40,000
+        // teléfonos conectados relean este documento en cada edición.
+        if (remota > local) return;
+        final base = local;
         tx.set(ref, {'dataVersion': base + 1}, SetOptions(merge: true));
       });
     } catch (e) {

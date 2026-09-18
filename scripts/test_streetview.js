@@ -1,6 +1,12 @@
 const https = require('https');
+require('dotenv').config();
 
-const GOOGLE_API_KEY = 'AIzaSyDTt0U-8LaagPsho1M8Qf4Br3cMAQgIUmQ';
+const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+
+if (!GOOGLE_API_KEY) {
+  console.error('Falta GOOGLE_MAPS_API_KEY. Copia .env.example a .env y pon tu clave.');
+  process.exit(1);
+}
 const lat = 19.262373;
 const lng = -103.723879; // Edificio A
 

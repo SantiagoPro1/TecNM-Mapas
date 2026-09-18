@@ -11,8 +11,14 @@
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+require('dotenv').config();
 
-const API_KEY = 'AIzaSyDTt0U-8LaagPsho1M8Qf4Br3cMAQgIUmQ';
+const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+
+if (!API_KEY) {
+  console.error('Falta GOOGLE_MAPS_API_KEY. Copia .env.example a .env y pon tu clave.');
+  process.exit(1);
+}
 const BUNDLE_PATH = path.join(__dirname, '../app/assets/maps/venues_bundle.json');
 const PLACES_DIR = path.join(__dirname, '../app/assets/places');
 

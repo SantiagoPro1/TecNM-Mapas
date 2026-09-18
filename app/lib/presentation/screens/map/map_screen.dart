@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../services/offline/offline_manager.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:latlong2/latlong.dart' as ll;
@@ -233,6 +234,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// frame): regenerarlo por frame implicaba dibujar en Canvas y codificar
   /// PNG ~60 veces por segundo, carísimo para un simple punto que se mueve.
   BitmapDescriptor? _userIconCache;
+
+  /// Última vez que se persistió la posición a disco. Guardar en cada lectura
+  /// de GPS sería escribir a SharedPreferences varias veces por segundo; con
+  /// refrescar el respaldo cada 15s basta de sobra para el arranque offline.
+  DateTime? _lastPositionSaveAt;
   double _currentZoom = 17.0;
 
   // Zona visible del mapa, solo para el modo edición: se dibujan únicamente
@@ -966,14 +972,36 @@ class _MapScreenState extends ConsumerState<MapScreen>
       final lastKnown = await Geolocator.getLastKnownPosition();
       if (lastKnown != null && mounted && _currentPosition == null) {
         final quickLatLng = LatLng(lastKnown.latitude, lastKnown.longitude);
-        setState(() => _currentPosition = quickLatLng);
+        // Publicar por la misma vía que el stream: setear solo
+        // _currentPosition no dibuja nada, porque el punto azul se pinta
+        // desde _userPosNotifier + _userIconCache, y ambos se llenan dentro
+        // de _onNewGpsPosition. Sin internet el primer fix satelital tarda
+        // decenas de segundos, así que este era justo el caso en el que el
+        // punto no aparecía nunca.
+        _onNewGpsPosition(quickLatLng, heading: lastKnown.heading);
         if (_puedeSeguirAlUsuario(quickLatLng)) {
           _panCamera(quickLatLng, zoom: 17.5);
         }
       }
     } catch (_) {
       // Sin última posición conocida (primer uso del dispositivo) — no pasa
-      // nada, se sigue esperando el fix fresco de abajo.
+      // nada, se intenta el respaldo propio abajo y se sigue esperando el fix
+      // fresco.
+    }
+
+    // Último recurso: la posición que guardamos nosotros en SharedPreferences.
+    // Android puede devolver null en getLastKnownPosition (tras reiniciar, o
+    // si otra app no ha pedido ubicación en un rato), y offline no hay
+    // ubicación por red que rellene el hueco.
+    if (mounted && _currentPosition == null) {
+      final saved = await OfflineManager.loadLastPosition();
+      if (saved != null && mounted && _currentPosition == null) {
+        final savedLatLng = LatLng(saved.lat, saved.lng);
+        _onNewGpsPosition(savedLatLng);
+        if (_puedeSeguirAlUsuario(savedLatLng)) {
+          _panCamera(savedLatLng, zoom: saved.zoom);
+        }
+      }
     }
 
     try {
@@ -983,8 +1011,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       );
       if (!mounted) return;
       final latLng = LatLng(position.latitude, position.longitude);
-      setState(() => _currentPosition = latLng);
-
+      _onNewGpsPosition(latLng, heading: position.heading);
 
       _centeredOnUser = true;
       if (_puedeSeguirAlUsuario(latLng)) {
@@ -1037,7 +1064,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
     });
     if (!_isDesktop) _ensureUserIcon();
     _posAnimController.forward(from: 0.0);
+    _persistPositionThrottled(newPos);
     if (_isNavigating) _scheduleRouteRecalc(newPos);
+  }
+
+  /// Persiste la posición para que el mapa tenga algo que mostrar en el
+  /// próximo arranque sin conexión, cuando el sistema tarda en dar un fix.
+  void _persistPositionThrottled(LatLng pos) {
+    final now = DateTime.now();
+    if (_lastPositionSaveAt != null &&
+        now.difference(_lastPositionSaveAt!) < const Duration(seconds: 15)) {
+      return;
+    }
+    _lastPositionSaveAt = now;
+    OfflineManager.saveLastPosition(
+      latitude: pos.latitude,
+      longitude: pos.longitude,
+      zoom: _currentZoom,
+    );
   }
 
   /// Genera el ícono del usuario una sola vez y lo cachea (ver comentario en

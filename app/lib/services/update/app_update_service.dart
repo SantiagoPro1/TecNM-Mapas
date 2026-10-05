@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:navia/core/constants/app_version.dart';
 import 'package:navia/core/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -89,61 +92,249 @@ class AppUpdateService {
   }
 
   static void _mostrarDialogo(BuildContext context, AppUpdateInfo info) {
-    final cs = Theme.of(context).colorScheme;
-
     showDialog(
       context: context,
       barrierDismissible: !info.mandatory,
-      builder: (ctx) => PopScope(
-        canPop: !info.mandatory,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-          ),
-          icon: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
+      builder: (ctx) => _UpdateDialog(info: info),
+    );
+  }
+}
+
+class _UpdateDialog extends StatefulWidget {
+  final AppUpdateInfo info;
+
+  const _UpdateDialog({required this.info});
+
+  @override
+  State<_UpdateDialog> createState() => _UpdateDialogState();
+}
+
+class _UpdateDialogState extends State<_UpdateDialog> {
+  static const MethodChannel _installerChannel =
+      MethodChannel('mx.edu.tecnm.colima.sinait/installer');
+
+  bool _isDownloading = false;
+  double _progress = 0.0;
+  double _receivedMb = 0.0;
+  double _totalMb = 0.0;
+  bool _isReadyToInstall = false;
+  String? _downloadedFilePath;
+  String? _errorMessage;
+  CancelToken? _cancelToken;
+
+  @override
+  void dispose() {
+    _cancelToken?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _startDownloadAndInstall() async {
+    setState(() {
+      _isDownloading = true;
+      _errorMessage = null;
+      _progress = 0.0;
+      _receivedMb = 0.0;
+      _totalMb = 0.0;
+    });
+
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final targetPath =
+          '${tempDir.path}/NAVIA_v${widget.info.latestVersion}_b${widget.info.latestBuildNumber}.apk';
+
+      _cancelToken = CancelToken();
+      final dio = Dio();
+
+      await dio.download(
+        widget.info.apkUrl,
+        targetPath,
+        cancelToken: _cancelToken,
+        onReceiveProgress: (received, total) {
+          if (!mounted) return;
+          if (total > 0) {
+            setState(() {
+              _progress = (received / total).clamp(0.0, 1.0);
+              _receivedMb = received / (1024 * 1024);
+              _totalMb = total / (1024 * 1024);
+            });
+          }
+        },
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isDownloading = false;
+        _isReadyToInstall = true;
+        _downloadedFilePath = targetPath;
+      });
+
+      await _triggerInstall(targetPath);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isDownloading = false;
+        _errorMessage = 'Error durante la descarga: $e';
+      });
+    }
+  }
+
+  Future<void> _triggerInstall(String filePath) async {
+    try {
+      final result = await _installerChannel.invokeMethod<String>(
+        'installApk',
+        {'filePath': filePath},
+      );
+
+      if (result == 'PERMISSION_REQUESTED' && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Por favor activa "Permitir desde esta fuente" y regresa a la app para continuar la instalación.',
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
-            child: Icon(
-              Icons.system_update_rounded,
-              color: cs.primary,
-              size: 36,
-            ),
+            backgroundColor: Color(0xFFC05621),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 6),
           ),
-          title: Text(
-            '¡Nueva versión disponible!',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: cs.onSurface,
-              fontWeight: FontWeight.w800,
-              fontSize: 18,
-            ),
+        );
+      }
+    } catch (e) {
+      debugPrint('AppUpdate: error invocando instalador nativo: $e');
+      final uri = Uri.parse(widget.info.apkUrl);
+      try {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (_) {}
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final info = widget.info;
+
+    return PopScope(
+      canPop: !info.mandatory && !_isDownloading,
+      child: AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        icon: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _isReadyToInstall
+                ? const Color(0xFF1E7A46).withValues(alpha: 0.12)
+                : cs.primary.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Text(
-                    'Versión ${info.latestVersion} (Instalada: ${AppVersion.version})',
-                    style: TextStyle(
-                      color: cs.primary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
+          child: Icon(
+            _isReadyToInstall
+                ? Icons.check_circle_rounded
+                : (_isDownloading
+                    ? Icons.downloading_rounded
+                    : Icons.system_update_rounded),
+            color: _isReadyToInstall ? const Color(0xFF1E7A46) : cs.primary,
+            size: 36,
+          ),
+        ),
+        title: Text(
+          _isReadyToInstall
+              ? '¡Descarga lista!'
+              : (_isDownloading
+                  ? 'Descargando actualización...'
+                  : '¡Nueva versión disponible!'),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: cs.onSurface,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: cs.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Text(
+                  'Versión ${info.latestVersion} (Instalada: ${AppVersion.version})',
+                  style: TextStyle(
+                    color: cs.primary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+            ),
+            const SizedBox(height: 16),
+            if (_isDownloading) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                child: LinearProgressIndicator(
+                  value: _progress > 0 ? _progress : null,
+                  backgroundColor: cs.surfaceContainerHighest,
+                  color: cs.primary,
+                  minHeight: 8,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${(_progress * 100).toInt()}%',
+                    style: TextStyle(
+                      color: cs.primary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Text(
+                    '${_receivedMb.toStringAsFixed(1)} MB / ${_totalMb > 0 ? _totalMb.toStringAsFixed(1) : '--'} MB',
+                    style: TextStyle(
+                      color: cs.onSurface.withValues(alpha: 0.6),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Descargando directamente dentro de la aplicación. No cierres la ventana.',
+                style: TextStyle(
+                  color: cs.onSurface.withValues(alpha: 0.5),
+                  fontSize: 11.5,
+                ),
+              ),
+            ] else if (_isReadyToInstall) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E7A46).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(
+                    color: const Color(0xFF1E7A46).withValues(alpha: 0.3),
+                  ),
+                ),
+                child: const Text(
+                  'El instalador del sistema abrirá la actualización. Si te pide permitir instalar apps desconocidas, activa el permiso para NAVIA.',
+                  style: TextStyle(
+                    color: Color(0xFF1E7A46),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12.5,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ] else ...[
               Text(
                 'Novedades:',
                 style: TextStyle(
@@ -160,7 +351,8 @@ class AppUpdateService {
                   color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(AppRadius.md),
                   border: Border.all(
-                      color: cs.outlineVariant.withValues(alpha: 0.5)),
+                    color: cs.outlineVariant.withValues(alpha: 0.5),
+                  ),
                 ),
                 child: Text(
                   info.releaseNotes,
@@ -172,20 +364,66 @@ class AppUpdateService {
                 ),
               ),
             ],
-          ),
-          actionsAlignment: MainAxisAlignment.end,
-          actions: [
-            if (!info.mandatory)
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(
-                  'MÁS TARDE',
-                  style: TextStyle(
-                    color: cs.onSurface.withValues(alpha: 0.6),
-                    fontWeight: FontWeight.w700,
-                  ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _errorMessage!,
+                style: TextStyle(
+                  color: cs.error,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
+            ],
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.end,
+        actions: [
+          if (!info.mandatory && !_isDownloading)
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'MÁS TARDE',
+                style: TextStyle(
+                  color: cs.onSurface.withValues(alpha: 0.6),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          if (_isDownloading)
+            TextButton(
+              onPressed: () {
+                _cancelToken?.cancel();
+                setState(() {
+                  _isDownloading = false;
+                  _errorMessage = 'Descarga cancelada';
+                });
+              },
+              child: Text(
+                'CANCELAR',
+                style: TextStyle(
+                  color: cs.error,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            )
+          else if (_isReadyToInstall && _downloadedFilePath != null)
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF1E7A46),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+              ),
+              onPressed: () => _triggerInstall(_downloadedFilePath!),
+              icon: const Icon(Icons.install_mobile_rounded, size: 18),
+              label: const Text(
+                'INSTALAR',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            )
+          else
             FilledButton.icon(
               style: FilledButton.styleFrom(
                 backgroundColor: cs.primary,
@@ -194,28 +432,14 @@ class AppUpdateService {
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
               ),
-              onPressed: () async {
-                final uri = Uri.parse(info.apkUrl);
-                try {
-                  final launched = await launchUrl(
-                    uri,
-                    mode: LaunchMode.externalApplication,
-                  );
-                  if (!launched && await canLaunchUrl(uri)) {
-                    await launchUrl(uri);
-                  }
-                } catch (e) {
-                  debugPrint('Error lanzando url de actualizacion: $e');
-                }
-              },
+              onPressed: _startDownloadAndInstall,
               icon: const Icon(Icons.download_rounded, size: 18),
               label: const Text(
                 'ACTUALIZAR',
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

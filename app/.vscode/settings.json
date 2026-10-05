@@ -1,0 +1,17 @@
+{
+    "java.configuration.updateBuildConfiguration": "disabled",
+    "java.server.launchMode": "LightWeight",
+    "java.autobuild.enabled": false,
+    "java.import.gradle.enabled": false,
+    "java.import.maven.enabled": false,
+    "java.gradle.buildServer.enabled": "off",
+    "gradle.autoDetect": "off",
+    "gradle.nestedProjects": false,
+    "java.import.exclusions": [
+        "**/node_modules/**",
+        "**/.metadata/**",
+        "**/archetype-resources/**",
+        "**/META-INF/maven/**",
+        "**/android/**"
+    ]
+}

@@ -405,6 +405,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   String? _darkMapStyle;
   String? _lightMapStyle;
   String? _currentMapStyle;
+  MapType _mapType = MapType.normal;
 
   @override
   void initState() {
@@ -1641,6 +1642,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
+  Widget _buildMapTypeToggle() {
+    final isSatellite = _mapType == MapType.hybrid;
+    return _buildRoundIconButton(
+      icon: isSatellite ? Icons.map_outlined : Icons.layers_outlined,
+      tooltip: isSatellite ? 'Ver mapa estándar' : 'Ver vista satélite',
+      onPressed: () {
+        setState(() {
+          _mapType = isSatellite ? MapType.normal : MapType.hybrid;
+        });
+      },
+    );
+  }
+
   /// Botón circular flotante genérico (mismo estilo para volver a Inicio y
   /// para cambiar de tema — antes vivían como parte del AppBar).
   Widget _buildRoundIconButton({
@@ -2414,7 +2428,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         },
                         markers: markers,
                         polylines: polylines,
-                        style: _currentMapStyle,
+                        style: _mapType == MapType.normal
+                            ? _currentMapStyle
+                            : null,
                         myLocationEnabled: false,
                         myLocationButtonEnabled: false,
                         zoomControlsEnabled: false,
@@ -2430,7 +2446,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         minMaxZoomPreference: widget.openMap
                             ? const MinMaxZoomPreference(9, 20)
                             : const MinMaxZoomPreference(13, 20),
-                        mapType: MapType.normal,
+                        mapType: _mapType,
                       );
                     },
                   ),
@@ -2450,13 +2466,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
             ),
           ),
-          // ── Botón de cambio de tema (antes vivía en el AppBar) ─
+          // ── Botones superiores derechos: Satélite + Tema ───────
           Positioned(
             top: 0, right: 0,
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: _buildThemeToggle(isDark),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildMapTypeToggle(),
+                    const SizedBox(width: 8),
+                    _buildThemeToggle(isDark),
+                  ],
+                ),
               ),
             ),
           ),

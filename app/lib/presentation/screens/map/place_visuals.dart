@@ -383,6 +383,12 @@ class PlacePhoto {
       final ruta = '$_carpeta/$placeId.$ext';
       if (rutas.contains(ruta)) return ruta;
     }
+    if (categoria != null) {
+      for (final ext in const ['png', 'webp', 'jpg']) {
+        final rutaCat = '$_carpetaCategorias/${categoria.name}.$ext';
+        if (rutas.contains(rutaCat)) return rutaCat;
+      }
+    }
     return null;
   }
 }

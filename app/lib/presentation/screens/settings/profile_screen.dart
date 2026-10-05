@@ -285,7 +285,7 @@ class ProfileScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'NAVIA no tiene forma de saber tu carrera automáticamente — '
+              'TecNM Mapas no tiene forma de saber tu carrera automáticamente — '
               'escríbela tal como quieres que aparezca en tu credencial.',
               style: TextStyle(
                   color: cs.onSurface.withValues(alpha: 0.6), fontSize: 13),

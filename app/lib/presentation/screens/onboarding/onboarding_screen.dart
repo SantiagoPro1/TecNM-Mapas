@@ -32,7 +32,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       icon: Icons.badge_rounded,
       title: 'Credencial digital',
       description:
-          'Accede a tu credencial NAVIA con código QR para identificación durante el evento.',
+          'Accede a tu credencial digital con código QR para identificación durante el evento.',
     ),
     _OnboardingPageData(
       icon: Icons.gavel_rounded,

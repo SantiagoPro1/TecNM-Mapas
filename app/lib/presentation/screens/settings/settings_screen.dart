@@ -108,7 +108,7 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     _NavTile(
                       icon: Icons.info_rounded,
-                      label: 'Acerca de NAVIA',
+                      label: 'Acerca de TecNM Mapas',
                       onTap: () => _showAbout(context),
                     ),
                     _NavTile(
@@ -119,7 +119,7 @@ class SettingsScreen extends ConsumerWidget {
                     const SizedBox(height: 48),
                     Center(
                       child: Text(
-                        'NAVIA v${AppVersion.version} (Build ${AppVersion.buildNumber}) · TecNM Campus Colima',
+                        'TecNM Mapas v${AppVersion.version} (Build ${AppVersion.buildNumber}) · TecNM Campus Colima',
                         style: TextStyle(
                             color: cs.onSurface.withValues(alpha: 0.35),
                             fontSize: 12,
@@ -147,7 +147,7 @@ class SettingsScreen extends ConsumerWidget {
       builder: (_) => AlertDialog(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-        title: Text('NAVIA',
+        title: Text('TecNM Mapas',
             style: TextStyle(
                 color: cs.onSurface,
                 fontWeight: FontWeight.w900,
@@ -163,11 +163,11 @@ class SettingsScreen extends ConsumerWidget {
                     fontSize: 12)),
             const SizedBox(height: 16),
             Text(
-              'Sistema de Navegación Inteligente Accesible (NAVIA).\n\n'
-              'Desarrollado para el InnovaTecNM 2026 por estudiantes del Campus Colima.\n\n'
-              'NAVIA es una plataforma innovadora que busca mejorar la accesibilidad y movilidad '
-              'dentro del campus, utilizando inteligencia artificial, geolocalización y '
-              'realidad aumentada para guiar a los usuarios de manera autónoma y segura.',
+              'TecNM Mapas Nacional Deportivo.\n\n'
+              'Desarrollado para el Encuentro Nacional Deportivo e InnovaTecNM por estudiantes del Campus Colima.\n\n'
+              'TecNM Mapas es una plataforma oficial de navegación y movilidad '
+              'para las sedes deportivas y campus, utilizando geolocalización precisa, mapas offline y '
+              'asistencia accesible para guiar a atletas, delegaciones y visitantes.',
               style: TextStyle(
                   color: cs.onSurface.withValues(alpha: 0.6), height: 1.6),
             ),

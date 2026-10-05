@@ -139,9 +139,9 @@ class FeedService {
       ),
       Announcement(
         id: 'demo_6',
-        title: 'Bienvenido al TecNM Colima',
+        title: 'Bienvenido al Encuentro Deportivo',
         body:
-            'NAVIA te guía por el campus. Escanea un QR para empezar o usa el comando de voz "Llévame a...".',
+            'TecNM Mapas te guía por todas las sedes del evento. Toca cualquier cancha o punto para ver indicaciones.',
         type: AnnouncementType.info,
         zoneNodeIds: const [
           'entrada_principal',

@@ -870,7 +870,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Para brindarte la mejor experiencia de navegación en el campus, NAVIA necesita acceder a tu ubicación en tiempo real.',
+              'Para brindarte la mejor experiencia de navegación en las sedes, TecNM Mapas necesita acceder a tu ubicación en tiempo real.',
               textAlign: TextAlign.center,
               style: TextStyle(
                   color: cs.onSurface.withValues(alpha: 0.7),

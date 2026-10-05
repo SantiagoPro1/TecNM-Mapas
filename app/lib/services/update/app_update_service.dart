@@ -140,7 +140,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     try {
       final tempDir = await getTemporaryDirectory();
       final targetPath =
-          '${tempDir.path}/NAVIA_v${widget.info.latestVersion}_b${widget.info.latestBuildNumber}.apk';
+          '${tempDir.path}/TecNM_Mapas_v${widget.info.latestVersion}_b${widget.info.latestBuildNumber}.apk';
 
       _cancelToken = CancelToken();
       final dio = Dio();
@@ -325,7 +325,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                   ),
                 ),
                 child: const Text(
-                  'El instalador del sistema abrirá la actualización. Si te pide permitir instalar apps desconocidas, activa el permiso para NAVIA.',
+                  'El instalador del sistema abrirá la actualización. Si te pide permitir instalar apps desconocidas, activa el permiso para TecNM Mapas.',
                   style: TextStyle(
                     color: Color(0xFF1E7A46),
                     fontWeight: FontWeight.w600,

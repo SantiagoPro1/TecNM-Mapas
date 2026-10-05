@@ -169,7 +169,7 @@ class _NaviaAppState extends ConsumerState<NaviaApp> {
       if (next.status == NavStatus.arrived &&
           previous?.status != NavStatus.arrived) {
         ref.read(voiceProvider.notifier).speakAnnouncement(
-            'Has llegado a tu destino. NAVIA te desea un excelente día.');
+            'Has llegado a tu destino. TecNM Mapas te desea un excelente día.');
         naviaScaffoldMessengerKey.currentState?.showSnackBar(
           SnackBar(
             content: const Row(

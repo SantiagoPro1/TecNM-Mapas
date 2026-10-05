@@ -74,20 +74,37 @@ class CampusGraph {
   /// empaquetadas, fusionadas en un solo grafo — comportamiento histórico
   /// usado por [load]).
   static Future<CampusGraph> _loadFromAssets() async {
+    final bundledStrings = <String, String>{};
+    for (final venue in VenueRegistry.bundledVenues) {
+      if (venue.mapAssetPath != null) {
+        try {
+          bundledStrings[venue.id] =
+              await rootBundle.loadString(venue.mapAssetPath!);
+        } catch (_) {}
+      }
+    }
+
+    String? bundleRaw;
+    try {
+      bundleRaw = await rootBundle.loadString(VenueBundle.assetPath);
+    } catch (_) {}
+
+    return compute(_parseGraphFromStrings, (bundledStrings, bundleRaw));
+  }
+
+  static CampusGraph _parseGraphFromStrings(
+      (Map<String, String>, String?) args) {
+    final (bundledStrings, bundleRaw) = args;
     final allNodes = <dynamic>[];
     final allEdges = <dynamic>[];
 
-    for (final venue in VenueRegistry.bundledVenues) {
+    for (final entry in bundledStrings.entries) {
       try {
-        final jsonStr = await rootBundle.loadString(venue.mapAssetPath!);
-        final data = json.decode(jsonStr) as Map<String, dynamic>;
+        final data = json.decode(entry.value) as Map<String, dynamic>;
         final zoneId =
             (data['meta'] as Map<String, dynamic>?)?['zoneId'] as String? ??
-                venue.id;
+                entry.key;
 
-        // Se estampa el zoneId de este archivo en cada nodo/arista ANTES de
-        // fusionar — una vez fusionados en una sola lista ya no hay forma de
-        // saber de qué archivo venía cada uno.
         for (final n in (data['nodes'] as List<dynamic>? ?? [])) {
           (n as Map<String, dynamic>).putIfAbsent('zoneId', () => zoneId);
         }
@@ -97,13 +114,28 @@ class CampusGraph {
 
         allNodes.addAll(data['nodes'] as List<dynamic>? ?? []);
         allEdges.addAll(data['edges'] as List<dynamic>? ?? []);
-      } catch (e) {
-        // Si un archivo falla, continúa con los demás
+      } catch (_) {
         continue;
       }
     }
 
-    await _agregarCaminosDelPaquete(allNodes, allEdges);
+    if (bundleRaw != null) {
+      try {
+        final bundle = json.decode(bundleRaw) as Map<String, dynamic>;
+        final venues = bundle['venues'] as Map<String, dynamic>? ?? {};
+        for (final entry in venues.entries) {
+          final cols = entry.value as Map<String, dynamic>;
+          for (final x in (cols['nodes'] as List<dynamic>? ?? [])) {
+            (x as Map<String, dynamic>).putIfAbsent('zoneId', () => entry.key);
+            allNodes.add(x);
+          }
+          for (final x in (cols['edges'] as List<dynamic>? ?? [])) {
+            (x as Map<String, dynamic>).putIfAbsent('zoneId', () => entry.key);
+            allEdges.add(x);
+          }
+        }
+      } catch (_) {}
+    }
 
     final mergedData = {
       'nodes': allNodes,
@@ -115,35 +147,39 @@ class CampusGraph {
 
   /// Fusiona en [nodos]/[aristas] los caminos peatonales de las 9 sedes del
   /// evento, trazados desde OpenStreetMap y empaquetados en
-  /// `assets/maps/venues_bundle.json` (ver `scripts/build_walk_graph.py`).
-  ///
-  /// Antes de esto el grafo solo cubría TecNM Colima, así que cualquier ruta
-  /// en las otras 8 sedes tenía que pedírsele a la API de pago de Google.
+  /// `assets/maps/venues_bundle.json`. Se procesa en un isolate para no congelar la UI.
   static Future<void> _agregarCaminosDelPaquete(
     List<dynamic> nodos,
     List<dynamic> aristas,
   ) async {
     try {
       final raw = await rootBundle.loadString(VenueBundle.assetPath);
-      final bundle = json.decode(raw) as Map<String, dynamic>;
-      final venues = bundle['venues'] as Map<String, dynamic>? ?? {};
-      var n = 0;
-      for (final entry in venues.entries) {
-        final cols = entry.value as Map<String, dynamic>;
-        for (final x in (cols['nodes'] as List<dynamic>? ?? [])) {
-          (x as Map<String, dynamic>).putIfAbsent('zoneId', () => entry.key);
-          nodos.add(x);
-          n++;
-        }
-        for (final x in (cols['edges'] as List<dynamic>? ?? [])) {
-          (x as Map<String, dynamic>).putIfAbsent('zoneId', () => entry.key);
-          aristas.add(x);
-        }
-      }
-      debugPrint('CampusGraph: $n nodos de caminos agregados del paquete');
+      final (extraNodes, extraEdges) = await compute(_parseBundleJson, raw);
+      nodos.addAll(extraNodes);
+      aristas.addAll(extraEdges);
+      debugPrint('CampusGraph: ${extraNodes.length} nodos de caminos agregados del paquete');
     } catch (e) {
       debugPrint('CampusGraph: no se pudieron leer los caminos del paquete → $e');
     }
+  }
+
+  static (List<dynamic>, List<dynamic>) _parseBundleJson(String raw) {
+    final bundle = json.decode(raw) as Map<String, dynamic>;
+    final venues = bundle['venues'] as Map<String, dynamic>? ?? {};
+    final nodos = <dynamic>[];
+    final aristas = <dynamic>[];
+    for (final entry in venues.entries) {
+      final cols = entry.value as Map<String, dynamic>;
+      for (final x in (cols['nodes'] as List<dynamic>? ?? [])) {
+        (x as Map<String, dynamic>).putIfAbsent('zoneId', () => entry.key);
+        nodos.add(x);
+      }
+      for (final x in (cols['edges'] as List<dynamic>? ?? [])) {
+        (x as Map<String, dynamic>).putIfAbsent('zoneId', () => entry.key);
+        aristas.add(x);
+      }
+    }
+    return (nodos, aristas);
   }
 
   /// Carga el grafo de una sola sede.

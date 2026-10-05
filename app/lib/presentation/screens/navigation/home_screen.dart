@@ -25,27 +25,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
-      ref.read(voiceProvider.notifier).initialize();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // 1. Cargar avisos (feed visual)
       ref.read(feedProvider.notifier).loadAll();
-      _warmUpLocationPermission();
-      if (mounted) {
+
+      // 2. Escalonar inicializaciones en segundo plano para que la UI entre fluida a 60/120 FPS
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (!mounted) return;
+        ref.read(voiceProvider.notifier).initialize();
+      });
+
+      Future.delayed(const Duration(milliseconds: 1200), () {
+        if (!mounted) return;
+        _warmUpLocationPermission();
+      });
+
+      Future.delayed(const Duration(milliseconds: 1800), () {
+        if (!mounted) return;
         AppUpdateService.verificarActualizacion(context);
-      }
+      });
     });
   }
 
-  /// Pide el permiso de ubicación apenas se abre Inicio, no hasta que se
-  /// llega al mapa. Antes, el primer diálogo del sistema ("¿Permitir que
-  /// NAVIA acceda a tu ubicación?") aparecía justo al entrar al mapa, así
-  /// que la primera vez que alguien lo abría, veía el mapa sin GPS por un
-  /// momento mientras decidía. Pidiéndolo aquí, para cuando de verdad entre
-  /// al mapa el permiso ya está resuelto.
-  ///
-  /// A propósito no muestra ningún diálogo propio ni SnackBar — si el GPS
-  /// está apagado o el permiso queda denegado, el mapa ya tiene su propio
-  /// flujo completo (con avisos claros) para cuando de verdad haga falta.
-  /// Esto es solo un "calentamiento" silencioso.
+  /// Pide el permiso de ubicación de forma no intrusiva tras abrir Inicio.
+  /// Antes, el primer diálogo del sistema ("¿Permitir que TecNM Mapas acceda a tu ubicación?")
+  /// aparecía justo al entrar al mapa, así que la primera vez que alguien lo abría,
+  /// veía el mapa sin GPS por un momento mientras decidía.
   Future<void> _warmUpLocationPermission() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -82,15 +88,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final hasActiveRoute =
         ref.watch(navigationProvider.select((s) => s.hasActiveRoute));
 
-    // Mantener la posición sincronizada por GPS en segundo plano
-    ref.listen<AsyncValue<Position>>(currentLocationStreamProvider, (_, next) {
-      next.whenData((position) {
-        ref.read(navigationProvider.notifier).setPositionByCoordinates(
-              position.latitude,
-              position.longitude,
-            );
+    // Mantener la posición sincronizada por GPS en segundo plano SOLO si hay una ruta activa.
+    // Esto evita activar el hardware de GPS a alta precisión (bestForNavigation) en reposo,
+    // eliminando por completo el congelamiento (freeze) de varios segundos al entrar a Inicio.
+    if (hasActiveRoute) {
+      ref.listen<AsyncValue<Position>>(currentLocationStreamProvider, (_, next) {
+        next.whenData((position) {
+          ref.read(navigationProvider.notifier).setPositionByCoordinates(
+                position.latitude,
+                position.longitude,
+              );
+        });
       });
-    });
+    }
 
     ref.listen<NavigationState>(navigationProvider, (previous, next) {
       if (next.status == NavStatus.error &&

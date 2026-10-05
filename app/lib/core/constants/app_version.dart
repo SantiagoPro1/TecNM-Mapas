@@ -1,10 +1,10 @@
-/// Versión y número de compilación actual de la aplicación NAVIA.
+/// Versión y número de compilación actual de la aplicación TecNM Mapas.
 class AppVersion {
   AppVersion._();
 
-  /// Versión visible para el usuario (ej. 1.0.4).
-  static const String version = '1.0.4';
+  /// Versión visible para el usuario (ej. 1.0.5).
+  static const String version = '1.0.5';
 
-  /// Número de compilación secuencial para comparar actualizaciones (ej. 6).
-  static const int buildNumber = 6;
+  /// Número de compilación secuencial para comparar actualizaciones (ej. 7).
+  static const int buildNumber = 7;
 }

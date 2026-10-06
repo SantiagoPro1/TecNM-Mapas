@@ -105,6 +105,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+        }
         release {
             // Firma con el keystore de release propio (key.properties, fuera
             // del repo). Si ese archivo no existe todavia en esta maquina,

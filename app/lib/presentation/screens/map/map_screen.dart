@@ -11,7 +11,7 @@ import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_tts/flutter_tts.dart';
+import 'package:navia/data/providers/voice_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -401,8 +401,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
   late double _mapInitialZoom;
   bool _initializedWithArgs = false;
 
-  // TTS
-  final FlutterTts _flutterTts = FlutterTts();
   // Map style strings (cargados desde assets)
   String? _darkMapStyle;
   String? _lightMapStyle;
@@ -423,7 +421,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
       _flutterMapController = fm.MapController();
     }
 
-    _initTts();
     _loadMapStyles();
   }
 
@@ -530,16 +527,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
-  Future<void> _initTts() async {
-    await _flutterTts.setLanguage("es-MX");
-    await _flutterTts.setSpeechRate(0.5);
-    await _flutterTts.setVolume(1.0);
-    await _flutterTts.setPitch(1.0);
-  }
-
   void _speak(String text) {
-    final voiceEnabled = ref.read(settingsProvider).voiceEnabled;
-    if (voiceEnabled) _flutterTts.speak(text);
+    ref.read(voiceProvider.notifier).speakAnnouncement(text);
   }
 
   @override
@@ -549,7 +538,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _routeRecalcTimer?.cancel();
     _routeBannerTimer?.cancel();
     _userPosNotifier.dispose();
-    _flutterTts.stop();
     _googleMapController?.dispose();
     _flutterMapController?.dispose();
     super.dispose();

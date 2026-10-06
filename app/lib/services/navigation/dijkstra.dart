@@ -82,7 +82,16 @@ class Dijkstra {
         final neighbor = edge.to;
         if (visited.contains(neighbor)) continue;
 
-        final newDist = distances[current.nodeId]! + edge.distance;
+        // Evitar que Dijkstra use otros edificios/canchas como atajos
+        // intermedios de paso ("ir a un punto para ir a otro").
+        // Solo el destino final puede ser un edificio/cancha sin penalización.
+        final neighborNode = _nodes[neighbor];
+        final isIntermediateDestination = neighborNode != null &&
+            neighborNode.type == NodeType.building &&
+            neighbor != endId;
+        final transitPenalty = isIntermediateDestination ? 1000.0 : 0.0;
+        final newDist =
+            distances[current.nodeId]! + edge.distance + transitPenalty;
 
         if (newDist < distances[neighbor]!) {
           distances[neighbor] = newDist;
@@ -98,25 +107,26 @@ class Dijkstra {
       return null;
     }
 
-    // Reconstruir la ruta
+    // Reconstruir la ruta y calcular la distancia física real (sin penalizaciones)
     final path = <String>[];
     final pathEdges = <CampusEdge>[];
+    double realDistance = 0.0;
     String? current = endId;
 
     while (current != null) {
       path.add(current);
       final edge = usedEdge[current];
-      if (edge != null) pathEdges.add(edge);
+      if (edge != null) {
+        pathEdges.add(edge);
+        realDistance += edge.distance;
+      }
       current = previous[current];
     }
-
-    path.reversed;
-    pathEdges.reversed;
 
     return DijkstraResult(
       path: path.reversed.toList(),
       edges: pathEdges.reversed.toList(),
-      totalDistance: distances[endId]!,
+      totalDistance: realDistance,
       nodes: _nodes,
     );
   }

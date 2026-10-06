@@ -372,22 +372,49 @@ class _CredentialFront extends StatelessWidget {
                       border: Border.all(color: Colors.grey[300]!, width: 2),
                     ),
                     child: Center(
-                      child: CircleAvatar(
-                        radius: 50,
-                        backgroundColor: Colors.grey[200],
-                        backgroundImage: authState.photoUrl != null
-                            ? CachedNetworkImageProvider(authState.photoUrl!)
-                            : null,
-                        child: authState.photoUrl == null
-                            ? Text(
-                                _getInitials(authState.displayName),
-                                style: TextStyle(
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.grey[400],
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.grey[200],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: authState.photoUrl != null
+                            ? CachedNetworkImage(
+                                imageUrl: authState.photoUrl!,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => const Center(
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppTheme.brandNavy,
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Center(
+                                  child: Text(
+                                    _getInitials(authState.displayName),
+                                    style: TextStyle(
+                                      fontSize: 36,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.grey[400],
+                                    ),
+                                  ),
                                 ),
                               )
-                            : null,
+                            : Center(
+                                child: Text(
+                                  _getInitials(authState.displayName),
+                                  style: TextStyle(
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.grey[400],
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
                   ),

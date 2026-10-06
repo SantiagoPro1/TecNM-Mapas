@@ -142,4 +142,32 @@ void main() {
     }
     expect(absurdas, isEmpty, reason: 'rodeos excesivos: ${absurdas.take(10)}');
   });
+
+  test('ninguna ruta salta por otros puntos de interés intermedios', () {
+    final venues = bundle['venues'] as Map<String, dynamic>;
+    final conSaltos = <String>[];
+    for (final entry in venues.entries) {
+      final grafo = grafoDe(entry.key);
+      final cols = entry.value as Map<String, dynamic>;
+      final pois = (cols['places'] as List).cast<Map<String, dynamic>>();
+      final poiIds = pois.map((p) => p['id'] as String).toSet();
+      for (var i = 0; i < pois.length; i++) {
+        for (var j = i + 1; j < pois.length; j++) {
+          final id1 = pois[i]['id'] as String;
+          final id2 = pois[j]['id'] as String;
+          final r = grafo.dijkstra.findShortestPath(id1, id2);
+          if (r == null) continue;
+          final intermedios = r.path
+              .sublist(1, r.path.length - 1)
+              .where((nid) => poiIds.contains(nid))
+              .toList();
+          if (intermedios.isNotEmpty) {
+            conSaltos.add('${entry.key}: $id1 → $id2 pasando por $intermedios');
+          }
+        }
+      }
+    }
+    expect(conSaltos, isEmpty,
+        reason: 'rutas que saltan por otros puntos: ${conSaltos.take(10)}');
+  });
 }

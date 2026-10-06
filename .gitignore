@@ -43,3 +43,7 @@ desktop.ini
 
 # Archivos de modelos ML (son pesados, se manejan separado)
 app/assets/models/*.tflite
+
+# Binarios APK (se distribuyen vía GitHub Releases)
+*.apk
+dist/

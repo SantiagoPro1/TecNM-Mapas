@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:navia/data/repositories/admin_repository.dart';
 import 'package:navia/services/auth/auth_service.dart';
 
@@ -18,11 +20,13 @@ enum AuthStatus {
 class AuthState {
   final AuthStatus status;
   final User? user;
+  final String? cachedPhotoUrl;
   final String? errorMessage;
 
   const AuthState({
     this.status = AuthStatus.initial,
     this.user,
+    this.cachedPhotoUrl,
     this.errorMessage,
   });
 
@@ -35,8 +39,12 @@ class AuthState {
   /// Nombre del usuario o fallback.
   String get displayName => user?.displayName ?? 'Estudiante TecNM';
 
-  /// URL de la foto de perfil (alta resolución).
-  String? get photoUrl => user?.photoURL?.replaceFirst('s96-c', 's400-c');
+  /// URL de la foto de perfil (respeta la foto original y usa caché local persistente).
+  String? get photoUrl {
+    final url = cachedPhotoUrl ?? user?.photoURL;
+    if (url == null || url.trim().isEmpty) return null;
+    return url;
+  }
 
   /// Campus TecNM derivado del dominio del correo (ej. "colima.tecnm.mx" →
   /// "TecNM Colima"). Ya no se puede asumir Colima: el dominio permitido se
@@ -62,11 +70,13 @@ class AuthState {
   AuthState copyWith({
     AuthStatus? status,
     User? user,
+    String? cachedPhotoUrl,
     String? errorMessage,
   }) {
     return AuthState(
       status: status ?? this.status,
       user: user ?? this.user,
+      cachedPhotoUrl: cachedPhotoUrl ?? this.cachedPhotoUrl,
       errorMessage: errorMessage,
     );
   }
@@ -77,21 +87,60 @@ class AuthState {
 /// Notifier de Riverpod que gestiona todo el ciclo de autenticación.
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthService _authService;
+  static const String _photoKeyPrefix = 'user_photo_url_';
 
   AuthNotifier(this._authService) : super(const AuthState()) {
     _checkCurrentUser();
   }
 
-  /// Verifica si hay una sesión previa activa.
-  void _checkCurrentUser() {
+  /// Verifica si hay una sesión previa activa y restaura foto guardada.
+  Future<void> _checkCurrentUser() async {
     final user = _authService.currentUser;
     if (user != null) {
+      String? cached;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        cached = prefs.getString('$_photoKeyPrefix${user.uid}');
+      } catch (_) {}
+
       state = AuthState(
         status: AuthStatus.authenticated,
         user: user,
+        cachedPhotoUrl: cached ?? user.photoURL,
       );
+
+      // Sincronización silenciosa en segundo plano
+      _syncPhotoInBackground(user);
     } else {
       state = const AuthState(status: AuthStatus.unauthenticated);
+    }
+  }
+
+  Future<void> _syncPhotoInBackground(User user) async {
+    try {
+      final photoUrl = await _authService.fetchPhotoUrl(forceSilentSignIn: true);
+      if (photoUrl != null && photoUrl.isNotEmpty) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('$_photoKeyPrefix${user.uid}', photoUrl);
+        } catch (_) {}
+
+        if (user.photoURL != photoUrl) {
+          try {
+            await user.updatePhotoURL(photoUrl);
+            await user.reload();
+          } catch (_) {}
+        }
+
+        if (state.user?.uid == user.uid) {
+          state = state.copyWith(
+            user: _authService.currentUser,
+            cachedPhotoUrl: photoUrl,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('AuthNotifier: error sincronizando foto: $e');
     }
   }
 
@@ -103,9 +152,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = await _authService.signInWithGoogle();
 
       if (user != null) {
+        String? photoUrl = user.photoURL;
+        if (photoUrl == null || photoUrl.isEmpty) {
+          photoUrl = await _authService.fetchPhotoUrl();
+        }
+        if (photoUrl != null && photoUrl.isNotEmpty) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('$_photoKeyPrefix${user.uid}', photoUrl);
+          } catch (_) {}
+        }
+
         state = AuthState(
           status: AuthStatus.authenticated,
           user: user,
+          cachedPhotoUrl: photoUrl ?? user.photoURL,
         );
       } else {
         state = const AuthState(status: AuthStatus.unauthenticated);

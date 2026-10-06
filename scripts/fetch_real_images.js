@@ -13,7 +13,7 @@ const VENUE_NAMES = {
     'gustavo_vazquez': 'Unidad Deportiva Gustavo Vázquez Montes Villa de Álvarez',
     'sur': 'Unidad Deportiva Sur Colima',
     'udif': 'UDIF Colima',
-    'zona_militar': '20 Zona Militar Colima'
+    'las_moras': 'Unidad Deportiva Las Moras Coquimatlán'
 };
 
 const DEFAULT_VENUE_IMAGE = {

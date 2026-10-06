@@ -55,34 +55,61 @@ class AuthService {
           await _auth.signInWithCredential(credential);
       final user = userCredential.user;
 
-      if (user != null && (user.photoURL == null || user.photoURL!.isEmpty)) {
-        // Intento 1: Foto directa de GoogleSignIn
-        String? photoUrl = googleUser.photoUrl;
-
-        // Intento 2: People API con el access token
-        if ((photoUrl == null || photoUrl.isEmpty) &&
-            googleAuth.accessToken != null) {
-          photoUrl = await _fetchPhotoFromPeopleApi(googleAuth.accessToken!);
-        }
-
-        // Intento 3: UserInfo endpoint
-        if ((photoUrl == null || photoUrl.isEmpty) &&
-            googleAuth.accessToken != null) {
-          photoUrl = await _fetchPhotoFromUserInfo(googleAuth.accessToken!);
-        }
-
-        if (photoUrl != null && photoUrl.isNotEmpty) {
-          // Pedir la imagen en alta resolución (400px)
-          photoUrl = photoUrl.replaceFirst('s96-c', 's400-c');
-          await user.updatePhotoURL(photoUrl);
-          await user.reload();
-          return _auth.currentUser;
+      if (user != null) {
+        String? photoUrl = user.photoURL;
+        if (photoUrl == null || photoUrl.isEmpty) {
+          photoUrl = googleUser.photoUrl;
+          if ((photoUrl == null || photoUrl.isEmpty) &&
+              googleAuth.accessToken != null) {
+            photoUrl = await _fetchPhotoFromPeopleApi(googleAuth.accessToken!);
+          }
+          if ((photoUrl == null || photoUrl.isEmpty) &&
+              googleAuth.accessToken != null) {
+            photoUrl = await _fetchPhotoFromUserInfo(googleAuth.accessToken!);
+          }
+          if (photoUrl != null && photoUrl.isNotEmpty) {
+            try {
+              await user.updatePhotoURL(photoUrl);
+              await user.reload();
+              return _auth.currentUser;
+            } catch (e) {
+              debugPrint('AuthService: no se pudo actualizar photoURL en Firebase ($e)');
+            }
+          }
         }
       }
 
       return user;
     } catch (e) {
       rethrow;
+    }
+  }
+
+  /// Obtiene la URL de la foto de perfil de Google, con fallback a People API y UserInfo.
+  Future<String?> fetchPhotoUrl({bool forceSilentSignIn = false}) async {
+    try {
+      GoogleSignInAccount? googleUser = _googleSignIn.currentUser;
+      if (googleUser == null && forceSilentSignIn) {
+        googleUser = await _googleSignIn.signInSilently();
+      }
+      if (googleUser == null) return null;
+
+      String? photoUrl = googleUser.photoUrl;
+
+      if (photoUrl == null || photoUrl.isEmpty) {
+        final auth = await googleUser.authentication;
+        if (auth.accessToken != null) {
+          photoUrl = await _fetchPhotoFromPeopleApi(auth.accessToken!);
+          if (photoUrl == null || photoUrl.isEmpty) {
+            photoUrl = await _fetchPhotoFromUserInfo(auth.accessToken!);
+          }
+        }
+      }
+
+      return photoUrl;
+    } catch (e) {
+      debugPrint('AuthService: error obteniendo foto de perfil ($e)');
+      return null;
     }
   }
 

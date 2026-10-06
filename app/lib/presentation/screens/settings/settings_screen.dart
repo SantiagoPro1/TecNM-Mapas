@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:navia/core/constants/app_routes.dart';
 import 'package:navia/core/theme/app_theme.dart';
-import 'package:navia/data/providers/auth_provider.dart';
 import 'package:navia/data/providers/voice_provider.dart';
 import 'package:navia/data/providers/settings_provider.dart';
 import 'package:navia/presentation/screens/map/providers/map_providers.dart';
-import 'package:navia/presentation/widgets/bottom_nav.dart';
-import 'package:navia/presentation/screens/settings/credits_screen.dart';
+import 'package:navia/core/constants/app_version.dart';
+import 'package:navia/services/update/app_update_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -32,9 +30,6 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      extendBody:
-          true, // Permite que el diseño use el espacio debajo de la barra
-      bottomNavigationBar: const BottomNav(currentIndex: 5),
       appBar: AppBar(
         title: const Text('AJUSTES'),
         backgroundColor: Colors.transparent,
@@ -98,41 +93,22 @@ class SettingsScreen extends ConsumerWidget {
                         if (v) HapticFeedback.mediumImpact();
                       },
                     ),
-                    const SizedBox(height: 12),
-                    _SliderTile(
-                      icon: Icons.speed_rounded,
-                      label: 'Velocidad de Voz',
-                      value: settings.speechRate,
-                      min: 0.5,
-                      max: 2.0,
-                      divisions: 6,
-                      display: '${settings.speechRate.toStringAsFixed(1)}x',
-                      onChanged: (v) {
-                        notifier.setSpeechRate(v);
-                        ref.read(voiceProvider.notifier).setSpeechRate(v);
-                        _haptic(settings.vibrationEnabled);
-                      },
-                    ),
                     const SizedBox(height: 32),
-                    _SectionHeader('CUENTA ESTUDIANTIL',
+                    _SectionHeader('SISTEMA Y ACTUALIZACIONES',
                         accentColor: cs.primary),
                     _NavTile(
-                      icon: Icons.account_circle_rounded,
-                      label: 'Perfil del Alumno',
-                      onTap: () =>
-                          Navigator.pushNamed(context, AppRoutes.profile),
+                      icon: Icons.system_update_rounded,
+                      label: 'Buscar actualizaciones',
+                      subtitle:
+                          'Versión actual: v${AppVersion.version} (Build ${AppVersion.buildNumber})',
+                      onTap: () => AppUpdateService.verificarActualizacion(
+                        context,
+                        manualCheck: true,
+                      ),
                     ),
-                    _NavTile(
-                      icon: Icons.badge_rounded,
-                      label: 'Credencial Digital NAVIA',
-                      onTap: () =>
-                          Navigator.pushNamed(context, AppRoutes.credential),
-                    ),
-                    const SizedBox(height: 32),
-                    _SectionHeader('SOPORTE Y APP', accentColor: cs.primary),
                     _NavTile(
                       icon: Icons.info_rounded,
-                      label: 'Acerca de la Plataforma',
+                      label: 'Acerca de NAVIA',
                       onTap: () => _showAbout(context),
                     ),
                     _NavTile(
@@ -140,45 +116,15 @@ class SettingsScreen extends ConsumerWidget {
                       label: 'Privacidad y Seguridad',
                       onTap: () => _showPrivacy(context),
                     ),
-                    _NavTile(
-                      icon: Icons.groups_rounded,
-                      label: 'Créditos del Proyecto',
-                      onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const CreditsScreen())),
-                    ),
                     const SizedBox(height: 48),
-                    SizedBox(
-                      width: double.infinity,
-                      child: TextButton.icon(
-                        onPressed: () =>
-                            ref.read(authProvider.notifier).signOut(),
-                        icon: Icon(Icons.logout_rounded,
-                            color: cs.error, size: 20),
-                        label: Text('CERRAR SESIÓN',
-                            style: TextStyle(
-                                color: cs.error,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.0)),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          backgroundColor: cs.error.withValues(alpha: 0.05),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                            side: BorderSide(
-                                color: cs.error.withValues(alpha: 0.2)),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
                     Center(
-                      child: Text('NAVIA v1.0.0 (InnovaTec Edition)',
-                          style: TextStyle(
-                              color: cs.onSurface.withValues(alpha: 0.2),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700)),
+                      child: Text(
+                        'NAVIA v${AppVersion.version} (Build ${AppVersion.buildNumber}) · TecNM Campus Colima',
+                        style: TextStyle(
+                            color: cs.onSurface.withValues(alpha: 0.35),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ],
                 ),
@@ -210,7 +156,7 @@ class SettingsScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Versión 1.0.0 (Stable)',
+            Text('Versión ${AppVersion.version} (Build ${AppVersion.buildNumber})',
                 style: TextStyle(
                     color: cs.primary,
                     fontWeight: FontWeight.w800,
@@ -424,96 +370,16 @@ class _SwitchTile extends StatelessWidget {
   }
 }
 
-class _SliderTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final double value;
-  final double min;
-  final double max;
-  final int divisions;
-  final String display;
-  final ValueChanged<double> onChanged;
-
-  const _SliderTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.divisions,
-    required this.display,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: cs.outline),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: cs.primary, size: 22),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(label,
-                    style: TextStyle(
-                        color: cs.onSurface,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700)),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.sm)),
-                child: Text(display,
-                    style: TextStyle(
-                        color: cs.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 4,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
-            ),
-            child: Slider(
-              value: value,
-              min: min,
-              max: max,
-              divisions: divisions,
-              activeColor: cs.primary,
-              inactiveColor: cs.onSurface.withValues(alpha: 0.1),
-              onChanged: onChanged,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _NavTile extends StatelessWidget {
   final IconData icon;
   final String label;
+  final String? subtitle;
   final VoidCallback onTap;
 
   const _NavTile({
     required this.icon,
     required this.label,
+    this.subtitle,
     required this.onTap,
   });
 
@@ -541,6 +407,15 @@ class _NavTile extends StatelessWidget {
                 color: cs.onSurface,
                 fontSize: 15,
                 fontWeight: FontWeight.w700)),
+        subtitle: subtitle != null
+            ? Text(
+                subtitle!,
+                style: TextStyle(
+                  color: cs.onSurface.withValues(alpha: 0.5),
+                  fontSize: 12,
+                ),
+              )
+            : null,
         trailing: Icon(Icons.arrow_forward_ios_rounded,
             size: 14, color: cs.onSurface.withValues(alpha: 0.24)),
         onTap: onTap,

@@ -42,31 +42,28 @@ class VoiceNotifier extends StateNotifier<VoiceControlState> {
   VoiceNotifier(this._voiceService, this._navNotifier, this._ref)
       : super(const VoiceControlState());
 
-  /// Inicializa el servicio de voz.
+  /// Inicializa el servicio de voz de forma segura y no bloqueante.
   Future<void> initialize() async {
-    await _voiceService.initialize();
-
-    // Sincronizar velocidad de voz desde los ajustes configurados
-    final rate = _ref.read(settingsProvider).speechRate;
-    await _voiceService.setSpeechRate(rate);
-
     _voiceService.onStateChanged = (newState) {
       if (mounted) {
         state = state.copyWith(voiceState: newState);
       }
     };
-
     state = state.copyWith(isInitialized: true);
   }
 
   /// Habla el texto y lo guarda como última instrucción.
   Future<void> _speak(String text) async {
+    final voiceEnabled = _ref.read(settingsProvider).voiceEnabled;
+    if (!voiceEnabled) return;
     state = state.copyWith(lastSpokenText: text);
     await _voiceService.speak(text);
   }
 
   /// Habla texto sin guardarlo como última instrucción.
   Future<void> speakAnnouncement(String text) async {
+    final voiceEnabled = _ref.read(settingsProvider).voiceEnabled;
+    if (!voiceEnabled) return;
     await _voiceService.speak(text);
   }
 

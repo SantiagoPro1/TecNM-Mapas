@@ -159,10 +159,16 @@ icono de categoria y no pasa nada.
 - `pista.jpg`  -  Pista
 - `unidad_deportiva_infantil_udif.jpg`  -  Unidad Deportiva Infantil UDIF
 
-### ezona_militar (6)
+### las_moras (12)
+- `unidad_deportiva_las_moras.jpg`  -  Unidad Deportiva Sur "Las Moras"
+- `estadio_de_beisbol_valentin_quintero.jpg`  -  Estadio de Béisbol "Valentín Quintero del Toro"
+- `campo_de_futbol_1.jpg`  -  Campo de Fútbol 1 (Principal)
+- `campo_de_futbol_2.jpg`  -  Campo de Fútbol 2
+- `campo_de_futbol_3.jpg`  -  Campo de Fútbol 3 (Infantil)
+- `cancha_techada_las_moras.jpg`  -  Cancha Techada de Básquetbol
 - `cancha_de_basquetbol_1.jpg`  -  Cancha de Básquetbol 1
 - `cancha_de_basquetbol_2.jpg`  -  Cancha de Básquetbol 2
-- `cancha_de_basquetbol_3.jpg`  -  Cancha de Básquetbol 3
-- `cancha_de_futbol.jpg`  -  Cancha de Fútbol
-- `complejo_galvan_ex_zona_militar.jpg`  -  Complejo Galván (Ex-Zona Militar)
-- `sala_alberto_isaac.jpg`  -  Sala Alberto Isaac
+- `canchas_de_fronton.jpg`  -  Canchas de Frontón
+- `cancha_de_voleibol.jpg`  -  Cancha de Voleibol
+- `pista_de_skate_las_moras.jpg`  -  Pista de Skate
+- `area_de_juegos_infantiles_las_moras.jpg`  -  Área de Juegos Infantiles

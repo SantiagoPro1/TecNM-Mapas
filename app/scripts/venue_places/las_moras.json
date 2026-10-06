@@ -1,0 +1,95 @@
+{
+  "venueId": "las_moras",
+  "source": "OpenStreetMap way 1183750798 e instalaciones verificadas",
+  "center": {
+    "lat": 19.192433,
+    "lon": -103.811962
+  },
+  "radius_m": 450,
+  "places": [
+    {
+      "name": "Unidad Deportiva Sur \"Las Moras\"",
+      "lat": 19.192433,
+      "lon": -103.811962,
+      "source": "osm",
+      "kind": "sports_complex"
+    },
+    {
+      "name": "Estadio de Béisbol \"Valentín Quintero del Toro\"",
+      "lat": 19.19177,
+      "lon": -103.811338,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Campo de Fútbol 1 (Principal)",
+      "lat": 19.192625,
+      "lon": -103.812496,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Campo de Fútbol 2",
+      "lat": 19.193296,
+      "lon": -103.811946,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Campo de Fútbol 3 (Infantil)",
+      "lat": 19.193181,
+      "lon": -103.811448,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha Techada de Básquetbol",
+      "lat": 19.192247,
+      "lon": -103.811845,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha de Básquetbol 1",
+      "lat": 19.192536,
+      "lon": -103.811695,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha de Básquetbol 2",
+      "lat": 19.19265,
+      "lon": -103.81155,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Canchas de Frontón",
+      "lat": 19.19241,
+      "lon": -103.81215,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Cancha de Voleibol",
+      "lat": 19.19215,
+      "lon": -103.81165,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Pista de Skate",
+      "lat": 19.192862,
+      "lon": -103.811614,
+      "source": "osm",
+      "kind": "pitch"
+    },
+    {
+      "name": "Área de Juegos Infantiles",
+      "lat": 19.1923,
+      "lon": -103.8115,
+      "source": "osm",
+      "kind": "park"
+    }
+  ]
+}

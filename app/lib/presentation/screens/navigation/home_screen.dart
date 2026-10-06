@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:navia/core/constants/app_routes.dart';
@@ -12,6 +13,7 @@ import 'package:navia/presentation/screens/map/providers/map_providers.dart';
 import 'package:navia/presentation/widgets/bottom_nav.dart';
 import 'package:navia/presentation/widgets/announcement_card.dart';
 import 'package:navia/data/models/announcement.dart';
+import 'package:navia/services/update/app_update_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -27,6 +29,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ref.read(voiceProvider.notifier).initialize();
       ref.read(feedProvider.notifier).loadAll();
       _warmUpLocationPermission();
+      if (mounted) {
+        AppUpdateService.verificarActualizacion(context);
+      }
     });
   }
 
@@ -192,6 +197,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ],
           ),
         ),
+        IconButton(
+          tooltip: 'Ajustes',
+          icon: Icon(
+            Icons.settings_outlined,
+            color: cs.onSurface.withValues(alpha: 0.8),
+            size: 24,
+          ),
+          onPressed: () => Navigator.pushNamed(context, AppRoutes.settings),
+        ),
+        const SizedBox(width: 4),
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
@@ -201,15 +216,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: cs.outline),
             ),
-            child: CircleAvatar(
-              radius: 21,
-              backgroundColor: cs.surfaceContainerHighest,
-              backgroundImage: authState.photoUrl != null
-                  ? NetworkImage(authState.photoUrl!)
-                  : null,
-              child: authState.photoUrl == null
-                  ? Icon(Icons.person_rounded, color: cs.primary, size: 22)
-                  : null,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: cs.surfaceContainerHighest,
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: authState.photoUrl != null
+                  ? CachedNetworkImage(
+                      imageUrl: authState.photoUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Center(
+                        child: SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                            color: cs.primary,
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Center(
+                        child: Icon(Icons.person_rounded,
+                            color: cs.primary, size: 22),
+                      ),
+                    )
+                  : Center(
+                      child: Icon(Icons.person_rounded,
+                          color: cs.primary, size: 22),
+                    ),
             ),
           ),
         ),

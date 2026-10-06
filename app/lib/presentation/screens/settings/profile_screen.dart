@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:navia/core/constants/app_routes.dart';
 import 'package:navia/core/theme/app_theme.dart';
 import 'package:navia/data/providers/auth_provider.dart';
 import 'package:navia/data/providers/student_data_provider.dart';
 import 'package:navia/data/providers/settings_provider.dart';
+import 'package:navia/core/constants/app_version.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -31,6 +33,13 @@ class ProfileScreen extends ConsumerWidget {
             onPressed: () =>
                 Navigator.pushReplacementNamed(context, AppRoutes.home),
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Ajustes',
+              onPressed: () => Navigator.pushNamed(context, AppRoutes.settings),
+            ),
+          ],
         ),
         body: authState.isLoading
             ? Center(child: CircularProgressIndicator(color: cs.primary))
@@ -120,6 +129,29 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
         ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: OutlinedButton.icon(
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.settings),
+            icon: Icon(Icons.settings_outlined, size: 20, color: cs.primary),
+            label: Text(
+              'AJUSTES Y ACTUALIZACIONES',
+              style: TextStyle(
+                color: cs.primary,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: cs.primary.withValues(alpha: 0.3)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -193,8 +225,24 @@ class ProfileScreen extends ConsumerWidget {
             (Icons.record_voice_over_rounded, 'GUÍA POR VOZ',
                 settings.voiceEnabled ? 'ACTIVA' : 'DESACTIVADA', null),
             (Icons.translate_rounded, 'LENGUAJE', 'ESPAÑOL (MX)', null),
-            (Icons.speed_rounded, 'RITMO DE VOZ',
-                '${settings.speechRate.toStringAsFixed(1)}X', null),
+          ],
+        ),
+        const SizedBox(height: 20),
+        _InfoCard(
+          title: 'SISTEMA Y ACTUALIZACIONES',
+          items: [
+            (
+              Icons.system_update_rounded,
+              'ACTUALIZACIONES',
+              'VERSIÓN ${AppVersion.version} (TOCA PARA COMPROBAR)',
+              () => Navigator.pushNamed(context, AppRoutes.settings),
+            ),
+            (
+              Icons.settings_rounded,
+              'AJUSTES COMPLETOS',
+              'ACCESIBILIDAD Y OPCIONES',
+              () => Navigator.pushNamed(context, AppRoutes.settings),
+            ),
           ],
         ),
         const SizedBox(height: 40),
@@ -527,16 +575,43 @@ class _AvatarSection extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: cs.outline),
               ),
-              child: CircleAvatar(
-                radius: 56,
-                backgroundColor: cs.surfaceContainerHighest,
-                backgroundImage: authState.photoUrl != null
-                    ? NetworkImage(authState.photoUrl!)
-                    : null,
-                child: authState.photoUrl == null
-                    ? Icon(Icons.person_rounded,
-                        size: 64, color: cs.onSurface.withValues(alpha: 0.3))
-                    : null,
+              child: Container(
+                width: 112,
+                height: 112,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: cs.surfaceContainerHighest,
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: authState.photoUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: authState.photoUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Center(
+                          child: SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: cs.primary,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Center(
+                          child: Icon(
+                            Icons.person_rounded,
+                            size: 64,
+                            color: cs.onSurface.withValues(alpha: 0.3),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Icon(
+                          Icons.person_rounded,
+                          size: 64,
+                          color: cs.onSurface.withValues(alpha: 0.3),
+                        ),
+                      ),
               ),
             ),
             Container(

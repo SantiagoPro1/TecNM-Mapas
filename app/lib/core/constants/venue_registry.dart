@@ -147,25 +147,20 @@ class VenueRegistry {
     icon: Icons.sports_baseball_rounded,
   );
 
-  // Ezona Militar (Complejo Galván, antes XX Zona Militar): su única cancha
-  // es de Béisbol. Coordenadas verificadas contra Google Places API
-  // ("Complejo Galván (Ex-Zona Militar)" → 19.243554, -103.712445), que
-  // coincide exacto con lo que ya estaba aquí. OJO: OpenStreetMap ubica el
-  // polígono de este complejo ~220m al sur; ese dato es el que está mal, no
-  // este. Google no tiene ninguna instalación deportiva registrada dentro
-  // del complejo, así que sus canchas (incluida la de béisbol) hay que
-  // pinearlas a mano con el editor de admin.
-  static const Venue ezonaMilitar = Venue(
-    id: 'ezona_militar',
-    label: 'Ezona Militar',
-    shortDescription: 'Béisbol · 1 cancha',
-    centerLat: 19.24196,
-    centerLng: -103.712067,
-    boundsSouthLat: 19.237223,
-    boundsWestLng: -103.718143,
-    boundsNorthLat: 19.246698,
-    boundsEastLng: -103.705991,
-    defaultZoom: 16.0,
+  // Las Moras (Unidad Deportiva Sur en Coquimatlán): cuenta con diamante de
+  // béisbol Valentín Quintero del Toro, campos empastados de fútbol, canchas
+  // techadas y frontón. Coordenadas verificadas en OpenStreetMap (way 1183750798).
+  static const Venue lasMoras = Venue(
+    id: 'las_moras',
+    label: 'UD Las Moras',
+    shortDescription: 'Béisbol / Fútbol · Canchas múltiples',
+    centerLat: 19.192433,
+    centerLng: -103.811962,
+    boundsSouthLat: 19.1895,
+    boundsWestLng: -103.8150,
+    boundsNorthLat: 19.1950,
+    boundsEastLng: -103.8090,
+    defaultZoom: 17.0,
     icon: Icons.sports_baseball_rounded,
   );
 
@@ -179,15 +174,17 @@ class VenueRegistry {
     gustavoVazquez,
     sur,
     udif,
-    ezonaMilitar,
+    lasMoras,
   ];
 
   /// Solo las sedes con grafo empaquetado en assets (por ahora, solo TecNM
   /// Colima — Sendera/Zentralia se sacaron del alcance de la app).
   static List<Venue> get bundledVenues => all.where((v) => v.isBundled).toList();
 
-  static Venue byId(String id) =>
-      all.firstWhere((v) => v.id == id, orElse: () => tecColima);
+  static Venue byId(String id) {
+    if (id == 'ezona_militar') return lasMoras;
+    return all.firstWhere((v) => v.id == id, orElse: () => tecColima);
+  }
 
   /// Punto medio de la caja que contiene a las 9 sedes, para encuadrar el
   /// mapa abierto de forma que todas queden a la vista al entrar.

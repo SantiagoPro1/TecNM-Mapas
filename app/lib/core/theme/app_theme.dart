@@ -29,10 +29,7 @@ const ThemeMode _modoPorDefecto = ThemeMode.light;
 class _Neutral {
   static const Color white = Color(0xFFFFFFFF);
   static const Color n50 = Color(0xFFF4F4F4);
-  static const Color n100 = Color(0xFFE7E7E7);
-  static const Color n200 = Color(0xFFD6D6D6);
   static const Color n400 = Color(0xFF8F8F8F);
-  static const Color n500 = Color(0xFF6B6B6B);
   static const Color n700 = Color(0xFF333333);
   static const Color n800 = Color(0xFF212121);
   static const Color n850 = Color(0xFF171717);
@@ -50,9 +47,7 @@ class _Navy {
 
 /// Semántica de estado — deliberadamente apagada, no neón.
 class _Semantic {
-  static const Color successLight = Color(0xFF1E7A46);
   static const Color successDark = Color(0xFF6FBE8F);
-  static const Color errorLight = Color(0xFFA3271F);
   static const Color errorDark = Color(0xFFE28680);
 }
 

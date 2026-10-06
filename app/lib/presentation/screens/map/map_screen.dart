@@ -1671,11 +1671,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
       decoration: BoxDecoration(
         color: cs.surface,
         shape: BoxShape.circle,
-        border: Border.all(color: cs.outline),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.35)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.14),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: IconButton(
         icon: Icon(icon, color: cs.primary),
-        onPressed: onPressed,
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          onPressed();
+        },
         tooltip: tooltip,
       ),
     );

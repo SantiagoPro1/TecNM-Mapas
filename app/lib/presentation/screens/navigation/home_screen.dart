@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -288,50 +289,78 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           crossAxisSpacing: 12,
           childAspectRatio: 0.85,
           children: venues.map((v) {
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => Navigator.pushReplacementNamed(
-                  context, AppRoutes.map,
-                  arguments: {
-                    'venueId': v.id,
-                    'lat': v.centerLat,
-                    'lng': v.centerLng,
-                    'zoom': v.defaultZoom,
-                  }),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: cs.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: cs.outline),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                          color: cs.primary.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(AppRadius.sm)),
-                      child: Icon(v.icon, color: cs.primary, size: 18),
-                    ),
-                    const Spacer(),
-                    Text(v.label,
+            return Material(
+              color: cs.surface,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.pushReplacementNamed(
+                    context,
+                    AppRoutes.map,
+                    arguments: {
+                      'venueId': v.id,
+                      'lat': v.centerLat,
+                      'lng': v.centerLng,
+                      'zoom': v.defaultZoom,
+                    },
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    border: Border.all(color: cs.outline.withValues(alpha: 0.35)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: cs.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          border: Border.all(
+                            color: cs.primary.withValues(alpha: 0.18),
+                            width: 0.6,
+                          ),
+                        ),
+                        child: Icon(v.icon, color: cs.primary, size: 18),
+                      ),
+                      const Spacer(),
+                      Text(
+                        v.label,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            color: cs.onSurface,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 3),
-                    Text(v.shortDescription,
+                          color: cs.onSurface,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          height: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        v.shortDescription,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            color: cs.onSurface.withValues(alpha: 0.55),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w500)),
-                  ],
+                          color: cs.onSurface.withValues(alpha: 0.55),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -430,6 +459,13 @@ class _LocationChip extends ConsumerWidget {
         color: cs.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: cs.primary.withValues(alpha: 0.22)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -466,7 +502,10 @@ class _LocationChip extends ConsumerWidget {
           const SizedBox(width: 8),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.map),
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.pushReplacementNamed(context, AppRoutes.map);
+            },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
@@ -520,7 +559,14 @@ class _ActiveNavCard extends ConsumerWidget {
       decoration: BoxDecoration(
         color: cs.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: cs.outline),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.35)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

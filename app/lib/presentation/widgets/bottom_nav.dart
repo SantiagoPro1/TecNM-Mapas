@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:navia/core/constants/app_routes.dart';
 import 'package:navia/core/theme/app_theme.dart';
 
@@ -15,11 +16,23 @@ class BottomNav extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).scaffoldBackgroundColor,
-          border: Border(top: BorderSide(color: cs.outline)),
+          border: Border(
+            top: BorderSide(
+              color: cs.outline.withValues(alpha: 0.35),
+              width: 0.8,
+            ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
             child: Row(
               children: [
                 _NavItem(
@@ -75,32 +88,42 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final inactiveColor = cs.onSurface.withValues(alpha: 0.35);
+    final inactiveColor = cs.onSurface.withValues(alpha: 0.42);
     return Semantics(
       button: true,
       label: label,
       selected: isActive,
       child: GestureDetector(
-        onTap: onTap,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: isActive
               ? BoxDecoration(
                   color: cs.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(
+                    color: cs.primary.withValues(alpha: 0.22),
+                    width: 0.8,
+                  ),
                 )
-              : null,
+              : BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 icon,
                 color: isActive ? cs.primary : inactiveColor,
-                size: 26,
+                size: 25,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Text(
                 label,
                 maxLines: 1,
@@ -109,8 +132,8 @@ class _NavItem extends StatelessWidget {
                 style: TextStyle(
                   color: isActive ? cs.primary : inactiveColor,
                   fontSize: 10,
-                  fontWeight: isActive ? FontWeight.w900 : FontWeight.w500,
-                  letterSpacing: 0.5,
+                  fontWeight: isActive ? FontWeight.w900 : FontWeight.w600,
+                  letterSpacing: 0.4,
                 ),
               ),
             ],

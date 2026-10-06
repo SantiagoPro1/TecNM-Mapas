@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:navia/core/constants/app_routes.dart';
@@ -165,12 +166,27 @@ class _EntryOptionCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadius.lg),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        onTap: onTap,
+        onTap: onTap != null
+            ? () {
+                HapticFeedback.lightImpact();
+                onTap!();
+              }
+            : null,
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: filled ? cs.primary : cs.outline),
+            border: Border.all(
+              color: filled ? cs.primary : cs.outline.withValues(alpha: 0.35),
+              width: filled ? 1.2 : 0.8,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Row(
             children: [

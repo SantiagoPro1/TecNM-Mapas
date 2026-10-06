@@ -140,6 +140,32 @@ class CampusNode extends Equatable {
     }
   }
 
+  CampusNode copyWith({
+    String? id,
+    String? zoneId,
+    String? name,
+    List<String>? aliases,
+    NodeType? type,
+    double? lat,
+    double? lng,
+    int? floor,
+    bool? accessible,
+    String? description,
+  }) {
+    return CampusNode(
+      id: id ?? this.id,
+      zoneId: zoneId ?? this.zoneId,
+      name: name ?? this.name,
+      aliases: aliases ?? this.aliases,
+      type: type ?? this.type,
+      lat: lat ?? this.lat,
+      lng: lng ?? this.lng,
+      floor: floor ?? this.floor,
+      accessible: accessible ?? this.accessible,
+      description: description ?? this.description,
+    );
+  }
+
   @override
   List<Object?> get props => [id, zoneId];
 

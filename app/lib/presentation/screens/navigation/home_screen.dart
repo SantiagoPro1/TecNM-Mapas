@@ -83,8 +83,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // iniciar/cancelar una ruta), no en cada actualización de GPS — el
     // contenido que sí cambia con el GPS vive en _LocationChip/_ActiveNavCard,
     // que se re-renderizan solos sin arrastrar toda esta pantalla con ellos.
-    final hasCurrentNode =
-        ref.watch(navigationProvider.select((s) => s.currentNode != null));
+    final hasCurrentNode = ref.watch(navigationProvider.select(
+        (s) => s.currentNode != null && s.currentNode!.name.trim().isNotEmpty));
     final hasActiveRoute =
         ref.watch(navigationProvider.select((s) => s.hasActiveRoute));
 
@@ -422,35 +422,67 @@ class _LocationChip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final node = ref.watch(navigationProvider.select((s) => s.currentNode));
-    if (node == null) return const SizedBox.shrink();
+    if (node == null || node.name.trim().isEmpty) return const SizedBox.shrink();
     final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: cs.tertiary.withValues(alpha: 0.1),
+        color: cs.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: cs.tertiary.withValues(alpha: 0.25)),
+        border: Border.all(color: cs.primary.withValues(alpha: 0.22)),
       ),
       child: Row(
         children: [
-          Icon(Icons.my_location_rounded, color: cs.tertiary, size: 18),
+          Icon(Icons.location_on_rounded, color: cs.primary, size: 20),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(node.name,
-                style: TextStyle(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'UBICACIÓN ACTUAL',
+                  style: TextStyle(
+                    color: cs.primary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  node.name,
+                  style: TextStyle(
                     color: cs.onSurface,
                     fontSize: 14,
-                    fontWeight: FontWeight.w700)),
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.map),
-            child: Text('CAMBIAR',
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: cs.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Text(
+                'CAMBIAR',
                 style: TextStyle(
-                    color: cs.tertiary.withValues(alpha: 0.8),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5)),
+                  color: cs.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
           ),
         ],
       ),

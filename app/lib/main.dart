@@ -148,19 +148,6 @@ class NaviaApp extends ConsumerStatefulWidget {
 
 class _NaviaAppState extends ConsumerState<NaviaApp> {
   @override
-  void initState() {
-    super.initState();
-    // Inicializar el grafo de navegación en segundo plano tras renderizar el primer cuadro
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 600), () {
-        if (mounted) {
-          ref.read(navigationProvider.notifier).initialize();
-        }
-      });
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeProvider);
     final lightTheme = ref.watch(lightThemeProvider);

@@ -423,6 +423,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
 
     _loadMapStyles();
+
+    Future.microtask(() {
+      ref.read(navigationProvider.notifier).initialize();
+    });
   }
 
   Future<void> _loadMapStyles() async {

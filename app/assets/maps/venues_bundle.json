@@ -19,7 +19,7 @@
           "latitude": 19.264536,
           "accessibilityLevel": "alto",
           "type": "Parque",
-          "name": "Campo de FÃºtbol",
+          "name": "Campo de Fútbol",
           "zoneId": "tec_colima",
           "letter": null,
           "id": "campo_futbol"
@@ -28,7 +28,7 @@
           "zoneId": "tec_colima",
           "letter": null,
           "accessibilityLevel": "alto",
-          "name": "CECUM - Centro Cultural y de Usos MÃºltiples",
+          "name": "CECUM - Centro Cultural y de Usos Múltiples",
           "type": "Edificio",
           "latitude": 19.263685,
           "longitude": -103.723772,
@@ -38,7 +38,7 @@
           "longitude": -103.723879,
           "latitude": 19.262373,
           "letter": null,
-          "name": "Edificio A - Administrativo (DirecciÃ³n)",
+          "name": "Edificio A - Administrativo (Dirección)",
           "type": "Edificio",
           "accessibilityLevel": "alto",
           "zoneId": "tec_colima",
@@ -46,7 +46,7 @@
         },
         {
           "type": "Edificio",
-          "name": "Edificio B - Centro de InformaciÃ³n",
+          "name": "Edificio B - Centro de Información",
           "longitude": -103.723855,
           "letter": null,
           "latitude": 19.262804,
@@ -58,16 +58,16 @@
           "longitude": -103.723817,
           "latitude": 19.263295,
           "letter": null,
-          "name": "Edificio C - CafeterÃ­a Norte",
-          "type": "CafeterÃ­a",
+          "name": "Edificio C - Cafetería Norte",
+          "type": "Cafetería",
           "zoneId": "tec_colima",
           "accessibilityLevel": "alto",
           "id": "edificio_c"
         },
         {
           "accessibilityLevel": "alto",
-          "name": "Edificio C1 - CafeterÃ­a Sur",
-          "type": "CafeterÃ­a",
+          "name": "Edificio C1 - Cafetería Sur",
+          "type": "Cafetería",
           "longitude": -103.722602,
           "letter": null,
           "latitude": 19.262074,
@@ -99,7 +99,7 @@
           "accessibilityLevel": "alto",
           "longitude": -103.723383,
           "letter": null,
-          "name": "Edificio E - Aulas / Lab. MicrobiologÃ­a",
+          "name": "Edificio E - Aulas / Lab. Microbiología",
           "type": "Edificio",
           "zoneId": "tec_colima",
           "id": "edificio_e"
@@ -107,7 +107,7 @@
         {
           "longitude": -103.723391,
           "accessibilityLevel": "alto",
-          "name": "Edificio F - Ciencias BÃ¡sicas",
+          "name": "Edificio F - Ciencias Básicas",
           "type": "Edificio",
           "letter": null,
           "latitude": 19.262411,
@@ -116,7 +116,7 @@
         },
         {
           "type": "Edificio",
-          "name": "Edificio G - Aulas / Lab. QuÃ­mica",
+          "name": "Edificio G - Aulas / Lab. Química",
           "letter": null,
           "accessibilityLevel": "alto",
           "zoneId": "tec_colima",
@@ -125,7 +125,7 @@
           "id": "edificio_g"
         },
         {
-          "name": "Edificio H - Centro de CÃ³mputo",
+          "name": "Edificio H - Centro de Cómputo",
           "type": "Edificio",
           "longitude": -103.722876,
           "zoneId": "tec_colima",
@@ -149,7 +149,7 @@
           "longitude": -103.722914,
           "letter": null,
           "accessibilityLevel": "alto",
-          "name": "Edificio J - Lab. BioquÃ­mica",
+          "name": "Edificio J - Lab. Bioquímica",
           "type": "Edificio",
           "zoneId": "tec_colima",
           "id": "edificio_j"
@@ -168,7 +168,7 @@
           "letter": null,
           "longitude": -103.722857,
           "type": "Edificio",
-          "name": "Edificio L - Lab. QuÃ­mica OrgÃ¡nica",
+          "name": "Edificio L - Lab. Química Orgánica",
           "zoneId": "tec_colima",
           "latitude": 19.262854,
           "accessibilityLevel": "alto",
@@ -200,7 +200,7 @@
           "longitude": -103.723412,
           "zoneId": "tec_colima",
           "type": "Edificio",
-          "name": "Edificio O - CubÃ­culos Docentes",
+          "name": "Edificio O - Cubículos Docentes",
           "latitude": 19.263305,
           "id": "edificio_o"
         },
@@ -227,7 +227,7 @@
         {
           "longitude": -103.722833,
           "latitude": 19.261912,
-          "name": "Edificio R - Sistemas y ComputaciÃ³n",
+          "name": "Edificio R - Sistemas y Computación",
           "type": "Edificio",
           "letter": null,
           "accessibilityLevel": "alto",
@@ -240,7 +240,7 @@
           "accessibilityLevel": "alto",
           "zoneId": "tec_colima",
           "type": "Edificio",
-          "name": "Edificio S - SalÃ³n de la Paz",
+          "name": "Edificio S - Salón de la Paz",
           "letter": null,
           "id": "edificio_s"
         },
@@ -248,7 +248,7 @@
           "longitude": -103.723254,
           "latitude": 19.263667,
           "type": "Edificio",
-          "name": "Edificio T - Ciencias EconÃ³mico Administrativas",
+          "name": "Edificio T - Ciencias Económico Administrativas",
           "zoneId": "tec_colima",
           "accessibilityLevel": "alto",
           "letter": null,
@@ -270,7 +270,7 @@
           "longitude": -103.722766,
           "latitude": 19.261289,
           "type": "Edificio",
-          "name": "Edificio V - Div. Estudios Posgrado e InvestigaciÃ³n",
+          "name": "Edificio V - Div. Estudios Posgrado e Investigación",
           "accessibilityLevel": "alto",
           "id": "edificio_v"
         },
@@ -281,7 +281,7 @@
           "latitude": 19.261712,
           "zoneId": "tec_colima",
           "type": "Edificio",
-          "name": "Edificio W - IngenierÃ­a Industrial",
+          "name": "Edificio W - Ingeniería Industrial",
           "id": "edificio_w"
         },
         {
@@ -298,7 +298,7 @@
           "longitude": -103.722345,
           "latitude": 19.263659,
           "type": "Edificio",
-          "name": "Edificio Y - Lab. MecatrÃ³nica",
+          "name": "Edificio Y - Lab. Mecatrónica",
           "accessibilityLevel": "alto",
           "zoneId": "tec_colima",
           "letter": null,
@@ -339,7 +339,7 @@
           "zoneId": "tec_colima",
           "longitude": -103.723874,
           "type": "Parque",
-          "name": "Patio CÃ­vico",
+          "name": "Patio Cívico",
           "accessibilityLevel": "alto",
           "letter": null,
           "id": "patio_civico"
@@ -1655,7 +1655,7 @@
         },
         {
           "id": "campo_futbol",
-          "name": "Campo de FÃºtbol",
+          "name": "Campo de Fútbol",
           "aliases": [],
           "type": "building",
           "lat": 19.264536,
@@ -1666,7 +1666,7 @@
         },
         {
           "id": "cecum",
-          "name": "CECUM - Centro Cultural y de Usos MÃºltiples",
+          "name": "CECUM - Centro Cultural y de Usos Múltiples",
           "aliases": [],
           "type": "building",
           "lat": 19.263685,
@@ -1677,7 +1677,7 @@
         },
         {
           "id": "edificio_a",
-          "name": "Edificio A - Administrativo (DirecciÃ³n)",
+          "name": "Edificio A - Administrativo (Dirección)",
           "aliases": [],
           "type": "building",
           "lat": 19.262373,
@@ -1688,7 +1688,7 @@
         },
         {
           "id": "edificio_b",
-          "name": "Edificio B - Centro de InformaciÃ³n",
+          "name": "Edificio B - Centro de Información",
           "aliases": [],
           "type": "building",
           "lat": 19.262804,
@@ -1699,7 +1699,7 @@
         },
         {
           "id": "edificio_c",
-          "name": "Edificio C - CafeterÃ­a Norte",
+          "name": "Edificio C - Cafetería Norte",
           "aliases": [],
           "type": "building",
           "lat": 19.263295,
@@ -1710,7 +1710,7 @@
         },
         {
           "id": "edificio_c1",
-          "name": "Edificio C1 - CafeterÃ­a Sur",
+          "name": "Edificio C1 - Cafetería Sur",
           "aliases": [],
           "type": "building",
           "lat": 19.262074,
@@ -1743,7 +1743,7 @@
         },
         {
           "id": "edificio_e",
-          "name": "Edificio E - Aulas / Lab. MicrobiologÃ­a",
+          "name": "Edificio E - Aulas / Lab. Microbiología",
           "aliases": [],
           "type": "building",
           "lat": 19.262209,
@@ -1754,7 +1754,7 @@
         },
         {
           "id": "edificio_f",
-          "name": "Edificio F - Ciencias BÃ¡sicas",
+          "name": "Edificio F - Ciencias Básicas",
           "aliases": [],
           "type": "building",
           "lat": 19.262411,
@@ -1765,7 +1765,7 @@
         },
         {
           "id": "edificio_g",
-          "name": "Edificio G - Aulas / Lab. QuÃ­mica",
+          "name": "Edificio G - Aulas / Lab. Química",
           "aliases": [],
           "type": "building",
           "lat": 19.262644,
@@ -1776,7 +1776,7 @@
         },
         {
           "id": "edificio_h",
-          "name": "Edificio H - Centro de CÃ³mputo",
+          "name": "Edificio H - Centro de Cómputo",
           "aliases": [],
           "type": "building",
           "lat": 19.262639,
@@ -1798,7 +1798,7 @@
         },
         {
           "id": "edificio_j",
-          "name": "Edificio J - Lab. BioquÃ­mica",
+          "name": "Edificio J - Lab. Bioquímica",
           "aliases": [],
           "type": "building",
           "lat": 19.262353,
@@ -1820,7 +1820,7 @@
         },
         {
           "id": "edificio_l",
-          "name": "Edificio L - Lab. QuÃ­mica OrgÃ¡nica",
+          "name": "Edificio L - Lab. Química Orgánica",
           "aliases": [],
           "type": "building",
           "lat": 19.262854,
@@ -1853,7 +1853,7 @@
         },
         {
           "id": "edificio_o",
-          "name": "Edificio O - CubÃ­culos Docentes",
+          "name": "Edificio O - Cubículos Docentes",
           "aliases": [],
           "type": "building",
           "lat": 19.263305,
@@ -1886,7 +1886,7 @@
         },
         {
           "id": "edificio_r",
-          "name": "Edificio R - Sistemas y ComputaciÃ³n",
+          "name": "Edificio R - Sistemas y Computación",
           "aliases": [],
           "type": "building",
           "lat": 19.261912,
@@ -1897,7 +1897,7 @@
         },
         {
           "id": "edificio_s",
-          "name": "Edificio S - SalÃ³n de la Paz",
+          "name": "Edificio S - Salón de la Paz",
           "aliases": [],
           "type": "building",
           "lat": 19.263609,
@@ -1908,7 +1908,7 @@
         },
         {
           "id": "edificio_t",
-          "name": "Edificio T - Ciencias EconÃ³mico Administrativas",
+          "name": "Edificio T - Ciencias Económico Administrativas",
           "aliases": [],
           "type": "building",
           "lat": 19.263667,
@@ -1930,7 +1930,7 @@
         },
         {
           "id": "edificio_v",
-          "name": "Edificio V - Div. Estudios Posgrado e InvestigaciÃ³n",
+          "name": "Edificio V - Div. Estudios Posgrado e Investigación",
           "aliases": [],
           "type": "building",
           "lat": 19.261289,
@@ -1941,7 +1941,7 @@
         },
         {
           "id": "edificio_w",
-          "name": "Edificio W - IngenierÃ­a Industrial",
+          "name": "Edificio W - Ingeniería Industrial",
           "aliases": [],
           "type": "building",
           "lat": 19.261712,
@@ -1963,7 +1963,7 @@
         },
         {
           "id": "edificio_y",
-          "name": "Edificio Y - Lab. MecatrÃ³nica",
+          "name": "Edificio Y - Lab. Mecatrónica",
           "aliases": [],
           "type": "building",
           "lat": 19.263659,
@@ -2007,7 +2007,7 @@
         },
         {
           "id": "patio_civico",
-          "name": "Patio CÃ­vico",
+          "name": "Patio Cívico",
           "aliases": [],
           "type": "building",
           "lat": 19.262571,
@@ -51346,7 +51346,7 @@
         {
           "type": "Cancha",
           "latitude": 19.248784,
-          "name": "Alberca OlÃ­mpica Unidad Morelos",
+          "name": "Alberca Olímpica Unidad Morelos",
           "zoneId": "unidad_morelos",
           "longitude": -103.703206,
           "letter": null,
@@ -51368,7 +51368,7 @@
           "letter": null,
           "longitude": -103.699916,
           "latitude": 19.25057,
-          "name": "Auditorio BenjamÃ­n Fuentes GonzÃ¡lez",
+          "name": "Auditorio Benjamín Fuentes González",
           "zoneId": "unidad_morelos",
           "type": "Cancha",
           "id": "auditorio_benjamin_fuentes_gonzalez"
@@ -51389,7 +51389,7 @@
           "accessibilityLevel": "alto",
           "zoneId": "unidad_morelos",
           "letter": null,
-          "name": "Auditorio Porfirio GutiÃ©rrez Romero",
+          "name": "Auditorio Porfirio Gutiérrez Romero",
           "type": "Cancha",
           "id": "auditorio_porfirio_gutierrez_romero"
         },
@@ -51408,14 +51408,14 @@
           "letter": null,
           "zoneId": "unidad_morelos",
           "accessibilityLevel": "alto",
-          "name": "Cancha de BÃ¡squetbol 1",
+          "name": "Cancha de Básquetbol 1",
           "latitude": 19.247687,
           "type": "Cancha",
           "id": "cancha_de_basquetbol_1"
         },
         {
           "accessibilityLevel": "alto",
-          "name": "Cancha de BÃ¡squetbol 2",
+          "name": "Cancha de Básquetbol 2",
           "zoneId": "unidad_morelos",
           "latitude": 19.246557,
           "type": "Cancha",
@@ -51449,7 +51449,7 @@
           "latitude": 19.247757,
           "type": "Cancha",
           "accessibilityLevel": "alto",
-          "name": "Estadio de BÃ©isbol de Colima",
+          "name": "Estadio de Béisbol de Colima",
           "zoneId": "unidad_morelos",
           "id": "estadio_de_beisbol_de_colima"
         },
@@ -51457,7 +51457,7 @@
           "letter": null,
           "longitude": -103.702073,
           "latitude": 19.24634,
-          "name": "Estadio de FÃºtbol RÃ¡pido",
+          "name": "Estadio de Fútbol Rápido",
           "zoneId": "unidad_morelos",
           "type": "Cancha",
           "accessibilityLevel": "alto",
@@ -51484,7 +51484,7 @@
           "id": "fosa_de_clavados"
         },
         {
-          "name": "Gimnasio ParalÃ­mpico \"Hilda Ceballos\"",
+          "name": "Gimnasio Paralímpico \"Hilda Ceballos\"",
           "zoneId": "unidad_morelos",
           "type": "Cancha",
           "longitude": -103.70351,
@@ -51494,7 +51494,7 @@
           "id": "gimnasio_paralimpico_hilda_ceballos"
         },
         {
-          "name": "PabellÃ³n de BalÃ³nmano",
+          "name": "Pabellón de Balónmano",
           "latitude": 19.248862,
           "type": "Cancha",
           "zoneId": "unidad_morelos",
@@ -58717,7 +58717,7 @@
         },
         {
           "id": "alberca_olimpica_unidad_morelos",
-          "name": "Alberca OlÃ­mpica Unidad Morelos",
+          "name": "Alberca Olímpica Unidad Morelos",
           "aliases": [],
           "type": "building",
           "lat": 19.248784,
@@ -58739,7 +58739,7 @@
         },
         {
           "id": "auditorio_benjamin_fuentes_gonzalez",
-          "name": "Auditorio BenjamÃ­n Fuentes GonzÃ¡lez",
+          "name": "Auditorio Benjamín Fuentes González",
           "aliases": [],
           "type": "building",
           "lat": 19.25057,
@@ -58761,7 +58761,7 @@
         },
         {
           "id": "auditorio_porfirio_gutierrez_romero",
-          "name": "Auditorio Porfirio GutiÃ©rrez Romero",
+          "name": "Auditorio Porfirio Gutiérrez Romero",
           "aliases": [],
           "type": "building",
           "lat": 19.249037,
@@ -58783,7 +58783,7 @@
         },
         {
           "id": "cancha_de_basquetbol_1",
-          "name": "Cancha de BÃ¡squetbol 1",
+          "name": "Cancha de Básquetbol 1",
           "aliases": [],
           "type": "building",
           "lat": 19.247687,
@@ -58794,7 +58794,7 @@
         },
         {
           "id": "cancha_de_basquetbol_2",
-          "name": "Cancha de BÃ¡squetbol 2",
+          "name": "Cancha de Básquetbol 2",
           "aliases": [],
           "type": "building",
           "lat": 19.246557,
@@ -58827,7 +58827,7 @@
         },
         {
           "id": "estadio_de_beisbol_de_colima",
-          "name": "Estadio de BÃ©isbol de Colima",
+          "name": "Estadio de Béisbol de Colima",
           "aliases": [],
           "type": "building",
           "lat": 19.247757,
@@ -58838,7 +58838,7 @@
         },
         {
           "id": "estadio_de_futbol_rapido",
-          "name": "Estadio de FÃºtbol RÃ¡pido",
+          "name": "Estadio de Fútbol Rápido",
           "aliases": [],
           "type": "building",
           "lat": 19.24634,
@@ -58871,7 +58871,7 @@
         },
         {
           "id": "gimnasio_paralimpico_hilda_ceballos",
-          "name": "Gimnasio ParalÃ­mpico \"Hilda Ceballos\"",
+          "name": "Gimnasio Paralímpico \"Hilda Ceballos\"",
           "aliases": [],
           "type": "building",
           "lat": 19.248245,
@@ -58882,7 +58882,7 @@
         },
         {
           "id": "pabellon_de_balonmano",
-          "name": "PabellÃ³n de BalÃ³nmano",
+          "name": "Pabellón de Balónmano",
           "aliases": [],
           "type": "building",
           "lat": 19.248862,
@@ -87391,7 +87391,7 @@
         {
           "zoneId": "gil_cabrera",
           "latitude": 19.268238,
-          "name": "Campo Profesor Carlos TÃ©llez Pimentel",
+          "name": "Campo Profesor Carlos Téllez Pimentel",
           "longitude": -103.740043,
           "accessibilityLevel": "alto",
           "letter": null,
@@ -87405,11 +87405,11 @@
           "type": "Cancha",
           "longitude": -103.74057,
           "zoneId": "gil_cabrera",
-          "name": "Cancha de BÃ¡squetbol 2",
+          "name": "Cancha de Básquetbol 2",
           "id": "cancha_de_basquetbol_2"
         },
         {
-          "name": "Cancha de FÃºtbol 1",
+          "name": "Cancha de Fútbol 1",
           "letter": null,
           "type": "Cancha",
           "latitude": 19.268857,
@@ -87422,7 +87422,7 @@
           "latitude": 19.266925,
           "type": "Cancha",
           "zoneId": "gil_cabrera",
-          "name": "Cancha de FÃºtbol 3",
+          "name": "Cancha de Fútbol 3",
           "longitude": -103.741092,
           "letter": null,
           "accessibilityLevel": "alto",
@@ -87461,7 +87461,7 @@
         {
           "type": "Cancha",
           "letter": null,
-          "name": "Club Deportivo Villa de Ãlvarez",
+          "name": "Club Deportivo Villa de Álvarez",
           "zoneId": "gil_cabrera",
           "latitude": 19.267749,
           "longitude": -103.73959,
@@ -87501,7 +87501,7 @@
         {
           "letter": null,
           "longitude": -103.741588,
-          "name": "Pista de Atletismo Villa de Ãlvarez",
+          "name": "Pista de Atletismo Villa de Álvarez",
           "zoneId": "gil_cabrera",
           "latitude": 19.268792,
           "type": "Cancha",
@@ -87515,7 +87515,7 @@
           "longitude": -103.739849,
           "latitude": 19.269262,
           "zoneId": "gil_cabrera",
-          "name": "SintÃ©tico de La Villa",
+          "name": "Sintético de La Villa",
           "id": "sintetico_de_la_villa"
         },
         {
@@ -87541,7 +87541,7 @@
         {
           "accessibilityLevel": "alto",
           "letter": null,
-          "name": "Unidad deportiva de Villa de Ãlvarez",
+          "name": "Unidad deportiva de Villa de Álvarez",
           "latitude": 19.267265,
           "zoneId": "gil_cabrera",
           "longitude": -103.740571,
@@ -91169,7 +91169,7 @@
         },
         {
           "id": "campo_profesor_carlos_tellez_pimentel",
-          "name": "Campo Profesor Carlos TÃ©llez Pimentel",
+          "name": "Campo Profesor Carlos Téllez Pimentel",
           "aliases": [],
           "type": "building",
           "lat": 19.268238,
@@ -91180,7 +91180,7 @@
         },
         {
           "id": "cancha_de_basquetbol_2",
-          "name": "Cancha de BÃ¡squetbol 2",
+          "name": "Cancha de Básquetbol 2",
           "aliases": [],
           "type": "building",
           "lat": 19.269054,
@@ -91191,7 +91191,7 @@
         },
         {
           "id": "cancha_de_futbol_1",
-          "name": "Cancha de FÃºtbol 1",
+          "name": "Cancha de Fútbol 1",
           "aliases": [],
           "type": "building",
           "lat": 19.268857,
@@ -91202,7 +91202,7 @@
         },
         {
           "id": "cancha_de_futbol_3",
-          "name": "Cancha de FÃºtbol 3",
+          "name": "Cancha de Fútbol 3",
           "aliases": [],
           "type": "building",
           "lat": 19.266925,
@@ -91246,7 +91246,7 @@
         },
         {
           "id": "club_deportivo_villa_de_alvarez",
-          "name": "Club Deportivo Villa de Ãlvarez",
+          "name": "Club Deportivo Villa de Álvarez",
           "aliases": [],
           "type": "building",
           "lat": 19.267749,
@@ -91290,7 +91290,7 @@
         },
         {
           "id": "pista_de_atletismo_villa_de_alvarez",
-          "name": "Pista de Atletismo Villa de Ãlvarez",
+          "name": "Pista de Atletismo Villa de Álvarez",
           "aliases": [],
           "type": "building",
           "lat": 19.268792,
@@ -91301,7 +91301,7 @@
         },
         {
           "id": "sintetico_de_la_villa",
-          "name": "SintÃ©tico de La Villa",
+          "name": "Sintético de La Villa",
           "aliases": [],
           "type": "building",
           "lat": 19.269262,
@@ -91334,7 +91334,7 @@
         },
         {
           "id": "unidad_deportiva_de_villa_de_alvarez",
-          "name": "Unidad deportiva de Villa de Ãlvarez",
+          "name": "Unidad deportiva de Villa de Álvarez",
           "aliases": [],
           "type": "building",
           "lat": 19.267265,
@@ -111932,7 +111932,7 @@
           "longitude": -103.736809,
           "accessibilityLevel": "alto",
           "zoneId": "imss",
-          "name": "Cancha de BÃ¡squetbol 2",
+          "name": "Cancha de Básquetbol 2",
           "type": "Cancha",
           "letter": null,
           "id": "cancha_de_basquetbol_2"
@@ -111944,7 +111944,7 @@
           "longitude": -103.737132,
           "latitude": 19.236919,
           "zoneId": "imss",
-          "name": "Cancha de FÃºtbol",
+          "name": "Cancha de Fútbol",
           "id": "cancha_de_futbol"
         },
         {
@@ -111984,7 +111984,7 @@
           "longitude": -103.738148,
           "accessibilityLevel": "alto",
           "letter": null,
-          "name": "JardÃ­n Pimentel Llerenas",
+          "name": "Jardín Pimentel Llerenas",
           "id": "jardin_pimentel_llerenas"
         }
       ],
@@ -113212,7 +113212,7 @@
         },
         {
           "id": "cancha_de_basquetbol_2",
-          "name": "Cancha de BÃ¡squetbol 2",
+          "name": "Cancha de Básquetbol 2",
           "aliases": [],
           "type": "building",
           "lat": 19.236534,
@@ -113223,7 +113223,7 @@
         },
         {
           "id": "cancha_de_futbol",
-          "name": "Cancha de FÃºtbol",
+          "name": "Cancha de Fútbol",
           "aliases": [],
           "type": "building",
           "lat": 19.236919,
@@ -113267,7 +113267,7 @@
         },
         {
           "id": "jardin_pimentel_llerenas",
-          "name": "JardÃ­n Pimentel Llerenas",
+          "name": "Jardín Pimentel Llerenas",
           "aliases": [],
           "type": "building",
           "lat": 19.23891,
@@ -119499,7 +119499,7 @@
     "coquimatlan": {
       "places": [
         {
-          "name": "Campo No. 2 \"EfraÃ­n Delgado Camarena\"",
+          "name": "Campo No. 2 \"Efraín Delgado Camarena\"",
           "type": "Cancha",
           "zoneId": "coquimatlan",
           "longitude": -103.804291,
@@ -119509,7 +119509,7 @@
           "id": "campo_no_2_efrain_delgado_camarena"
         },
         {
-          "name": "Cancha de BÃ¡squetbol",
+          "name": "Cancha de Básquetbol",
           "type": "Cancha",
           "longitude": -103.803788,
           "zoneId": "coquimatlan",
@@ -119523,14 +119523,14 @@
           "type": "Cancha",
           "accessibilityLevel": "alto",
           "letter": null,
-          "name": "Cancha de FrontÃ³n",
+          "name": "Cancha de Frontón",
           "latitude": 19.216924,
           "longitude": -103.804176,
           "id": "cancha_de_fronton"
         },
         {
           "longitude": -103.804855,
-          "name": "Cancha de FÃºtbol 2",
+          "name": "Cancha de Fútbol 2",
           "type": "Cancha",
           "zoneId": "coquimatlan",
           "letter": null,
@@ -119543,7 +119543,7 @@
           "letter": null,
           "zoneId": "coquimatlan",
           "longitude": -103.804172,
-          "name": "Cancha de Futbol RÃ¡pido",
+          "name": "Cancha de Futbol Rápido",
           "latitude": 19.217259,
           "type": "Cancha",
           "id": "cancha_de_futbol_rapido"
@@ -119581,7 +119581,7 @@
         {
           "latitude": 19.216703,
           "accessibilityLevel": "alto",
-          "name": "Unidad Deportiva CoquimatlÃ¡n",
+          "name": "Unidad Deportiva Coquimatlán",
           "letter": null,
           "zoneId": "coquimatlan",
           "longitude": -103.8046,
@@ -119589,7 +119589,7 @@
           "id": "unidad_deportiva_coquimatlan"
         },
         {
-          "name": "Unidad Deportiva Norte \"Gustavo Alberto VÃ¡zquez Montes\"",
+          "name": "Unidad Deportiva Norte \"Gustavo Alberto Vázquez Montes\"",
           "latitude": 19.216341,
           "type": "Cancha",
           "zoneId": "coquimatlan",
@@ -121417,7 +121417,7 @@
         },
         {
           "id": "campo_no_2_efrain_delgado_camarena",
-          "name": "Campo No. 2 \"EfraÃ­n Delgado Camarena\"",
+          "name": "Campo No. 2 \"Efraín Delgado Camarena\"",
           "aliases": [],
           "type": "building",
           "lat": 19.216144,
@@ -121428,7 +121428,7 @@
         },
         {
           "id": "cancha_de_basquetbol",
-          "name": "Cancha de BÃ¡squetbol",
+          "name": "Cancha de Básquetbol",
           "aliases": [],
           "type": "building",
           "lat": 19.216944,
@@ -121439,7 +121439,7 @@
         },
         {
           "id": "cancha_de_fronton",
-          "name": "Cancha de FrontÃ³n",
+          "name": "Cancha de Frontón",
           "aliases": [],
           "type": "building",
           "lat": 19.216924,
@@ -121450,7 +121450,7 @@
         },
         {
           "id": "cancha_de_futbol_2",
-          "name": "Cancha de FÃºtbol 2",
+          "name": "Cancha de Fútbol 2",
           "aliases": [],
           "type": "building",
           "lat": 19.216292,
@@ -121461,7 +121461,7 @@
         },
         {
           "id": "cancha_de_futbol_rapido",
-          "name": "Cancha de Futbol RÃ¡pido",
+          "name": "Cancha de Futbol Rápido",
           "aliases": [],
           "type": "building",
           "lat": 19.217259,
@@ -121505,7 +121505,7 @@
         },
         {
           "id": "unidad_deportiva_coquimatlan",
-          "name": "Unidad Deportiva CoquimatlÃ¡n",
+          "name": "Unidad Deportiva Coquimatlán",
           "aliases": [],
           "type": "building",
           "lat": 19.216703,
@@ -121516,7 +121516,7 @@
         },
         {
           "id": "unidad_deportiva_norte_gustavo_alberto_vazquez_montes",
-          "name": "Unidad Deportiva Norte \"Gustavo Alberto VÃ¡zquez Montes\"",
+          "name": "Unidad Deportiva Norte \"Gustavo Alberto Vázquez Montes\"",
           "aliases": [],
           "type": "building",
           "lat": 19.216341,
@@ -130464,7 +130464,7 @@
           "type": "Cancha",
           "accessibilityLevel": "alto",
           "longitude": -103.726011,
-          "name": "Cancha de FÃºtbol 1",
+          "name": "Cancha de Fútbol 1",
           "latitude": 19.291346,
           "zoneId": "gustavo_vazquez",
           "letter": null,
@@ -130475,7 +130475,7 @@
           "letter": null,
           "type": "Cancha",
           "longitude": -103.727563,
-          "name": "Cancha de FÃºtbol 4",
+          "name": "Cancha de Fútbol 4",
           "accessibilityLevel": "alto",
           "latitude": 19.2919,
           "id": "cancha_de_futbol_4"
@@ -130487,13 +130487,13 @@
           "accessibilityLevel": "alto",
           "longitude": -103.728901,
           "type": "Cancha",
-          "name": "Cancha de FÃºtbol 6",
+          "name": "Cancha de Fútbol 6",
           "id": "cancha_de_futbol_6"
         },
         {
           "longitude": -103.731596,
           "latitude": 19.289156,
-          "name": "Cancha de Futbol RÃ¡pido Los Almendros",
+          "name": "Cancha de Futbol Rápido Los Almendros",
           "zoneId": "gustavo_vazquez",
           "letter": null,
           "accessibilityLevel": "alto",
@@ -130517,7 +130517,7 @@
           "latitude": 19.28856,
           "zoneId": "gustavo_vazquez",
           "letter": null,
-          "name": "Canchas de BÃ¡squetbol Bugambilias",
+          "name": "Canchas de Básquetbol Bugambilias",
           "id": "canchas_de_basquetbol_bugambilias"
         },
         {
@@ -130525,13 +130525,13 @@
           "letter": null,
           "accessibilityLevel": "alto",
           "longitude": -103.730482,
-          "name": "Canchas y JardÃ­n",
+          "name": "Canchas y Jardín",
           "type": "Cancha",
           "latitude": 19.291285,
           "id": "canchas_y_jardin"
         },
         {
-          "name": "Complejo Deportivo SNTE SecciÃ³n 6",
+          "name": "Complejo Deportivo SNTE Sección 6",
           "longitude": -103.726491,
           "latitude": 19.291362,
           "accessibilityLevel": "alto",
@@ -134260,7 +134260,7 @@
         },
         {
           "id": "cancha_de_futbol_1",
-          "name": "Cancha de FÃºtbol 1",
+          "name": "Cancha de Fútbol 1",
           "aliases": [],
           "type": "building",
           "lat": 19.291346,
@@ -134271,7 +134271,7 @@
         },
         {
           "id": "cancha_de_futbol_4",
-          "name": "Cancha de FÃºtbol 4",
+          "name": "Cancha de Fútbol 4",
           "aliases": [],
           "type": "building",
           "lat": 19.2919,
@@ -134282,7 +134282,7 @@
         },
         {
           "id": "cancha_de_futbol_6",
-          "name": "Cancha de FÃºtbol 6",
+          "name": "Cancha de Fútbol 6",
           "aliases": [],
           "type": "building",
           "lat": 19.292044,
@@ -134293,7 +134293,7 @@
         },
         {
           "id": "cancha_de_futbol_rapido_los_almendros",
-          "name": "Cancha de Futbol RÃ¡pido Los Almendros",
+          "name": "Cancha de Futbol Rápido Los Almendros",
           "aliases": [],
           "type": "building",
           "lat": 19.289156,
@@ -134315,7 +134315,7 @@
         },
         {
           "id": "canchas_de_basquetbol_bugambilias",
-          "name": "Canchas de BÃ¡squetbol Bugambilias",
+          "name": "Canchas de Básquetbol Bugambilias",
           "aliases": [],
           "type": "building",
           "lat": 19.28856,
@@ -134326,7 +134326,7 @@
         },
         {
           "id": "canchas_y_jardin",
-          "name": "Canchas y JardÃ­n",
+          "name": "Canchas y Jardín",
           "aliases": [],
           "type": "building",
           "lat": 19.291285,
@@ -134337,7 +134337,7 @@
         },
         {
           "id": "complejo_deportivo_snte_seccion_6",
-          "name": "Complejo Deportivo SNTE SecciÃ³n 6",
+          "name": "Complejo Deportivo SNTE Sección 6",
           "aliases": [],
           "type": "building",
           "lat": 19.291362,
@@ -146827,7 +146827,7 @@
           "zoneId": "sur",
           "letter": null,
           "accessibilityLevel": "alto",
-          "name": "Cancha de BÃ¡squetbol",
+          "name": "Cancha de Básquetbol",
           "longitude": -103.725417,
           "latitude": 19.216917,
           "id": "cancha_de_basquetbol"
@@ -146837,7 +146837,7 @@
           "longitude": -103.724654,
           "zoneId": "sur",
           "latitude": 19.218046,
-          "name": "Cancha de FÃºtbol",
+          "name": "Cancha de Fútbol",
           "letter": null,
           "accessibilityLevel": "alto",
           "id": "cancha_de_futbol"
@@ -146858,7 +146858,7 @@
           "accessibilityLevel": "alto",
           "letter": null,
           "longitude": -103.725576,
-          "name": "Centro Formativo de FÃºtbol Rey Coliman",
+          "name": "Centro Formativo de Fútbol Rey Coliman",
           "zoneId": "sur",
           "id": "centro_formativo_de_futbol_rey_coliman"
         },
@@ -146878,7 +146878,7 @@
           "type": "Cancha",
           "zoneId": "sur",
           "longitude": -103.725173,
-          "name": "Unidad Deportiva Rey de ColimÃ¡n",
+          "name": "Unidad Deportiva Rey de Colimán",
           "accessibilityLevel": "alto",
           "id": "unidad_deportiva_rey_de_coliman"
         }
@@ -147535,7 +147535,7 @@
         },
         {
           "id": "cancha_de_basquetbol",
-          "name": "Cancha de BÃ¡squetbol",
+          "name": "Cancha de Básquetbol",
           "aliases": [],
           "type": "building",
           "lat": 19.216917,
@@ -147546,7 +147546,7 @@
         },
         {
           "id": "cancha_de_futbol",
-          "name": "Cancha de FÃºtbol",
+          "name": "Cancha de Fútbol",
           "aliases": [],
           "type": "building",
           "lat": 19.218046,
@@ -147568,7 +147568,7 @@
         },
         {
           "id": "centro_formativo_de_futbol_rey_coliman",
-          "name": "Centro Formativo de FÃºtbol Rey Coliman",
+          "name": "Centro Formativo de Fútbol Rey Coliman",
           "aliases": [],
           "type": "building",
           "lat": 19.216721,
@@ -147590,7 +147590,7 @@
         },
         {
           "id": "unidad_deportiva_rey_de_coliman",
-          "name": "Unidad Deportiva Rey de ColimÃ¡n",
+          "name": "Unidad Deportiva Rey de Colimán",
           "aliases": [],
           "type": "building",
           "lat": 19.217194,
@@ -152199,14 +152199,14 @@
           "letter": null,
           "latitude": 19.234259,
           "type": "Cancha",
-          "name": "Auditorio J. Antonio Sam LÃ³pez",
+          "name": "Auditorio J. Antonio Sam López",
           "longitude": -103.706326,
           "id": "auditorio_j_antonio_sam_lopez"
         },
         {
           "zoneId": "udif",
           "letter": null,
-          "name": "Campo de BÃ©isbol",
+          "name": "Campo de Béisbol",
           "type": "Cancha",
           "accessibilityLevel": "alto",
           "longitude": -103.706332,
@@ -152216,7 +152216,7 @@
         {
           "accessibilityLevel": "alto",
           "type": "Cancha",
-          "name": "Cancha de BÃ¡squetbol 1",
+          "name": "Cancha de Básquetbol 1",
           "zoneId": "udif",
           "letter": null,
           "latitude": 19.235188,
@@ -152227,7 +152227,7 @@
           "longitude": -103.70738,
           "type": "Cancha",
           "latitude": 19.235424,
-          "name": "Cancha de BÃ¡squetbol 2",
+          "name": "Cancha de Básquetbol 2",
           "zoneId": "udif",
           "letter": null,
           "accessibilityLevel": "alto",
@@ -152236,7 +152236,7 @@
         {
           "longitude": -103.708694,
           "type": "Cancha",
-          "name": "Cancha de BÃ¡squetbol 5",
+          "name": "Cancha de Básquetbol 5",
           "zoneId": "udif",
           "letter": null,
           "accessibilityLevel": "alto",
@@ -152246,7 +152246,7 @@
         {
           "accessibilityLevel": "alto",
           "latitude": 19.234441,
-          "name": "Cancha de FÃºtbol 1",
+          "name": "Cancha de Fútbol 1",
           "type": "Cancha",
           "longitude": -103.705782,
           "letter": null,
@@ -152257,7 +152257,7 @@
           "zoneId": "udif",
           "letter": null,
           "accessibilityLevel": "alto",
-          "name": "Canchas Nuevo ParaÃ­so",
+          "name": "Canchas Nuevo Paraíso",
           "type": "Cancha",
           "latitude": 19.23414,
           "longitude": -103.702194,
@@ -154002,7 +154002,7 @@
         },
         {
           "id": "auditorio_j_antonio_sam_lopez",
-          "name": "Auditorio J. Antonio Sam LÃ³pez",
+          "name": "Auditorio J. Antonio Sam López",
           "aliases": [],
           "type": "building",
           "lat": 19.234259,
@@ -154013,7 +154013,7 @@
         },
         {
           "id": "campo_de_beisbol",
-          "name": "Campo de BÃ©isbol",
+          "name": "Campo de Béisbol",
           "aliases": [],
           "type": "building",
           "lat": 19.23486,
@@ -154024,7 +154024,7 @@
         },
         {
           "id": "cancha_de_basquetbol_1",
-          "name": "Cancha de BÃ¡squetbol 1",
+          "name": "Cancha de Básquetbol 1",
           "aliases": [],
           "type": "building",
           "lat": 19.235188,
@@ -154035,7 +154035,7 @@
         },
         {
           "id": "cancha_de_basquetbol_2",
-          "name": "Cancha de BÃ¡squetbol 2",
+          "name": "Cancha de Básquetbol 2",
           "aliases": [],
           "type": "building",
           "lat": 19.235424,
@@ -154046,7 +154046,7 @@
         },
         {
           "id": "cancha_de_basquetbol_5",
-          "name": "Cancha de BÃ¡squetbol 5",
+          "name": "Cancha de Básquetbol 5",
           "aliases": [],
           "type": "building",
           "lat": 19.234122,
@@ -154057,7 +154057,7 @@
         },
         {
           "id": "cancha_de_futbol_1",
-          "name": "Cancha de FÃºtbol 1",
+          "name": "Cancha de Fútbol 1",
           "aliases": [],
           "type": "building",
           "lat": 19.234441,
@@ -154068,7 +154068,7 @@
         },
         {
           "id": "canchas_nuevo_paraiso",
-          "name": "Canchas Nuevo ParaÃ­so",
+          "name": "Canchas Nuevo Paraíso",
           "aliases": [],
           "type": "building",
           "lat": 19.23414,
@@ -161787,7 +161787,7 @@
         },
         {
           "id": "estadio_de_beisbol_valentin_quintero",
-          "name": "Estadio de BÃ©isbol \"ValentÃ­n Quintero del Toro\"",
+          "name": "Estadio de Béisbol \"Valentín Quintero del Toro\"",
           "aliases": [],
           "type": "building",
           "lat": 19.19177,
@@ -161798,7 +161798,7 @@
         },
         {
           "id": "campo_de_futbol_1",
-          "name": "Campo de FÃºtbol 1 (Principal)",
+          "name": "Campo de Fútbol 1 (Principal)",
           "aliases": [],
           "type": "building",
           "lat": 19.192625,
@@ -161809,7 +161809,7 @@
         },
         {
           "id": "campo_de_futbol_2",
-          "name": "Campo de FÃºtbol 2",
+          "name": "Campo de Fútbol 2",
           "aliases": [],
           "type": "building",
           "lat": 19.193296,
@@ -161820,7 +161820,7 @@
         },
         {
           "id": "campo_de_futbol_3",
-          "name": "Campo de FÃºtbol 3 (Infantil)",
+          "name": "Campo de Fútbol 3 (Infantil)",
           "aliases": [],
           "type": "building",
           "lat": 19.193181,
@@ -161831,7 +161831,7 @@
         },
         {
           "id": "cancha_techada_las_moras",
-          "name": "Cancha Techada de BÃ¡squetbol",
+          "name": "Cancha Techada de Básquetbol",
           "aliases": [],
           "type": "building",
           "lat": 19.192247,
@@ -161842,7 +161842,7 @@
         },
         {
           "id": "cancha_de_basquetbol_1",
-          "name": "Cancha de BÃ¡squetbol 1",
+          "name": "Cancha de Básquetbol 1",
           "aliases": [],
           "type": "building",
           "lat": 19.192536,
@@ -161853,7 +161853,7 @@
         },
         {
           "id": "cancha_de_basquetbol_2",
-          "name": "Cancha de BÃ¡squetbol 2",
+          "name": "Cancha de Básquetbol 2",
           "aliases": [],
           "type": "building",
           "lat": 19.19265,
@@ -161864,7 +161864,7 @@
         },
         {
           "id": "canchas_de_fronton",
-          "name": "Canchas de FrontÃ³n",
+          "name": "Canchas de Frontón",
           "aliases": [],
           "type": "building",
           "lat": 19.19241,
@@ -161897,7 +161897,7 @@
         },
         {
           "id": "area_de_juegos_infantiles_las_moras",
-          "name": "Ãrea de Juegos Infantiles",
+          "name": "Área de Juegos Infantiles",
           "aliases": [],
           "type": "building",
           "lat": 19.1923,

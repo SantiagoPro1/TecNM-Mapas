@@ -105,7 +105,30 @@ class NavigationService {
     });
 
     _currentNodeId = nearby.first.id;
-    return nearby.first;
+    final closest = nearby.first;
+
+    // Si el nodo más cercano es un andador o vértice sin nombre (típico en sedes
+    // con grafo de caminos OSM), buscamos si hay un punto o cancha con nombre
+    // dentro de 100 metros para que la UI muestre el lugar real en vez de un vacío.
+    if (closest.name.trim().isEmpty) {
+      CampusNode? nearestNamed;
+      double minNamedDist = double.infinity;
+      for (final n in nearby) {
+        if (n.name.trim().isNotEmpty) {
+          final d = _approxDistMeters(lat, lng, n.lat, n.lng);
+          if (d < minNamedDist) {
+            minNamedDist = d;
+            nearestNamed = n;
+          }
+        }
+      }
+      if (nearestNamed != null && minNamedDist <= 100) {
+        final prefix = minNamedDist < 25 ? 'En' : 'Cerca de';
+        return closest.copyWith(name: '$prefix ${nearestNamed.name}');
+      }
+    }
+
+    return closest;
   }
 
   /// Distancia aproximada en metros para distancias cortas.

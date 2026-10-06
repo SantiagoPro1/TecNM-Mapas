@@ -5,6 +5,6 @@ class AppVersion {
   /// Versión visible para el usuario (ej. 1.0.5).
   static const String version = '1.0.5';
 
-  /// Número de compilación secuencial para comparar actualizaciones (ej. 7).
-  static const int buildNumber = 7;
+  /// Número de compilación secuencial para comparar actualizaciones (ej. 8).
+  static const int buildNumber = 8;
 }

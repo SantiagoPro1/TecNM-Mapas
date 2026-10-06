@@ -58,7 +58,7 @@ class CampusGraph {
             cachedData['nodes'] as List<dynamic>,
             cachedData['edges'] as List<dynamic>? ?? [],
           );
-          return CampusGraph.fromJson(cachedData);
+          return await compute(CampusGraph.fromJson, cachedData);
         }
       }
     } catch (e) {

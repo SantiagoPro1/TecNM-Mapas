@@ -192,41 +192,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: cs.primary.withValues(alpha: 0.18),
-                    width: 0.8,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: cs.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'TECNM • CAMPUS COLIMA',
-                      style: TextStyle(
-                        color: cs.primary,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
               Row(
                 children: [
                   Text(
@@ -508,28 +473,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        children: [
-                          _buildCampusPill(
-                            icon: Icons.map_rounded,
-                            label: 'Mapa interactivo',
-                            cs: cs,
-                          ),
-                          _buildCampusPill(
-                            icon: Icons.route_rounded,
-                            label: 'Rutas Dijkstra',
-                            cs: cs,
-                          ),
-                          _buildCampusPill(
-                            icon: Icons.accessible_rounded,
-                            label: 'Accesibilidad',
-                            cs: cs,
-                          ),
-                        ],
-                      ),
                     ],
                   ),
                 ),
@@ -676,39 +619,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildCampusPill({
-    required IconData icon,
-    required String label,
-    required ColorScheme cs,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(
-          color: cs.primary.withValues(alpha: 0.14),
-          width: 0.8,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: cs.primary),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: cs.primary,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ),
     );
   }

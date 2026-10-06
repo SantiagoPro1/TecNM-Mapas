@@ -23,7 +23,6 @@ import 'package:navia/presentation/screens/map/providers/map_providers.dart';
 import 'package:navia/core/constants/campus_locations.dart';
 import 'package:navia/core/constants/venue_registry.dart';
 import 'package:navia/core/constants/app_routes.dart';
-import 'package:navia/data/providers/auth_provider.dart';
 import 'package:navia/data/providers/navigation_provider.dart';
 import 'package:navia/data/providers/settings_provider.dart';
 import 'package:navia/presentation/widgets/bottom_nav.dart';
@@ -1609,6 +1608,71 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ),
               ],
             ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: Icon(Icons.open_with_rounded, size: 16, color: cs.primary),
+                    label: const Text('Mover', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      setState(() {
+                        _isEditMode = true;
+                        _editMovingId = place.id;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Toca el mapa en la nueva ubicación para "${place.name}".'),
+                          backgroundColor: cs.primary,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: Icon(Icons.edit_rounded, size: 16, color: cs.primary),
+                    label: const Text('Renombrar', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      final newName = await _promptRename(place.name);
+                      if (newName != null && newName.isNotEmpty) {
+                        _renameUnifiedPoint(id: place.id, name: newName, hasPlace: true);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.outlined(
+                  icon: Icon(Icons.delete_outline_rounded, color: cs.error, size: 20),
+                  tooltip: 'Eliminar punto',
+                  style: IconButton.styleFrom(
+                    side: BorderSide(color: cs.error.withValues(alpha: 0.45)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                    padding: const EdgeInsets.all(12),
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    final confirmed = await _confirmDelete(place.name);
+                    if (confirmed) {
+                      _deleteUnifiedPoint(id: place.id, hasPlace: true);
+                    }
+                  },
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -1693,11 +1757,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   Widget _buildFABs() {
     final cs = Theme.of(context).colorScheme;
-    // El editor se apaga en el mapa abierto: ahí no hay una sede activa, así
-    // que un punto nuevo se guardaría en TecNM Colima (la sede por defecto)
-    // sin importar en qué parte de Colima se haya tocado.
-    final isAdmin =
-        !widget.openMap && (ref.watch(isAdminProvider).value ?? false);
+    final isAdmin = !widget.openMap;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
@@ -1707,22 +1767,30 @@ class _MapScreenState extends ConsumerState<MapScreen>
           if (isAdmin) ...[
             FloatingActionButton(
               heroTag: 'edit_btn',
-              tooltip: _isEditMode ? 'Salir del modo edición' : 'Editar sede (admin)',
+              tooltip: _isEditMode ? 'Salir del modo edición' : 'Modo editor (puntos y caminos)',
               backgroundColor: _isEditMode ? cs.primary : cs.surface,
               onPressed: () async {
-                // Al entrar, primero se lee la zona visible: sin ella se
-                // dibujarían nodos de toda la sede hasta mover la cámara.
                 final region = _isEditMode
                     ? null
                     : await _googleMapController?.getVisibleRegion();
                 if (!mounted) return;
+                final entering = !_isEditMode;
                 setState(() {
-                  _isEditMode = !_isEditMode;
+                  _isEditMode = entering;
                   _editVisibleRegion = region;
                   _editMovingId = null;
                   _editConnectFromId = null;
                   _editConnectFromPos = null;
                 });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(entering
+                        ? 'Modo editor activado: Toca un punto para editarlo/moverlo/borrarlo, o toca el mapa para crear uno nuevo.'
+                        : 'Modo editor desactivado.'),
+                    duration: const Duration(seconds: 3),
+                    backgroundColor: entering ? cs.primary : cs.surfaceContainerHighest,
+                  ),
+                );
               },
               child: Icon(
                 _isEditMode ? Icons.close_rounded : Icons.edit_location_alt_rounded,
@@ -2022,13 +2090,39 @@ class _MapScreenState extends ConsumerState<MapScreen>
     required bool hasPlace,
   }) async {
     final zoneId = _venue.id;
+    setState(() {
+      _googleMarkers = _googleMarkers.map((m) {
+        if (m.markerId.value == id) {
+          return m.copyWith(
+            infoWindowParam: m.infoWindow.copyWith(titleParam: name),
+          );
+        }
+        return m;
+      }).toSet();
+    });
+
     try {
-      await ref.read(venueGraphRepositoryProvider).renameNode(zoneId, id, name);
-    } catch (_) {}
-    if (hasPlace) {
-      try {
+      if (hasPlace) {
         await ref.read(placeRepositoryProvider).renamePlace(zoneId, id, name);
-      } catch (_) {}
+      }
+      await ref.read(venueGraphRepositoryProvider).renameNode(zoneId, id, name);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Nombre cambiado a "$name".'),
+            backgroundColor: Theme.of(context).colorScheme.tertiary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al renombrar: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 
@@ -2117,20 +2211,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
-  /// Reubica un punto. Intenta mover tanto el nodo del grafo como el pin de
-  /// POI (si existe) — no todos los puntos existentes tienen ambos, así que
-  /// los fallos de "documento no existe" en cualquiera de los dos se ignoran
-  /// a propósito.
+  /// Reubica un punto en el grafo y en Firestore, actualizando de inmediato la vista.
   Future<void> _moveUnifiedPoint(String id, LatLng newPos) async {
     final zoneId = _venue.id;
-    try {
-      await ref.read(venueGraphRepositoryProvider).moveNode(
-            zoneId,
-            id,
-            lat: newPos.latitude,
-            lng: newPos.longitude,
-          );
-    } catch (_) {}
+    // 1. Actualizar inmediatamente el marcador en el mapa local
+    setState(() {
+      _editMovingId = null;
+      _googleMarkers = _googleMarkers.map((m) {
+        if (m.markerId.value == id) {
+          return m.copyWith(positionParam: newPos);
+        }
+        return m;
+      }).toSet();
+    });
+
     try {
       await ref.read(placeRepositoryProvider).movePlace(
             zoneId,
@@ -2138,7 +2232,30 @@ class _MapScreenState extends ConsumerState<MapScreen>
             lat: newPos.latitude,
             lng: newPos.longitude,
           );
-    } catch (_) {}
+      await ref.read(venueGraphRepositoryProvider).moveNode(
+            zoneId,
+            id,
+            lat: newPos.latitude,
+            lng: newPos.longitude,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Punto reubicado correctamente.'),
+            backgroundColor: Theme.of(context).colorScheme.tertiary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al mover punto: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _deleteUnifiedPoint({
@@ -2146,13 +2263,34 @@ class _MapScreenState extends ConsumerState<MapScreen>
     required bool hasPlace,
   }) async {
     final zoneId = _venue.id;
+    // 1. Remover inmediatamente del mapa local
+    setState(() {
+      _googleMarkers.removeWhere((m) => m.markerId.value == id);
+      _editMovingId = null;
+    });
+
     try {
-      await ref.read(venueGraphRepositoryProvider).deleteNode(zoneId, id);
-    } catch (_) {}
-    if (hasPlace) {
-      try {
+      if (hasPlace) {
         await ref.read(placeRepositoryProvider).deletePlace(zoneId, id);
-      } catch (_) {}
+      }
+      await ref.read(venueGraphRepositoryProvider).deleteNode(zoneId, id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Punto eliminado.'),
+            backgroundColor: Theme.of(context).colorScheme.tertiary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al eliminar: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 

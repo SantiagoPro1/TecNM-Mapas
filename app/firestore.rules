@@ -31,27 +31,27 @@ service cloud.firestore {
     // para que los teléfonos vuelvan a leer de Firestore.
     match /app_meta/{documento} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if true;
     }
 
     // Sedes (TecNM Colima, Sendera, Zentralia, sedes del Evento Nacional
-    // Deportivo) y sus subcolecciones. Lectura pública: los invitados sin
-    // cuenta necesitan ver el mapa. Escritura solo para administradores.
+    // Deportivo) y sus subcolecciones. Lectura y escritura permitidas para
+    // que el editor en la app pueda agregar, mover y eliminar puntos en vivo.
     match /venues/{venueId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if true;
 
       match /places/{placeId} {
         allow read: if true;
-        allow write: if isAdmin();
+        allow write: if true;
       }
       match /nodes/{nodeId} {
         allow read: if true;
-        allow write: if isAdmin();
+        allow write: if true;
       }
       match /edges/{edgeId} {
         allow read: if true;
-        allow write: if isAdmin();
+        allow write: if true;
       }
     }
 

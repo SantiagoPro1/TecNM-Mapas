@@ -7,6 +7,8 @@ app/build/
 app/.pub-cache/
 app/.pub/
 app/.agents/
+.agent/
+.agents/
 app/android/.gradle/
 app/android/local.properties
 app/android/key.properties
@@ -37,6 +39,8 @@ backend/node_modules/
 backend/.env
 backend/dist/
 backend/logs/
+scratch/
+app/scratch/
 
 # VSCode
 .vscode/settings.json

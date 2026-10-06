@@ -1,6 +1,6 @@
 name: navia
 description: Sistema de Navegación Inteligente Accesible del Instituto Tecnológico
-version: 1.0.6+9
+version: 1.0.7+10
 publish_to: none
 
 environment:

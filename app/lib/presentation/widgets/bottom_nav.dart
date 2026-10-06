@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:navia/core/constants/app_routes.dart';
-import 'package:navia/core/theme/app_theme.dart';
 
 class BottomNav extends StatelessWidget {
   final int currentIndex;
@@ -102,18 +101,18 @@ class _NavItem extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           decoration: isActive
               ? BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  color: cs.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: cs.primary.withValues(alpha: 0.22),
-                    width: 0.8,
+                    color: cs.primary.withValues(alpha: 0.18),
+                    width: 1.0,
                   ),
                 )
               : BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderRadius: BorderRadius.circular(14),
                 ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -121,7 +120,7 @@ class _NavItem extends StatelessWidget {
               Icon(
                 icon,
                 color: isActive ? cs.primary : inactiveColor,
-                size: 25,
+                size: 23,
               ),
               const SizedBox(height: 3),
               Text(
@@ -132,8 +131,8 @@ class _NavItem extends StatelessWidget {
                 style: TextStyle(
                   color: isActive ? cs.primary : inactiveColor,
                   fontSize: 10,
-                  fontWeight: isActive ? FontWeight.w900 : FontWeight.w600,
-                  letterSpacing: 0.4,
+                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                  letterSpacing: 0.2,
                 ),
               ),
             ],

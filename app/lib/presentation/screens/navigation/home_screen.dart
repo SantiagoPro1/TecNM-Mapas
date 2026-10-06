@@ -143,8 +143,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(height: 20),
                     ],
                     // Venues Section
-                    _sectionTitle('Sedes'),
-                    const SizedBox(height: 14),
                     _buildVenueCards(),
                     // Announcements
                     if (feedState.announcements.isNotEmpty) ...[
@@ -188,48 +186,132 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ? authState.displayName.split(' ').first
         : 'Invitado';
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(_getGreeting(),
-                  style: TextStyle(
-                      color: cs.primary.withValues(alpha: 0.8),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700)),
-              const SizedBox(height: 4),
-              Text(name,
-                  style: TextStyle(
-                      color: cs.onSurface,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.5)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: cs.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: cs.primary.withValues(alpha: 0.18),
+                    width: 0.8,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: cs.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'TECNM • CAMPUS COLIMA',
+                      style: TextStyle(
+                        color: cs.primary,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text(
+                    '${_getGreeting()}, ',
+                    style: TextStyle(
+                      color: cs.onSurface.withValues(alpha: 0.65),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Flexible(
+                    child: Text(
+                      name,
+                      style: TextStyle(
+                        color: cs.onSurface,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.4,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
-        IconButton(
-          tooltip: 'Ajustes',
-          icon: Icon(
-            Icons.settings_outlined,
-            color: cs.onSurface.withValues(alpha: 0.8),
-            size: 24,
+        const SizedBox(width: 12),
+        Material(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.pushNamed(context, AppRoutes.settings);
+            },
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: cs.outline.withValues(alpha: 0.2)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.settings_outlined,
+                color: cs.onSurface.withValues(alpha: 0.75),
+                size: 20,
+              ),
+            ),
           ),
-          onPressed: () => Navigator.pushNamed(context, AppRoutes.settings),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 10),
         GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
+          onTap: () {
+            HapticFeedback.lightImpact();
+            Navigator.pushNamed(context, AppRoutes.profile);
+          },
           child: Container(
-            padding: const EdgeInsets.all(2),
+            padding: const EdgeInsets.all(2.5),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: cs.outline),
+              border: Border.all(
+                color: cs.primary.withValues(alpha: 0.35),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: cs.primary.withValues(alpha: 0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Container(
-              width: 42,
-              height: 42,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: cs.surfaceContainerHighest,
@@ -251,12 +333,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       errorWidget: (context, url, error) => Center(
                         child: Icon(Icons.person_rounded,
-                            color: cs.primary, size: 22),
+                            color: cs.primary, size: 20),
                       ),
                     )
                   : Center(
                       child: Icon(Icons.person_rounded,
-                          color: cs.primary, size: 22),
+                          color: cs.primary, size: 20),
                     ),
             ),
           ),
@@ -265,31 +347,66 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // ─── VENUE CARDS (grid de 3 columnas) ───
+  // ─── VENUE CARDS (Campus Principal destacado + Sedes Deportivas) ───
   Widget _buildVenueCards() {
     final cs = Theme.of(context).colorScheme;
-    // Las 9 sedes (TecNM Colima + las 8 del Evento Nacional Deportivo) se
-    // muestran todas de un vistazo, en cuadrícula de 3x3 — sin necesidad de
-    // deslizar. El mapa de las sedes sin coordenadas reales todavía cae a un
-    // pin genérico en su centro hasta que el admin les asigne su
-    // ubicación/POIs reales.
     final venues = ref.watch(venueRegistryProvider);
+    final mainVenue = venues.firstWhere(
+      (v) => v.id == 'tec_colima',
+      orElse: () => venues.first,
+    );
+    final sportVenues = venues.where((v) => v.id != mainVenue.id).toList();
 
-    // Ancho máximo para que las tarjetas no se estiren en ventanas anchas
-    // (escritorio/web) — en celular (la plataforma principal) esto no hace
-    // ninguna diferencia, ya ocupa todo el ancho disponible de por sí.
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
-        child: GridView.count(
-          crossAxisCount: 3,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 0.85,
-          children: venues.map((v) {
-            return Material(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Título de sección Sedes
+            Row(
+              children: [
+                _sectionTitle('Campus Principal'),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2E7D32).withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFF2E7D32).withValues(alpha: 0.25),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF2E7D32),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      const Text(
+                        'En vivo',
+                        style: TextStyle(
+                          color: Color(0xFF2E7D32),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Tarjeta destacada del Campus Principal
+            Material(
               color: cs.surface,
               borderRadius: BorderRadius.circular(AppRadius.lg),
               child: InkWell(
@@ -300,72 +417,298 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     context,
                     AppRoutes.map,
                     arguments: {
-                      'venueId': v.id,
-                      'lat': v.centerLat,
-                      'lng': v.centerLng,
-                      'zoom': v.defaultZoom,
+                      'venueId': mainVenue.id,
+                      'lat': mainVenue.centerLat,
+                      'lng': mainVenue.centerLng,
+                      'zoom': mainVenue.defaultZoom,
                     },
                   );
                 },
                 child: Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(AppRadius.lg),
-                    border: Border.all(color: cs.outline.withValues(alpha: 0.35)),
+                    border: Border.all(
+                      color: cs.primary.withValues(alpha: 0.22),
+                      width: 1.2,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                        color: cs.primary.withValues(alpha: 0.05),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
                       ),
                     ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: cs.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                          border: Border.all(
-                            color: cs.primary.withValues(alpha: 0.18),
-                            width: 0.6,
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: cs.primary.withValues(alpha: 0.10),
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.md),
+                              border: Border.all(
+                                color: cs.primary.withValues(alpha: 0.20),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Icon(
+                              mainVenue.icon,
+                              color: cs.primary,
+                              size: 26,
+                            ),
                           ),
-                        ),
-                        child: Icon(v.icon, color: cs.primary, size: 18),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  mainVenue.label,
+                                  style: TextStyle(
+                                    color: cs.onSurface,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  '30+ edificios • Navegación guiada paso a paso',
+                                  style: TextStyle(
+                                    color: cs.onSurface.withValues(alpha: 0.60),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: cs.primary.withValues(alpha: 0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.arrow_forward_rounded,
+                              color: cs.primary,
+                              size: 18,
+                            ),
+                          ),
+                        ],
                       ),
-                      const Spacer(),
-                      Text(
-                        v.label,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: cs.onSurface,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
-                          height: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        v.shortDescription,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: cs.onSurface.withValues(alpha: 0.55),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          height: 1.2,
-                        ),
+                      const SizedBox(height: 14),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          _buildCampusPill(
+                            icon: Icons.map_rounded,
+                            label: 'Mapa interactivo',
+                            cs: cs,
+                          ),
+                          _buildCampusPill(
+                            icon: Icons.route_rounded,
+                            label: 'Rutas Dijkstra',
+                            cs: cs,
+                          ),
+                          _buildCampusPill(
+                            icon: Icons.accessible_rounded,
+                            label: 'Accesibilidad',
+                            cs: cs,
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
               ),
-            );
-          }).toList(),
+            ),
+            const SizedBox(height: 24),
+
+            // Sección Sedes Deportivas
+            Row(
+              children: [
+                _sectionTitle('Sedes Deportivas'),
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: cs.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${sportVenues.length} sedes',
+                    style: TextStyle(
+                      color: cs.primary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Sedes oficiales del LXVIII Evento Nacional Deportivo TecNM',
+              style: TextStyle(
+                color: cs.onSurface.withValues(alpha: 0.55),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Grid de 2 columnas para las sedes deportivas
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: sportVenues.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1.45,
+              ),
+              itemBuilder: (context, index) {
+                final v = sportVenues[index];
+                return Material(
+                  color: cs.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.pushReplacementNamed(
+                        context,
+                        AppRoutes.map,
+                        arguments: {
+                          'venueId': v.id,
+                          'lat': v.centerLat,
+                          'lng': v.centerLng,
+                          'zoom': v.defaultZoom,
+                        },
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(
+                          color: cs.outline.withValues(alpha: 0.18),
+                          width: 1.0,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: cs.primary.withValues(alpha: 0.08),
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.sm),
+                                ),
+                                child: Icon(
+                                  v.icon,
+                                  color: cs.primary,
+                                  size: 16,
+                                ),
+                              ),
+                              const Spacer(),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                color: cs.onSurface.withValues(alpha: 0.3),
+                                size: 16,
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          Text(
+                            v.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: cs.onSurface,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              height: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            v.shortDescription,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: cs.onSurface.withValues(alpha: 0.55),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCampusPill({
+    required IconData icon,
+    required String label,
+    required ColorScheme cs,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: cs.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(
+          color: cs.primary.withValues(alpha: 0.14),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: cs.primary),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: cs.primary,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

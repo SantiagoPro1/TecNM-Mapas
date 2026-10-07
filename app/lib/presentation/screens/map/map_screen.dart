@@ -12,6 +12,7 @@ import 'package:latlong2/latlong.dart' as ll;
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:navia/data/providers/voice_provider.dart';
+import 'package:navia/data/providers/auth_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -28,6 +29,7 @@ import 'package:navia/data/providers/settings_provider.dart';
 import 'package:navia/presentation/widgets/bottom_nav.dart';
 import 'package:navia/core/theme/app_theme.dart';
 import 'package:navia/presentation/screens/map/place_visuals.dart';
+import 'package:navia/services/navigation/route_geometry_smoother.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   /// Modo "mapa abierto": la pantalla deja de estar anclada a una sede.
@@ -503,10 +505,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ref.read(navigationProvider.notifier).cancelNavigation();
           }
         });
-      } else if (navState.activeRoute != null) {
-        final points = navState.activeRoute!.steps
-            .map((s) => LatLng(s.node.lat, s.node.lng))
-            .toList();
+        final points = (navState.routePolylinePoints != null &&
+                navState.routePolylinePoints!.isNotEmpty)
+            ? navState.routePolylinePoints!
+                .map((p) => LatLng(p[0], p[1]))
+                .toList()
+            : navState.activeRoute!
+                .getPolylinePoints()
+                .map((p) => LatLng(p[0], p[1]))
+                .toList();
         Future.microtask(() {
           _setRoutePolyline(points);
           setState(() {
@@ -1299,14 +1306,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
           );
       if (!local) {
         debugPrint('Ruta: el grafo local no cubre el trayecto; se muestra el diálogo.');
-        _showFarAwayDialog(destination);
+        _showFarAwayDialog(destination, destinationName);
       }
     } finally {
       _isFetchingRoute = false;
     }
   }
 
-  void _showFarAwayDialog(LatLng destination) {
+  void _showFarAwayDialog(LatLng destination, [String? destinationName]) {
     // Cancelar el estado "Calculando..." para que no se quede bloqueado
     ref.read(navigationProvider.notifier).cancelNavigation();
     _hideRouteBanner();
@@ -1315,27 +1322,27 @@ class _MapScreenState extends ConsumerState<MapScreen>
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
         icon: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: cs.primary.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
-          child: Icon(Icons.map_rounded, color: cs.primary, size: 40),
+          child: Icon(Icons.explore_rounded, color: cs.primary, size: 36),
         ),
         title: const Text(
-          'Estás lejos de la sede',
+          'Ubicación fuera de la sede',
           textAlign: TextAlign.center,
           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
         ),
         content: Text(
-          'El mapa interno de navegación es exclusivo para moverse dentro de las instalaciones.\n\n¿Quieres usar Google Maps para llegar hasta aquí primero?',
+          'Tu GPS se encuentra fuera de ${_venue.label}.\n\n¿Quieres explorar la ruta interna a pie desde la entrada principal o abrir Google Maps para llegar a la sede?',
           textAlign: TextAlign.center,
           style: TextStyle(
-              color: cs.onSurface.withValues(alpha: 0.7),
-              fontSize: 14,
-              height: 1.5),
+              color: cs.onSurface.withValues(alpha: 0.75),
+              fontSize: 13.5,
+              height: 1.45),
         ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
@@ -1343,9 +1350,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Cancelar', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.route_rounded, size: 18),
+            label: const Text('Ruta desde acceso', style: TextStyle(fontWeight: FontWeight.w700)),
+            style: OutlinedButton.styleFrom(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _traceRouteFromEntrance(destination, destinationName);
+            },
+          ),
           ElevatedButton.icon(
             icon: Icon(Icons.directions_rounded, size: 18, color: cs.onPrimary),
-            label: Text('Usar Google Maps', style: TextStyle(color: cs.onPrimary, fontWeight: FontWeight.w700)),
+            label: Text('Google Maps', style: TextStyle(color: cs.onPrimary, fontWeight: FontWeight.w700)),
             style: ElevatedButton.styleFrom(
               backgroundColor: cs.primary,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1358,6 +1376,71 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ],
       ),
     );
+  }
+
+  void _traceRouteFromEntrance(LatLng destination, [String? destinationName]) {
+    final navService = ref.read(navigationServiceProvider);
+    final graph = navService.graph;
+    if (graph == null || graph.nodes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo cargar el grafo de la sede.'),
+        ),
+      );
+      return;
+    }
+
+    CampusNode? entranceNode;
+    // 1. Buscar nodo con nombre de acceso o tipo entrance
+    for (final n in graph.nodes.values) {
+      if (n.zoneId == _venue.id) {
+        final lower = n.name.toLowerCase();
+        if (n.type == NodeType.entrance ||
+            lower.contains('acceso') ||
+            lower.contains('entrada')) {
+          entranceNode = n;
+          break;
+        }
+      }
+    }
+
+    // 2. Si no hay nodo explícito de acceso, usar el nodo más cercano al centro de la sede
+    if (entranceNode == null) {
+      var minDist = double.infinity;
+      for (final n in graph.nodes.values) {
+        if (n.zoneId == _venue.id) {
+          final dist = Geolocator.distanceBetween(
+              _venue.centerLat, _venue.centerLng, n.lat, n.lng);
+          if (dist < minDist) {
+            minDist = dist;
+            entranceNode = n;
+          }
+        }
+      }
+    }
+
+    entranceNode ??= graph.nodes.values.first;
+
+    ref
+        .read(navigationProvider.notifier)
+        .setPosition(entranceNode.id, label: entranceNode.name);
+
+    final success = ref.read(navigationProvider.notifier).calcularRutaLocal(
+          originLat: entranceNode.lat,
+          originLng: entranceNode.lng,
+          destLat: destination.latitude,
+          destLng: destination.longitude,
+          destinationName: destinationName,
+        );
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ruta interna trazada desde: ${entranceNode.name}'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+        ),
+      );
+    }
   }
 
   Future<void> _launchExternalGoogleMaps(LatLng dest) async {
@@ -1375,11 +1458,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   void _setRoutePolyline(List<LatLng> points) {
+    final smoothed = RouteGeometrySmoother.smoothLatLngs(points);
     setState(() {
       _googlePolylines = {
         Polyline(
           polylineId: const PolylineId('campus_route_border'),
-          points: points,
+          points: smoothed,
           color: Colors.white,
           width: 10,
           startCap: Cap.roundCap,
@@ -1389,8 +1473,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ),
         Polyline(
           polylineId: const PolylineId('campus_route'),
-          points: points,
-          color: Colors.blueAccent.shade700,
+          points: smoothed,
+          color: const Color(0xFF1A73E8), // Azul icónico de navegación Google Maps
           width: 6,
           startCap: Cap.roundCap,
           endCap: Cap.roundCap,
@@ -1608,71 +1692,73 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: Icon(Icons.open_with_rounded, size: 16, color: cs.primary),
-                    label: const Text('Mover', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+            if (ref.read(isAdminProvider).value ?? false) ...[
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: Icon(Icons.open_with_rounded, size: 16, color: cs.primary),
+                      label: const Text('Mover', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        setState(() {
+                          _isEditMode = true;
+                          _editMovingId = place.id;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Toca el mapa en la nueva ubicación para "${place.name}".'),
+                            backgroundColor: cs.primary,
+                          ),
+                        );
+                      },
                     ),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      setState(() {
-                        _isEditMode = true;
-                        _editMovingId = place.id;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Toca el mapa en la nueva ubicación para "${place.name}".'),
-                          backgroundColor: cs.primary,
-                        ),
-                      );
-                    },
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: Icon(Icons.edit_rounded, size: 16, color: cs.primary),
-                    label: const Text('Renombrar', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: Icon(Icons.edit_rounded, size: 16, color: cs.primary),
+                      label: const Text('Renombrar', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        final newName = await _promptRename(place.name);
+                        if (newName != null && newName.isNotEmpty) {
+                          _renameUnifiedPoint(id: place.id, name: newName, hasPlace: true);
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.outlined(
+                    icon: Icon(Icons.delete_outline_rounded, color: cs.error, size: 20),
+                    tooltip: 'Eliminar punto',
+                    style: IconButton.styleFrom(
+                      side: BorderSide(color: cs.error.withValues(alpha: 0.45)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.all(12),
                     ),
                     onPressed: () async {
                       Navigator.pop(ctx);
-                      final newName = await _promptRename(place.name);
-                      if (newName != null && newName.isNotEmpty) {
-                        _renameUnifiedPoint(id: place.id, name: newName, hasPlace: true);
+                      final confirmed = await _confirmDelete(place.name);
+                      if (confirmed) {
+                        _deleteUnifiedPoint(id: place.id, hasPlace: true);
                       }
                     },
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.outlined(
-                  icon: Icon(Icons.delete_outline_rounded, color: cs.error, size: 20),
-                  tooltip: 'Eliminar punto',
-                  style: IconButton.styleFrom(
-                    side: BorderSide(color: cs.error.withValues(alpha: 0.45)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                    padding: const EdgeInsets.all(12),
-                  ),
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    final confirmed = await _confirmDelete(place.name);
-                    if (confirmed) {
-                      _deleteUnifiedPoint(id: place.id, hasPlace: true);
-                    }
-                  },
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -1757,7 +1843,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   Widget _buildFABs() {
     final cs = Theme.of(context).colorScheme;
-    final isAdmin = !widget.openMap;
+    final isAdmin = ref.watch(isAdminProvider).value ?? false;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
@@ -2263,11 +2349,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     required bool hasPlace,
   }) async {
     final zoneId = _venue.id;
-    // 1. Remover inmediatamente del mapa local
+    // 1. Remover inmediatamente del mapa local y del grafo en memoria
     setState(() {
       _googleMarkers.removeWhere((m) => m.markerId.value == id);
       _editMovingId = null;
     });
+    ref.read(navigationServiceProvider).graph?.removeNode(id);
 
     try {
       if (hasPlace) {
@@ -2478,6 +2565,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final firestoreEdges = _isEditMode
         ? (ref.watch(edgesStreamProvider(_venue.id)).value ?? const <CampusEdge>[])
         : const <CampusEdge>[];
+    final deletedNodeIds = _isEditMode
+        ? (ref.watch(deletedNodeIdsStreamProvider(_venue.id)).value ?? const <String>{})
+        : const <String>{};
 
     final editNodesMap = <String, CampusNode>{};
     final editEdgesMap = <String, CampusEdge>{};
@@ -2486,17 +2576,25 @@ class _MapScreenState extends ConsumerState<MapScreen>
       final navService = ref.read(navigationServiceProvider);
       if (navService.graph != null) {
         for (final n in navService.graph!.nodes.values) {
-          editNodesMap[n.id] = n;
+          if (!deletedNodeIds.contains(n.id)) {
+            editNodesMap[n.id] = n;
+          }
         }
         for (final e in navService.graph!.edges) {
-          editEdgesMap[e.docId] = e;
+          if (!deletedNodeIds.contains(e.from) && !deletedNodeIds.contains(e.to)) {
+            editEdgesMap[e.docId] = e;
+          }
         }
       }
       for (final n in firestoreNodes) {
-        editNodesMap[n.id] = n;
+        if (!deletedNodeIds.contains(n.id)) {
+          editNodesMap[n.id] = n;
+        }
       }
       for (final e in firestoreEdges) {
-        editEdgesMap[e.docId] = e;
+        if (!deletedNodeIds.contains(e.from) && !deletedNodeIds.contains(e.to)) {
+          editEdgesMap[e.docId] = e;
+        }
       }
     }
 

@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:navia/data/models/campus_node.dart';
 import 'package:navia/data/models/campus_edge.dart';
+import 'package:navia/services/navigation/route_geometry_smoother.dart';
 
 /// Un paso individual dentro de una ruta calculada.
 class RouteStep extends Equatable {
@@ -55,17 +56,16 @@ class NavRoute extends Equatable {
   /// Cantidad de pasos en la ruta.
   int get stepCount => steps.length;
 
-  /// Obtiene todos los puntos LatLng (nodos y puntos intermedios) de la ruta.
-  List<List<double>> getPolylinePoints() {
-    final points = <List<double>>[];
-    for (int i = 0; i < steps.length; i++) {
-      final step = steps[i];
-      points.add([step.node.lat, step.node.lng]);
-      if (step.edge?.polylinePoints != null) {
-        points.addAll(step.edge!.polylinePoints!);
-      }
-    }
-    return points;
+  /// Obtiene todos los puntos LatLng (nodos y curvas intermedias) suavizados estilo Google Maps.
+  List<List<double>> getPolylinePoints({
+    List<double>? origin,
+    List<double>? destination,
+  }) {
+    return RouteGeometrySmoother.assembleAndSmooth(
+      steps,
+      origin: origin,
+      destination: destination,
+    );
   }
 
   /// Resumen legible para voz.

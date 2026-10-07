@@ -35,6 +35,11 @@ final edgesStreamProvider =
   return ref.watch(venueGraphRepositoryProvider).watchEdges(zoneId);
 });
 
+final deletedNodeIdsStreamProvider =
+    StreamProvider.autoDispose.family<Set<String>, String>((ref, zoneId) {
+  return ref.watch(venueGraphRepositoryProvider).watchDeletedNodeIds(zoneId);
+});
+
 // 1.1. Sede actualmente mostrada en el mapa. `map_screen.dart` la fija al
 // resolver `arguments['venueId']` desde la navegación.
 final currentVenueIdProvider =

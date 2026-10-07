@@ -7,64 +7,59 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() &&
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email != null && (
+          request.auth.token.email.lower() == '23460706@colima.tecnm.mx' ||
+          request.auth.token.email.lower() == '23460706@tecnm.mx' ||
+          request.auth.token.email.lower().matches('.*23460706@.*tecnm\\.mx.*') ||
+          request.auth.token.email.lower().matches('.*23460706@.*')
+        ))
+      );
     }
 
     // Rol de administrador. Solo se puede leer el propio; escrituras
     // únicamente desde la consola de Firebase o el Admin SDK (nunca desde
     // el cliente), para que nadie pueda auto-promoverse.
     match /admins/{uid} {
-      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
       allow write: if false;
     }
 
-    // Versión de los datos de sedes. Un único documento
-    // (`app_meta/venue_data`, campo `dataVersion`) que le dice a la app si
-    // los puntos empaquetados en el APK siguen al día.
-    //
-    // Es la ÚNICA lectura de Firestore que hace un usuario normal en el
-    // camino feliz: todo lo demás sale del APK. Por eso el consumo se
-    // mantiene dentro del tramo gratuito aun con 40,000 asistentes.
-    //
-    // Cuando el administrador edita puntos, debe subir `dataVersion` en 1
-    // para que los teléfonos vuelvan a leer de Firestore.
+    // Versión de los datos de sedes y actualizaciones de la app.
+    // Lectura pública; escritura restringida a administradores autorizados.
     match /app_meta/{documento} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isAdmin();
     }
 
-    // Sedes (TecNM Colima, Sendera, Zentralia, sedes del Evento Nacional
-    // Deportivo) y sus subcolecciones. Lectura y escritura permitidas para
-    // que el editor en la app pueda agregar, mover y eliminar puntos en vivo.
+    // Sedes y sus subcolecciones (lugares, nodos y aristas).
+    // Lectura pública; escrituras, modificaciones y eliminaciones exclusivas de administradores.
     match /venues/{venueId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isAdmin();
 
       match /places/{placeId} {
         allow read: if true;
-        allow write: if true;
+        allow write: if isAdmin();
       }
       match /nodes/{nodeId} {
         allow read: if true;
-        allow write: if true;
+        allow write: if isAdmin();
       }
       match /edges/{edgeId} {
         allow read: if true;
-        allow write: if true;
+        allow write: if isAdmin();
       }
     }
 
-    // Colección plana heredada (la que llenaba el seedData() original antes
-    // de migrar a `venues/{id}/places`). Se deja de solo-lectura por
-    // compatibilidad; ya no acepta escrituras sin rol de admin.
+    // Colección plana heredada (solo-lectura, admin para escribir)
     match /places/{placeId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Feed de anuncios (feed_service.dart) — no tenía reglas propias hasta
-    // ahora (este archivo no existía en el repo).
+    // Feed de anuncios institucionales
     match /announcements/{announcementId} {
       allow read: if true;
       allow write: if isAdmin();

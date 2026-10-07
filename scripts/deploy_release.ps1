@@ -178,8 +178,8 @@ if (-not $SkipUpload) {
     $syncScript = Join-Path $ScriptDir "sync_cloud_update.js"
     Push-Location $ProjectRoot
     try {
-        & node $syncScript --version $Version --build $BuildNumber --notes $ReleaseNotes
-        Write-Host "  [OK] Metadatos sincronizados en app_meta/app_update. In-App Updater activado." -ForegroundColor Green
+        & node $syncScript --version $Version --build $BuildNumber --notes $ReleaseNotes --mandatory
+        Write-Host "  [OK] Metadatos sincronizados en app_meta/app_update. In-App Updater activado (Obligatorio)." -ForegroundColor Green
     } catch {
         Write-Warning "No se pudo actualizar Firestore: $_"
     }
@@ -223,7 +223,7 @@ if (-not $SkipGit) {
     Write-Host "[8/8] Registrando release en Git..." -ForegroundColor Yellow
     Push-Location $ProjectRoot
     try {
-        & git add app/pubspec.yaml app/lib/core/constants/app_version.dart
+        & git add -A
         & git commit -m "chore(release): v$Version+$BuildNumber - $ReleaseNotes" --allow-empty
         & git tag -a "v$Version+$BuildNumber" -m "Release v$Version+$BuildNumber" -f
         Write-Host "  [OK] Git commit y tag creados (v$Version+$BuildNumber)" -ForegroundColor Green

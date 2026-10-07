@@ -486,18 +486,53 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
     final desde = masCercano(originLat, originLng);
     final hasta = masCercano(destLat, destLng);
     if (desde == null || hasta == null) return false;
-    if (desde.id == hasta.id) return false; // ya está ahí; lo resuelve la UI
+    if (desde.id == hasta.id) {
+      final d = Geolocator.distanceBetween(originLat, originLng, destLat, destLng);
+      if (d > 1.0) {
+        final puntos = [
+          [originLat, originLng],
+          [destLat, destLng],
+        ];
+        final directRoute = NavRoute(
+          steps: [
+            RouteStep(
+              node: desde,
+              voiceInstruction: 'Tu destino está a ${d.round()} metros.',
+            ),
+            RouteStep(
+              node: hasta,
+              voiceInstruction: 'Has llegado a ${destinationName ?? hasta.name}.',
+            ),
+          ],
+          totalDistance: d,
+          estimatedMinutes: d / 72.0,
+          fullyAccessible: true,
+          origin: desde,
+          destination: hasta,
+        );
+        _autoFinishTimer?.cancel();
+        state = state.copyWith(
+          status: NavStatus.navigating,
+          activeRoute: directRoute,
+          routePolylinePoints: puntos,
+          destinationName: destinationName,
+          routeDistanceMeters: d.round(),
+          pendingARNavigation: true,
+        );
+        return true;
+      }
+      return false; // ya está ahí; lo resuelve la UI
+    }
 
     final ruta = _navService.calculateRouteById(desde.id, hasta.id);
     if (ruta == null || ruta.steps.length < 2) return false;
 
-    final puntos =
-        ruta.steps.map((s) => [s.node.lat, s.node.lng]).toList();
-    // Se cierran los extremos con la posición real y el destino real: el
-    // grafo engancha al andador más cercano, y sin estos dos tramos la línea
-    // aparecería empezando y terminando "en el aire".
-    puntos.insert(0, [originLat, originLng]);
-    puntos.add([destLat, destLng]);
+    // Obtener los puntos con curvas fluidas estilo Google Maps (preserva andadores,
+    // pasillos y redondea las esquinas con curvas de Bézier).
+    final puntos = ruta.getPolylinePoints(
+      origin: [originLat, originLng],
+      destination: [destLat, destLng],
+    );
 
     _autoFinishTimer?.cancel();
     state = state.copyWith(

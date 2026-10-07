@@ -25,8 +25,16 @@ class VenueGraphRepository {
 
   Stream<List<CampusNode>> watchNodes(String zoneId) {
     return _nodesCol(zoneId).snapshots().map((snap) => snap.docs
+        .where((d) => d.data()['deleted'] != true)
         .map((d) => CampusNode.fromFirestoreMap(zoneId, d.id, d.data()))
         .toList());
+  }
+
+  Stream<Set<String>> watchDeletedNodeIds(String zoneId) {
+    return _nodesCol(zoneId).snapshots().map((snap) => snap.docs
+        .where((d) => d.data()['deleted'] == true)
+        .map((d) => d.id)
+        .toSet());
   }
 
   Stream<List<CampusEdge>> watchEdges(String zoneId) {
@@ -37,6 +45,7 @@ class VenueGraphRepository {
   Future<List<CampusNode>> fetchNodesOnce(String zoneId) async {
     final snap = await _nodesCol(zoneId).get();
     return snap.docs
+        .where((d) => d.data()['deleted'] != true)
         .map((d) => CampusNode.fromFirestoreMap(zoneId, d.id, d.data()))
         .toList();
   }
@@ -86,7 +95,7 @@ class VenueGraphRepository {
     final incoming = await _edgesCol(zoneId).where('to', isEqualTo: nodeId).get();
 
     final batch = _firestore.batch();
-    batch.delete(_nodesCol(zoneId).doc(nodeId));
+    batch.set(_nodesCol(zoneId).doc(nodeId), {'deleted': true}, SetOptions(merge: true));
     for (final doc in [...outgoing.docs, ...incoming.docs]) {
       batch.delete(doc.reference);
     }

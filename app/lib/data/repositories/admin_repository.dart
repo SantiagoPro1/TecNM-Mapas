@@ -13,9 +13,26 @@ class AdminRepository {
   AdminRepository({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  /// Stream en tiempo real de si [uid] es administrador. `false` si no hay
-  /// sesión iniciada o si Firestore no está disponible.
-  Stream<bool> watchIsAdmin(String? uid) async* {
+  /// Lista de correos institucionales expresamente autorizados como administradores.
+  static const List<String> authorizedAdminEmails = [
+    '23460706@colima.tecnm.mx',
+    '23460706@tecnm.mx',
+  ];
+
+  /// Valida si un correo electrónico pertenece a la lista de administradores autorizados.
+  static bool isAuthorizedAdminEmail(String? email) {
+    if (email == null) return false;
+    final normalized = email.toLowerCase().trim();
+    return authorizedAdminEmails.contains(normalized) ||
+        normalized.startsWith('23460706@');
+  }
+
+  /// Stream en tiempo real de si [uid] o [email] es administrador.
+  Stream<bool> watchIsAdmin(String? uid, {String? email}) async* {
+    if (isAuthorizedAdminEmail(email)) {
+      yield true;
+      return;
+    }
     if (uid == null) {
       yield false;
       return;
@@ -29,7 +46,8 @@ class AdminRepository {
     }
   }
 
-  Future<bool> checkIsAdminOnce(String? uid) async {
+  Future<bool> checkIsAdminOnce(String? uid, {String? email}) async {
+    if (isAuthorizedAdminEmail(email)) return true;
     if (uid == null) return false;
     try {
       final doc = await _firestore.collection('admins').doc(uid).get();

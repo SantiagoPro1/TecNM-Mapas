@@ -29,43 +29,37 @@ class PlaceRepository {
   Stream<List<PlaceNode>> watchPlaces(String zoneId) async* {
     final venue = VenueRegistry.byId(zoneId);
     final delPaquete = await VenueBundle.places(zoneId);
-    final versionLocal = await VenueBundle.version();
-
-    // Se escucha en vivo la versión publicada por el admin. Mientras no
-    // supere a la del APK, los puntos salen del paquete: sin lecturas de
-    // Firestore, al instante y sin señal. En cuanto el admin publique algo
-    // nuevo, se cambia a Firestore y ya no se vuelve — de ahí en adelante los
-    // datos llegan en vivo, que es justo lo que se quiere tras una
-    // corrección.
-    await for (final versionRemota in VenueDataVersion.versionEnVivo()) {
-      if (versionRemota <= versionLocal && delPaquete.isNotEmpty) {
-        yield delPaquete;
-        continue;
-      }
-      yield* _escucharFirestore(zoneId, venue);
-      return;
+    if (delPaquete.isNotEmpty) {
+      yield delPaquete;
     }
+    yield* _escucharFirestore(zoneId, venue);
   }
 
-  /// Puntos en vivo desde Firestore, con respaldo local si la sede aún no
-  /// tiene datos ahí o si la consulta falla.
+  /// Puntos en vivo desde Firestore, combinados de forma segura con el paquete
+  /// local para garantizar que todas las canchas y edificios estén visibles.
   Stream<List<PlaceNode>> _escucharFirestore(String zoneId, Venue venue) async* {
     try {
       await for (final snapshot in _placesCol(zoneId).snapshots()) {
-        final places = snapshot.docs
-            .map((d) => PlaceNode.fromFirestore(d, zoneId: zoneId))
-            .toList();
-        if (places.isNotEmpty) {
-          yield places;
-        } else {
-          final respaldo = await VenueBundle.places(zoneId);
-          if (respaldo.isNotEmpty) {
-            yield respaldo;
-          } else if (venue.isBundled) {
-            yield await _loadLocalPlaces(venue);
-          } else {
-            yield [_genericVenuePin(venue)];
+        final bundlePlaces = await VenueBundle.places(zoneId);
+        final map = <String, PlaceNode>{};
+        for (final p in bundlePlaces) {
+          map[p.id] = p;
+        }
+        for (final d in snapshot.docs) {
+          final data = d.data();
+          if (data['deleted'] == true) {
+            map.remove(d.id);
+            continue;
           }
+          final p = PlaceNode.fromFirestore(d, zoneId: zoneId);
+          map[p.id] = p;
+        }
+        if (map.isNotEmpty) {
+          yield map.values.toList();
+        } else if (venue.isBundled) {
+          yield await _loadLocalPlaces(venue);
+        } else {
+          yield [_genericVenuePin(venue)];
         }
       }
     } catch (e) {
@@ -175,7 +169,7 @@ class PlaceRepository {
       _publicar(_placesCol(zoneId).doc(placeId).update({'name': name}));
 
   Future<void> deletePlace(String zoneId, String placeId) =>
-      _publicar(_placesCol(zoneId).doc(placeId).delete());
+      _publicar(_placesCol(zoneId).doc(placeId).set({'deleted': true}, SetOptions(merge: true)));
 
   /// Descarga una vez los POIs de TODAS las sedes para dejarlos en la caché
   /// local de Firestore.

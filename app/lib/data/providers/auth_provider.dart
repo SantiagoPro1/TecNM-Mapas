@@ -230,8 +230,9 @@ final adminRepositoryProvider = Provider<AdminRepository>((ref) {
 });
 
 /// `true` en tiempo real si el usuario actual es administrador
-/// (existe un documento `admins/{uid}` en Firestore). `false` sin sesión.
+/// (cuenta autorizada o existe un documento `admins/{uid}` en Firestore). `false` sin sesión.
 final isAdminProvider = StreamProvider<bool>((ref) {
-  final uid = ref.watch(authProvider).user?.uid;
-  return ref.watch(adminRepositoryProvider).watchIsAdmin(uid);
+  final user = ref.watch(authProvider).user;
+  if (user == null) return Stream.value(false);
+  return ref.watch(adminRepositoryProvider).watchIsAdmin(user.uid, email: user.email);
 });

@@ -29,7 +29,7 @@ class CampusGraph {
   final Map<String, List<CampusEdge>> adjacency;
 
   /// Motor de Dijkstra preconfigurado.
-  late final Dijkstra dijkstra;
+  late Dijkstra dijkstra;
 
   CampusGraph._({
     required this.nodes,
@@ -183,8 +183,9 @@ class CampusGraph {
   }
 
   /// Carga el grafo de una sola sede.
-  ///  - Si la sede tiene JSON empaquetado, lo lee de assets.
-  ///  - Si no (sedes del Evento Nacional Deportivo), lo lee de Firestore.
+  ///  - Si la sede tiene JSON empaquetado directo, lo lee de su asset.
+  ///  - Si no, busca la sede en el bundle integrado de las 9 sedes deportivas.
+  ///  - Si no está o se edita en línea, lo lee de Firestore.
   static Future<CampusGraph> loadForVenue(
     Venue venue, {
     VenueGraphRepository? repo,
@@ -194,6 +195,17 @@ class CampusGraph {
       final data = json.decode(jsonStr) as Map<String, dynamic>;
       return CampusGraph.fromJson(data, defaultZoneId: venue.id);
     }
+
+    // Cargar desde el bundle de las 9 sedes deportivas
+    try {
+      final raw = await rootBundle.loadString(VenueBundle.assetPath);
+      final bundle = json.decode(raw) as Map<String, dynamic>;
+      final venues = bundle['venues'] as Map<String, dynamic>? ?? {};
+      final venueData = venues[venue.id] as Map<String, dynamic>?;
+      if (venueData != null && (venueData['nodes'] as List?)?.isNotEmpty == true) {
+        return CampusGraph.fromJson(venueData, defaultZoneId: venue.id);
+      }
+    } catch (_) {}
 
     final graphRepo = repo ?? VenueGraphRepository();
     final nodes = await graphRepo.fetchNodesOnce(venue.id);
@@ -286,6 +298,7 @@ class CampusGraph {
           distance: edge.distance,
           accessible: edge.accessible,
           direction: _reverseDirection(edge, nodesMap),
+          polylinePoints: edge.polylinePoints?.reversed.toList(),
         ));
       }
     }
@@ -376,6 +389,18 @@ class CampusGraph {
       final dist = _haversineMeters(lat, lng, n.lat, n.lng);
       return dist <= radiusM;
     }).toList();
+  }
+
+  /// Elimina un nodo y sus aristas conectadas del grafo en memoria,
+  /// recalculando las rutas disponibles en [dijkstra].
+  void removeNode(String nodeId) {
+    nodes.remove(nodeId);
+    edges.removeWhere((e) => e.from == nodeId || e.to == nodeId);
+    adjacency.remove(nodeId);
+    for (final edgeList in adjacency.values) {
+      edgeList.removeWhere((e) => e.to == nodeId || e.from == nodeId);
+    }
+    dijkstra = Dijkstra(adjacency: adjacency, nodes: nodes);
   }
 
   /// Genera la instrucción inversa para la arista de regreso.

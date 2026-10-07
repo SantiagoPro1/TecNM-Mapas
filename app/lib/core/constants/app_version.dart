@@ -6,5 +6,5 @@ class AppVersion {
   static const String version = '1.0.11';
 
   /// Número de compilación secuencial para comparar actualizaciones (ej. 12).
-  static const int buildNumber = 14;
+  static const int buildNumber = 15;
 }

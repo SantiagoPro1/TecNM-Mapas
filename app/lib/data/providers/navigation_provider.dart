@@ -76,6 +76,14 @@ class NavigationState extends Equatable {
     this.manualPositionLabel,
   });
 
+  /// Paso actual de la ruta activa.
+  RouteStep? get currentStep {
+    if (activeRoute == null || currentStepIndex >= activeRoute!.steps.length) {
+      return null;
+    }
+    return activeRoute!.steps[currentStepIndex];
+  }
+
   /// Instrucción de voz del paso actual.
   String? get currentInstruction {
     if (activeRoute == null || currentStepIndex >= activeRoute!.steps.length) {
@@ -419,6 +427,14 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
     }
   }
 
+  /// Salta directamente a un paso específico de la ruta.
+  void goToStep(int index) {
+    if (state.activeRoute == null) return;
+    if (index >= 0 && index < state.activeRoute!.steps.length) {
+      state = state.copyWith(currentStepIndex: index);
+    }
+  }
+
   /// Cancela la navegación activa.
   void cancelNavigation() {
     _autoFinishTimer?.cancel();
@@ -497,11 +513,18 @@ class NavigationNotifier extends StateNotifier<NavigationState> {
           steps: [
             RouteStep(
               node: desde,
-              voiceInstruction: 'Tu destino está a ${d.round()} metros.',
+              voiceInstruction: 'Avanza ${d.round()} metros hacia tu destino.',
+              maneuver: RouteManeuver.depart,
+              distanceMeters: d,
+              title: 'Avanza hacia tu destino',
             ),
             RouteStep(
               node: hasta,
-              voiceInstruction: 'Has llegado a ${destinationName ?? hasta.name}.',
+              voiceInstruction:
+                  'Has llegado a ${destinationName ?? hasta.name}.',
+              maneuver: RouteManeuver.arrive,
+              distanceMeters: 0.0,
+              title: 'Llegada al destino',
             ),
           ],
           totalDistance: d,

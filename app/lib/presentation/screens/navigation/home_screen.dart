@@ -9,11 +9,8 @@ import 'package:navia/data/providers/auth_provider.dart';
 import 'package:navia/data/providers/navigation_provider.dart';
 import 'package:navia/data/providers/venue_provider.dart';
 import 'package:navia/data/providers/voice_provider.dart';
-import 'package:navia/data/providers/feed_provider.dart';
 import 'package:navia/presentation/screens/map/providers/map_providers.dart';
 import 'package:navia/presentation/widgets/bottom_nav.dart';
-import 'package:navia/presentation/widgets/announcement_card.dart';
-import 'package:navia/data/models/announcement.dart';
 import 'package:navia/services/update/app_update_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -28,10 +25,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      // 1. Cargar avisos (feed visual)
-      ref.read(feedProvider.notifier).loadAll();
-
-      // 2. Escalonar inicializaciones en segundo plano para que la UI entre fluida a 60/120 FPS
+      // Escalonar inicializaciones en segundo plano para que la UI entre fluida a 60/120 FPS
       Future.delayed(const Duration(milliseconds: 600), () {
         if (!mounted) return;
         ref.read(voiceProvider.notifier).initialize();
@@ -76,7 +70,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-    final feedState = ref.watch(feedProvider);
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
@@ -144,20 +137,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ],
                     // Venues Section
                     _buildVenueCards(),
-                    // Announcements
-                    if (feedState.announcements.isNotEmpty) ...[
-                      const SizedBox(height: 28),
-                      _sectionTitle('Avisos'),
-                      const SizedBox(height: 14),
-                      ...feedState.announcements.map(
-                        (a) => AnnouncementCard(
-                          announcement: a,
-                          onDismiss: () =>
-                              ref.read(feedProvider.notifier).dismiss(a.id),
-                          onTap: () => _showAnnouncementDetails(context, a),
-                        ),
-                      ),
-                    ],
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -622,76 +601,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
   }
-
-  void _showAnnouncementDetails(BuildContext context, Announcement a) {
-    final cs = Theme.of(context).colorScheme;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: cs.surface,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg))),
-      builder: (_) => Container(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-                child: Container(
-                    width: 48,
-                    height: 5,
-                    decoration: BoxDecoration(
-                        color: cs.onSurface.withValues(alpha: 0.24),
-                        borderRadius: BorderRadius.circular(10)))),
-            const SizedBox(height: 32),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(AppRadius.lg)),
-                  child:
-                      Icon(Icons.campaign_rounded, color: cs.primary, size: 32),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                    child: Text(a.title,
-                        style: TextStyle(
-                            color: cs.onSurface,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            height: 1.2))),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Text(a.body,
-                style: TextStyle(
-                    color: cs.onSurface.withValues(alpha: 0.8),
-                    fontSize: 16,
-                    height: 1.5)),
-            const SizedBox(height: 40),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: cs.primary,
-                    foregroundColor: cs.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.md))),
-                child: const Text('ENTENDIDO',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 // ─── LOCATION CHIP ───
@@ -807,141 +716,222 @@ class _ActiveNavCard extends ConsumerWidget {
         ? '${(distanceMeters / 1000).toStringAsFixed(1)} km'
         : '$distanceMeters m';
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: cs.surface,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: cs.outline.withValues(alpha: 0.35)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.navigation_rounded, color: cs.primary, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text('RUTA A ${route.destination.name.toUpperCase()}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: cs.primary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1)),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          Navigator.pushReplacementNamed(context, AppRoutes.map);
+        },
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: cs.primary.withValues(alpha: 0.35), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: cs.primary.withValues(alpha: 0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
               ),
-              if (!isArrived) ...[
-                const SizedBox(width: 8),
-                Icon(Icons.straighten_rounded,
-                    color: cs.onSurface.withValues(alpha: 0.4), size: 13),
-                const SizedBox(width: 3),
-                Text(distanceLabel,
-                    style: TextStyle(
-                        color: cs.onSurface.withValues(alpha: 0.55),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700)),
-                const SizedBox(width: 8),
-                Icon(Icons.schedule_rounded,
-                    color: cs.onSurface.withValues(alpha: 0.4), size: 13),
-                const SizedBox(width: 3),
-                Text(etaMinutes < 1 ? '<1 min' : '$etaMinutes min',
-                    style: TextStyle(
-                        color: cs.onSurface.withValues(alpha: 0.55),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700)),
-              ],
-              const SizedBox(width: 8),
-              Tooltip(
-                message: 'Finalizar ruta',
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () =>
-                      ref.read(navigationProvider.notifier).cancelNavigation(),
-                  child: Container(
-                    padding: const EdgeInsets.all(5),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: cs.onSurface.withValues(alpha: 0.08),
+                      color: cs.primary.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.close_rounded,
-                        color: cs.onSurface.withValues(alpha: 0.6), size: 16),
+                    child: Icon(step.maneuverIcon, color: cs.primary, size: 20),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('RUTA EN CURSO',
+                            style: TextStyle(
+                                color: cs.primary,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.8)),
+                        const SizedBox(height: 2),
+                        Text(
+                          route.destination.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: cs.onSurface,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!isArrived) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.directions_walk_rounded,
+                              color: cs.onSurface.withValues(alpha: 0.6), size: 14),
+                          const SizedBox(width: 4),
+                          Text(distanceLabel,
+                              style: TextStyle(
+                                  color: cs.onSurface,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700)),
+                          const SizedBox(width: 6),
+                          Text('·',
+                              style: TextStyle(
+                                  color: cs.onSurface.withValues(alpha: 0.5),
+                                  fontWeight: FontWeight.w800)),
+                          const SizedBox(width: 6),
+                          Text(etaMinutes < 1 ? '<1 min' : '$etaMinutes min',
+                              style: TextStyle(
+                                  color: cs.primary,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w800)),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 8),
+                  Tooltip(
+                    message: 'Finalizar ruta',
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        ref.read(navigationProvider.notifier).cancelNavigation();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: cs.onSurface.withValues(alpha: 0.08),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.close_rounded,
+                            color: cs.onSurface.withValues(alpha: 0.6), size: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          step.displayTitle,
+                          style: TextStyle(
+                            color: cs.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          step.voiceInstruction,
+                          style: TextStyle(
+                            color: cs.onSurface.withValues(alpha: 0.85),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                child: LinearProgressIndicator(
+                    value: navState.progress,
+                    minHeight: 6,
+                    backgroundColor: cs.onSurface.withValues(alpha: 0.08),
+                    valueColor: AlwaysStoppedAnimation(cs.primary)),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(color: cs.outline.withValues(alpha: 0.4)),
+                    ),
+                    child: IconButton(
+                      onPressed: () =>
+                          ref.read(voiceProvider.notifier).speakCurrentStep(),
+                      icon: Icon(Icons.volume_up_rounded, color: cs.primary),
+                      tooltip: 'Repetir indicación',
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.pushReplacementNamed(context, AppRoutes.map);
+                      },
+                      icon: const Icon(Icons.map_rounded, size: 18),
+                      label: const Text(
+                        'VER EN EL MAPA',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.3),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: cs.primary,
+                        foregroundColor: cs.onPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.md)),
+                      ),
+                    ),
+                  ),
+                  if (isArrived) ...[
+                    const SizedBox(width: 10),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        ref.read(navigationProvider.notifier).cancelNavigation();
+                      },
+                      icon: const Icon(Icons.check_rounded, size: 18),
+                      label: const Text('FINALIZAR',
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: cs.tertiary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.md)),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Text(step.voiceInstruction,
-              style: TextStyle(
-                  color: cs.onSurface,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  height: 1.4)),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            child: LinearProgressIndicator(
-                value: navState.progress,
-                minHeight: 6,
-                backgroundColor: cs.onSurface.withValues(alpha: 0.1),
-                valueColor: AlwaysStoppedAnimation(cs.primary)),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(color: cs.outline),
-                ),
-                child: IconButton(
-                  onPressed: () =>
-                      ref.read(voiceProvider.notifier).speakCurrentStep(),
-                  icon: Icon(Icons.volume_up_rounded, color: cs.primary),
-                  tooltip: 'Repetir indicación',
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    if (isArrived) {
-                      ref.read(navigationProvider.notifier).cancelNavigation();
-                    } else {
-                      ref.read(voiceProvider.notifier).nextStepAndSpeak();
-                    }
-                  },
-                  icon: Icon(
-                    isArrived
-                        ? Icons.check_circle_outline_rounded
-                        : Icons.arrow_forward_rounded,
-                    size: 18,
-                  ),
-                  label: Text(
-                    isArrived ? 'FINALIZAR' : 'SIGUIENTE',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w800, fontSize: 13),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isArrived ? cs.tertiary : cs.primary,
-                    foregroundColor: isArrived ? Colors.white : cs.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.md)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }

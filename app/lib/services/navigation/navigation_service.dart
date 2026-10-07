@@ -1,5 +1,5 @@
+import 'dart:math' as math;
 import 'package:navia/data/models/campus_node.dart';
-import 'package:navia/data/models/campus_edge.dart';
 import 'package:navia/data/models/nav_route.dart';
 import 'package:navia/services/navigation/campus_graph.dart';
 import 'package:navia/services/navigation/dijkstra.dart';
@@ -237,42 +237,123 @@ class NavigationService {
     return _graph!.nodes[_currentNodeId!];
   }
 
-  /// Convierte un DijkstraResult en un NavRoute con instrucciones de voz.
+  static double _calculateBearing(
+      double lat1, double lng1, double lat2, double lng2) {
+    final dLng = (lng2 - lng1) * math.pi / 180.0;
+    final phi1 = lat1 * math.pi / 180.0;
+    final phi2 = lat2 * math.pi / 180.0;
+    final y = math.sin(dLng) * math.cos(phi2);
+    final x = math.cos(phi1) * math.sin(phi2) -
+        math.sin(phi1) * math.cos(phi2) * math.cos(dLng);
+    final b = math.atan2(y, x) * 180.0 / math.pi;
+    return (b + 360.0) % 360.0;
+  }
+
+  static double _bearingDiff(double b1, double b2) {
+    var diff = b2 - b1;
+    while (diff > 180) {
+      diff -= 360;
+    }
+    while (diff < -180) {
+      diff += 360;
+    }
+    return diff;
+  }
+
+  /// Convierte un DijkstraResult en un NavRoute con maniobras e instrucciones
+  /// de voz profesionales estilo Google Maps.
   NavRoute _buildNavRoute(DijkstraResult result) {
     final steps = <RouteStep>[];
+    final path = result.path;
+    final totalSteps = path.length;
+    final destNode = result.destination;
+    final destName = destNode.name.isNotEmpty ? destNode.name : 'tu destino';
 
-    for (int i = 0; i < result.path.length; i++) {
-      final nodeId = result.path[i];
+    for (int i = 0; i < totalSteps; i++) {
+      final nodeId = path[i];
       final node = _graph!.nodes[nodeId]!;
+      final edge = i < result.edges.length ? result.edges[i] : null;
+      final nextNode = i + 1 < totalSteps ? _graph!.nodes[path[i + 1]] : null;
+      final prevNode = i > 0 ? _graph!.nodes[path[i - 1]] : null;
+      final segDistance = edge?.distance ?? 0.0;
 
-      CampusEdge? edge;
-      String voiceInstruction;
+      RouteManeuver maneuver = RouteManeuver.straight;
+      String title = '';
+      String voiceInstruction = '';
 
       if (i == 0) {
-        // Primer paso: ir directo a la indicación (el origen ya se muestra
-        // por separado en la tarjeta de ubicación actual).
-        if (i < result.edges.length) {
-          edge = result.edges[i];
-          voiceInstruction = '${edge.direction}.';
+        // Inicio de la ruta
+        maneuver = RouteManeuver.depart;
+        title = 'Inicia tu recorrido';
+        if (totalSteps == 1) {
+          title = 'Estás en tu destino';
+          voiceInstruction = 'Ya estás en $destName.';
+          maneuver = RouteManeuver.arrive;
         } else {
-          voiceInstruction = 'Dirígete hacia tu destino.';
+          final targetText = (nextNode != null &&
+                  nextNode.name.isNotEmpty &&
+                  nextNode.type != NodeType.corridor)
+              ? nextNode.name
+              : destName;
+          voiceInstruction =
+              'Inicia tu recorrido y avanza ${segDistance.round()} metros hacia $targetText.';
         }
-      } else if (i == result.path.length - 1) {
-        // Último paso: anunciar llegada
-        voiceInstruction = 'Has llegado a ${node.name}. ${node.description}.';
+      } else if (i == totalSteps - 1) {
+        // Llegada al destino final
+        maneuver = RouteManeuver.arrive;
+        title = 'Llegada: $destName';
+        voiceInstruction = 'Has llegado a $destName.';
       } else {
-        // Pasos intermedios: usar la instrucción de la arista
-        if (i - 1 < result.edges.length) {
-          edge = (i < result.edges.length) ? result.edges[i] : null;
+        // Pasos intermedios: calcular ángulo de giro entre (prev -> curr) y (curr -> next)
+        double diff = 0.0;
+        if (prevNode != null && nextNode != null) {
+          final bIn = _calculateBearing(
+              prevNode.lat, prevNode.lng, node.lat, node.lng);
+          final bOut = _calculateBearing(
+              node.lat, node.lng, nextNode.lat, nextNode.lng);
+          diff = _bearingDiff(bIn, bOut);
+        }
 
-          voiceInstruction = 'Pasando por ${node.name}.';
-
-          if (edge != null) {
-            voiceInstruction += ' ${edge.direction}.';
-            voiceInstruction += ' ${edge.distance.round()} metros.';
-          }
+        if (diff.abs() <= 25.0) {
+          maneuver = RouteManeuver.straight;
+          title = 'Continúa recto';
+        } else if (diff > 25.0 && diff <= 65.0) {
+          maneuver = RouteManeuver.slightRight;
+          title = 'Gira ligeramente a la derecha';
+        } else if (diff > 65.0 && diff <= 120.0) {
+          maneuver = RouteManeuver.turnRight;
+          title = 'Gira a la derecha';
+        } else if (diff > 120.0) {
+          maneuver = RouteManeuver.sharpRight;
+          title = 'Gira a la derecha';
+        } else if (diff < -25.0 && diff >= -65.0) {
+          maneuver = RouteManeuver.slightLeft;
+          title = 'Gira ligeramente a la izquierda';
+        } else if (diff < -65.0 && diff >= -120.0) {
+          maneuver = RouteManeuver.turnLeft;
+          title = 'Gira a la izquierda';
         } else {
-          voiceInstruction = 'Continúa por ${node.name}.';
+          maneuver = RouteManeuver.sharpLeft;
+          title = 'Gira a la izquierda';
+        }
+
+        // Si la arista tiene dirección explícita personalizada, respetarla
+        final edgeDir = edge?.direction.trim() ?? '';
+        final distText =
+            segDistance > 0 ? '${segDistance.round()} metros' : '';
+
+        if (edgeDir.isNotEmpty) {
+          voiceInstruction = '$title por $edgeDir';
+          if (distText.isNotEmpty) voiceInstruction += ' durante $distText';
+          voiceInstruction += '.';
+        } else if (node.name.isNotEmpty && node.type != NodeType.corridor) {
+          voiceInstruction = '$title pasando por ${node.name}';
+          if (distText.isNotEmpty) voiceInstruction += ' por $distText';
+          voiceInstruction += ' hacia $destName.';
+        } else {
+          voiceInstruction = '$title por el andador';
+          if (distText.isNotEmpty) voiceInstruction += ' durante $distText';
+          voiceInstruction += '.';
         }
       }
 
@@ -280,6 +361,9 @@ class NavigationService {
         node: node,
         edge: edge,
         voiceInstruction: voiceInstruction,
+        maneuver: maneuver,
+        distanceMeters: segDistance,
+        title: title,
       ));
     }
 

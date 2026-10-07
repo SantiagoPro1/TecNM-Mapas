@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import '../../../services/offline/offline_manager.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -25,6 +26,9 @@ import 'package:navia/core/constants/campus_locations.dart';
 import 'package:navia/core/constants/venue_registry.dart';
 import 'package:navia/core/constants/app_routes.dart';
 import 'package:navia/data/providers/navigation_provider.dart';
+import 'package:navia/data/models/nav_route.dart';
+import 'package:navia/data/models/announcement.dart';
+import 'package:navia/data/providers/feed_provider.dart';
 import 'package:navia/data/providers/settings_provider.dart';
 import 'package:navia/presentation/widgets/bottom_nav.dart';
 import 'package:navia/core/theme/app_theme.dart';
@@ -151,6 +155,316 @@ class _RouteStatusBanner extends StatelessWidget {
               padding: EdgeInsets.zero,
               splashRadius: 22,
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Encabezado superior de navegación activa giro a giro estilo Google Maps.
+class _ActiveNavTurnByTurnHeader extends StatelessWidget {
+  final RouteStep step;
+  final VoidCallback onRepeatVoice;
+  final VoidCallback onCancel;
+
+  const _ActiveNavTurnByTurnHeader({
+    required this.step,
+    required this.onRepeatVoice,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final distMeters = step.distanceMeters.round();
+    final distLabel = distMeters > 0 ? 'En $distMeters m' : 'Ahora';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : cs.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: cs.primary.withValues(alpha: 0.35),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: cs.primary,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(step.maneuverIcon, color: cs.onPrimary, size: 28),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      distLabel,
+                      style: TextStyle(
+                        color: cs.primary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        step.displayTitle,
+                        style: TextStyle(
+                          color: cs.onSurface,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  step.voiceInstruction,
+                  style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.8),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.25,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            onPressed: onRepeatVoice,
+            tooltip: 'Repetir indicación',
+            icon: Icon(Icons.volume_up_rounded, color: cs.primary),
+            iconSize: 22,
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            padding: EdgeInsets.zero,
+          ),
+          IconButton(
+            onPressed: onCancel,
+            tooltip: 'Detener navegación',
+            icon: Icon(Icons.close_rounded,
+                color: cs.onSurface.withValues(alpha: 0.6)),
+            iconSize: 22,
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            padding: EdgeInsets.zero,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Panel inferior de control y progreso de ruta activa estilo Google Maps.
+class _ActiveNavBottomHUD extends StatelessWidget {
+  final NavigationState navState;
+  final NavRoute route;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+  final VoidCallback onCancel;
+
+  const _ActiveNavBottomHUD({
+    required this.navState,
+    required this.route,
+    required this.onPrevious,
+    required this.onNext,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isArrived = navState.status == NavStatus.arrived;
+
+    final distanceMeters =
+        navState.routeDistanceMeters ?? route.totalDistance.round();
+    final etaMinutes = navState.routeDistanceMeters != null
+        ? (navState.routeDistanceMeters! / 72).round()
+        : route.estimatedMinutes.round();
+    final distanceLabel = distanceMeters >= 1000
+        ? '${(distanceMeters / 1000).toStringAsFixed(1)} km'
+        : '$distanceMeters m';
+    final etaLabel = etaMinutes < 1 ? '<1 min' : '$etaMinutes min';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : cs.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: isArrived
+              ? cs.tertiary.withValues(alpha: 0.6)
+              : cs.outline.withValues(alpha: 0.35),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 18,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Fila 1: Tiempo estimado, distancia y progreso
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isArrived
+                      ? cs.tertiary.withValues(alpha: 0.15)
+                      : cs.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isArrived ? Icons.check_circle_rounded : Icons.schedule_rounded,
+                      color: isArrived ? cs.tertiary : cs.primary,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isArrived ? 'Llegaste' : etaLabel,
+                      style: TextStyle(
+                        color: isArrived ? cs.tertiary : cs.primary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                distanceLabel,
+                style: TextStyle(
+                  color: cs.onSurface.withValues(alpha: 0.65),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'Paso ${navState.currentStepIndex + 1} de ${route.steps.length}',
+                style: TextStyle(
+                  color: cs.onSurface.withValues(alpha: 0.5),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Nombre del destino
+          Row(
+            children: [
+              Icon(Icons.place_rounded, color: cs.primary, size: 18),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  route.destination.name,
+                  style: TextStyle(
+                    color: cs.onSurface,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Barra de progreso
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: LinearProgressIndicator(
+              value: navState.progress,
+              minHeight: 5,
+              backgroundColor: cs.onSurface.withValues(alpha: 0.08),
+              valueColor: AlwaysStoppedAnimation(
+                isArrived ? cs.tertiary : cs.primary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Fila de acciones: Paso Anterior, Siguiente y Finalizar
+          Row(
+            children: [
+              if (!isArrived) ...[
+                IconButton.outlined(
+                  onPressed: onPrevious,
+                  icon: const Icon(Icons.chevron_left_rounded),
+                  tooltip: 'Paso anterior',
+                  constraints: const BoxConstraints(minWidth: 42, minHeight: 42),
+                ),
+                const SizedBox(width: 8),
+                IconButton.outlined(
+                  onPressed: onNext,
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  tooltip: 'Siguiente paso',
+                  constraints: const BoxConstraints(minWidth: 42, minHeight: 42),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: onCancel,
+                  icon: Icon(
+                    isArrived
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.close_rounded,
+                    size: 18,
+                  ),
+                  label: Text(
+                    isArrived ? 'FINALIZAR' : 'DETENER RUTA',
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isArrived
+                        ? cs.tertiary
+                        : const Color(0xFFEF4444),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -356,9 +670,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
   static const LatLng _initialPosition =
       LatLng(CampusLocations.centerLat, CampusLocations.centerLng);
 
-  /// Sede que se está mostrando. Se resuelve en [didChangeDependencies] desde
-  /// `arguments['venueId']`; por defecto TecNM Colima si no se especifica.
   Venue _venue = VenueRegistry.tecColima;
+  List<Announcement> _venueAnnouncements = const [];
 
   /// Centro de la sede que se está viendo. Toda la lógica de GPS se mide
   /// contra ESTO, no contra el centro del TecNM Colima: 6 de las 9 sedes del
@@ -487,6 +800,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
         if (mounted) {
           ref.read(currentVenueIdProvider.notifier).state = resolvedVenueId;
           ref.read(openMapModeProvider.notifier).state = abierto;
+          ref
+              .read(feedServiceProvider)
+              .getAnnouncementsForVenue(resolvedVenueId)
+              .then((list) {
+            if (mounted) {
+              setState(() => _venueAnnouncements = list);
+            }
+          });
         }
       });
       _initializedWithArgs = true;
@@ -499,33 +820,36 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // la próxima vez.
       final routeBelongsHere = navState.routeVenueId == null ||
           navState.routeVenueId == resolvedVenueId;
-      if (navState.activeRoute != null && !routeBelongsHere) {
-        Future(() {
-          if (mounted) {
-            ref.read(navigationProvider.notifier).cancelNavigation();
-          }
-        });
-        final points = (navState.routePolylinePoints != null &&
-                navState.routePolylinePoints!.isNotEmpty)
-            ? navState.routePolylinePoints!
-                .map((p) => LatLng(p[0], p[1]))
-                .toList()
-            : navState.activeRoute!
-                .getPolylinePoints()
-                .map((p) => LatLng(p[0], p[1]))
-                .toList();
-        Future.microtask(() {
-          _setRoutePolyline(points);
-          setState(() {
-            _isNavigating = true;
-            _destinationLatLng = points.last;
+      if (navState.activeRoute != null) {
+        if (!routeBelongsHere) {
+          Future(() {
+            if (mounted) {
+              ref.read(navigationProvider.notifier).cancelNavigation();
+            }
           });
-          _showRouteBanner(_RouteBannerKind.active);
-        });
-        if (_mapInitialCenter == _initialPosition) {
-          _mapInitialCenter = points.first;
-          _mapInitialZoom = 17.5;
-          _centeredOnUser = true;
+        } else {
+          final points = (navState.routePolylinePoints != null &&
+                  navState.routePolylinePoints!.isNotEmpty)
+              ? navState.routePolylinePoints!
+                  .map((p) => LatLng(p[0], p[1]))
+                  .toList()
+              : navState.activeRoute!
+                  .getPolylinePoints()
+                  .map((p) => LatLng(p[0], p[1]))
+                  .toList();
+          Future.microtask(() {
+            _setRoutePolyline(points);
+            setState(() {
+              _isNavigating = true;
+              _destinationLatLng = points.last;
+            });
+            _showRouteBanner(_RouteBannerKind.active);
+          });
+          if (_mapInitialCenter == _initialPosition && points.isNotEmpty) {
+            _mapInitialCenter = points.first;
+            _mapInitialZoom = 17.5;
+            _centeredOnUser = true;
+          }
         }
       } else if (navState.currentNode != null) {
         if (_mapInitialCenter == _initialPosition) {
@@ -1121,23 +1445,34 @@ class _MapScreenState extends ConsumerState<MapScreen>
   void _scheduleRouteRecalc(LatLng rawPos) {
     _routeRecalcTimer?.cancel();
     _routeRecalcTimer =
-        Timer(const Duration(milliseconds: 1200), () async {
+        Timer(const Duration(milliseconds: 1500), () async {
       if (!mounted || !_isNavigating || _destinationLatLng == null) return;
 
       final snapPos = _displayPosition ?? rawPos;
-      final navService = ref.read(navigationServiceProvider);
-      final graph = navService.graph;
-      if (graph == null) return;
+      final navState = ref.read(navigationProvider);
+      final activeRoute = navState.activeRoute;
+      if (activeRoute == null) return;
 
-      final corridors = graph.nodes.values
-          .where((n) =>
-              n.type == NodeType.corridor || n.type == NodeType.entrance)
-          .toList();
-      final nearest =
-          _closestNodeTo(corridors, snapPos, maxDistanceM: 100);
-      if (nearest == null) return;
-      if (nearest.id == navService.currentNodeId) return;
+      // Verificar si el usuario sigue cerca de los pasos restantes de la ruta activa
+      bool onRoute = false;
+      for (int i = navState.currentStepIndex; i < activeRoute.steps.length; i++) {
+        final stepNode = activeRoute.steps[i].node;
+        final d = Geolocator.distanceBetween(
+          snapPos.latitude,
+          snapPos.longitude,
+          stepNode.lat,
+          stepNode.lng,
+        );
+        if (d < 28.0) {
+          onRoute = true;
+          break;
+        }
+      }
 
+      // Si sigue sobre el camino de la ruta, no recalculamos (el avance de pasos lo gestiona el GPS)
+      if (onRoute) return;
+
+      // Si se desvió más de 28m de todo el trayecto restante, recalcular suavemente
       await calculateAccessibleRoute(_destinationLatLng!);
     });
   }
@@ -1523,21 +1858,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
-  CampusNode? _closestNodeTo(List<CampusNode> nodes, LatLng target,
-      {double maxDistanceM = double.infinity}) {
-    CampusNode? best;
-    double bestDist = double.infinity;
-    for (final node in nodes) {
-      final d = Geolocator.distanceBetween(
-          target.latitude, target.longitude, node.lat, node.lng);
-      if (d < bestDist) {
-        bestDist = d;
-        best = node;
-      }
-    }
-    return bestDist <= maxDistanceM ? best : null;
-  }
-
   // ──────────────────────────────────────────────────────────
   //  Bottom Sheet y helpers UI
   // ──────────────────────────────────────────────────────────
@@ -1841,9 +2161,166 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
+  Widget _buildVenueAnnouncementsButton() {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surface,
+        shape: BoxShape.circle,
+        border: Border.all(color: cs.outline.withValues(alpha: 0.35)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.14),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            icon: Icon(Icons.campaign_rounded, color: cs.primary),
+            tooltip: 'Avisos de la sede (${_venueAnnouncements.length})',
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              _showVenueAnnouncementsSheet();
+            },
+          ),
+          Positioned(
+            top: 6,
+            right: 6,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: cs.error,
+                shape: BoxShape.circle,
+                border: Border.all(color: cs.surface, width: 1.5),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showVenueAnnouncementsSheet() {
+    final cs = Theme.of(context).colorScheme;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: cs.outline.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(Icons.campaign_rounded, color: cs.primary, size: 24),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Avisos de ${_venue.label}',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: cs.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: _venueAnnouncements.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (context, i) {
+                  final a = _venueAnnouncements[i];
+                  return Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          a.title,
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w800,
+                            color: cs.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          a.body,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: cs.onSurface.withValues(alpha: 0.8),
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildFABs() {
     final cs = Theme.of(context).colorScheme;
     final isAdmin = ref.watch(isAdminProvider).value ?? false;
+
+    if (_isNavigating) {
+      if (_isTrackingActive) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 180),
+        child: FloatingActionButton.extended(
+          heroTag: 'nav_recenter_btn',
+          onPressed: _centerOnUser,
+          backgroundColor: cs.primary,
+          elevation: 6,
+          icon: Icon(Icons.navigation_rounded, color: cs.onPrimary, size: 20),
+          label: Text(
+            'Re-centrar',
+            style: TextStyle(
+              color: cs.onPrimary,
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
@@ -2514,6 +2991,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
       if (next.activeRoute != previous?.activeRoute ||
           next.routePolylinePoints != previous?.routePolylinePoints) {
+        final wasNavigating = _isNavigating;
         if (next.routePolylinePoints != null) {
           final points = next.routePolylinePoints!
               .map((p) => LatLng(p[0], p[1]))
@@ -2521,7 +2999,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
           _setRoutePolyline(points);
           setState(() => _isNavigating = true);
           _showRouteBanner(_RouteBannerKind.active);
-          _fitBounds(points);
+          if (!wasNavigating) {
+            _fitBounds(points);
+          }
         } else if (next.activeRoute != null) {
           final points = next.activeRoute!.getPolylinePoints()
               .map((p) => LatLng(p[0], p[1]))
@@ -2529,7 +3009,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
           _setRoutePolyline(points);
           setState(() => _isNavigating = true);
           _showRouteBanner(_RouteBannerKind.active);
-          _fitBounds(points);
+          if (!wasNavigating) {
+            _fitBounds(points);
+          }
         } else {
           setState(() { _googlePolylines = {}; _isNavigating = false; });
         }
@@ -2615,11 +3097,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
         .toList();
 
     final cs = Theme.of(context).colorScheme;
+    final navState = ref.watch(navigationProvider);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       floatingActionButton: _buildFABs(),
-      bottomNavigationBar: BottomNav(currentIndex: widget.openMap ? 3 : -1),
+      bottomNavigationBar: _isNavigating ? null : BottomNav(currentIndex: widget.openMap ? 3 : -1),
       body: Stack(
         children: [
           // ── Mapa (Google Maps en Android/iOS/Web, flutter_map en desktop) ──
@@ -2701,38 +3184,44 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     },
                   ),
           ),
-          // ── Botón para volver a Inicio ─────────────────────────
-          Positioned(
-            top: 0, left: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: _buildRoundIconButton(
-                  icon: Icons.arrow_back_rounded,
-                  tooltip: 'Volver a Inicio',
-                  onPressed: () =>
-                      Navigator.pushReplacementNamed(context, AppRoutes.home),
+          // ── Botón para volver a Inicio (solo cuando no navega) ────
+          if (!_isNavigating)
+            Positioned(
+              top: 0, left: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _buildRoundIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: 'Volver a Inicio',
+                    onPressed: () =>
+                        Navigator.pushReplacementNamed(context, AppRoutes.home),
+                  ),
                 ),
               ),
             ),
-          ),
-          // ── Botones superiores derechos: Satélite + Tema ───────
-          Positioned(
-            top: 0, right: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildMapTypeToggle(),
-                    const SizedBox(width: 8),
-                    _buildThemeToggle(isDark),
-                  ],
+          // ── Botones superiores derechos: Avisos + Satélite + Tema ──
+          if (!_isNavigating)
+            Positioned(
+              top: 0, right: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_venueAnnouncements.isNotEmpty) ...[
+                        _buildVenueAnnouncementsButton(),
+                        const SizedBox(width: 8),
+                      ],
+                      _buildMapTypeToggle(),
+                      const SizedBox(width: 8),
+                      _buildThemeToggle(isDark),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
           // ── Banner de modo edición (admin, Fase 2) ─────────────
           if (_isEditMode)
             Positioned(
@@ -2782,11 +3271,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ),
               ),
             ),
-          // ── Avisos superiores: posición manual + estado de ruta ────
+          // ── Avisos superiores: posición manual + estado de ruta (cuando no navega) ────
           // Van en una sola columna (no dos Positioned independientes) para
           // que si algún día coinciden los dos a la vez, se acomoden uno
           // debajo del otro en vez de encimarse.
-          if (isManualPosition || _routeBanner != null)
+          if (!_isNavigating && (isManualPosition || _routeBanner != null))
             Positioned(
               top: 0, left: 16, right: 16,
               child: SafeArea(
@@ -2849,6 +3338,91 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         ),
                     ],
                   ),
+                ),
+              ),
+            ),
+
+          // ── Header de navegación activa estilo Google Maps (Maneuver / Turn-by-turn) ──
+          if (_isNavigating &&
+              navState.activeRoute != null &&
+              (navState.currentStep != null ||
+                  navState.activeRoute!.steps.isNotEmpty))
+            Positioned(
+              top: 0,
+              left: 14,
+              right: 14,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: _ActiveNavTurnByTurnHeader(
+                    step: navState.currentStep ??
+                        navState.activeRoute!.steps.first,
+                    onRepeatVoice: () {
+                      final step = navState.currentStep ??
+                          navState.activeRoute!.steps.first;
+                      SemanticsService.sendAnnouncement(
+                        View.of(context),
+                        step.voiceInstruction,
+                        TextDirection.ltr,
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(step.voiceInstruction),
+                          duration: const Duration(seconds: 3),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                    onCancel: () {
+                      ref
+                          .read(navigationProvider.notifier)
+                          .cancelNavigation();
+                      setState(() {
+                        _isNavigating = false;
+                        _googlePolylines = {};
+                        _destinationLatLng = null;
+                        _isTrackingActive = false;
+                        _routeBanner = null;
+                      });
+                    },
+                  ),
+                ),
+              ),
+            ),
+
+          // ── HUD inferior de navegación activa estilo Google Maps (ETA, Distancia, Controles) ──
+          if (_isNavigating && navState.activeRoute != null)
+            Positioned(
+              bottom: 16,
+              left: 14,
+              right: 14,
+              child: SafeArea(
+                child: _ActiveNavBottomHUD(
+                  navState: navState,
+                  route: navState.activeRoute!,
+                  onPrevious: navState.currentStepIndex > 0
+                      ? () => ref
+                          .read(navigationProvider.notifier)
+                          .goToStep(navState.currentStepIndex - 1)
+                      : null,
+                  onNext: navState.currentStepIndex <
+                          navState.activeRoute!.steps.length - 1
+                      ? () => ref
+                          .read(navigationProvider.notifier)
+                          .goToStep(navState.currentStepIndex + 1)
+                      : null,
+                  onCancel: () {
+                    ref
+                        .read(navigationProvider.notifier)
+                        .cancelNavigation();
+                    setState(() {
+                      _isNavigating = false;
+                      _googlePolylines = {};
+                      _destinationLatLng = null;
+                      _isTrackingActive = false;
+                      _routeBanner = null;
+                    });
+                  },
                 ),
               ),
             ),

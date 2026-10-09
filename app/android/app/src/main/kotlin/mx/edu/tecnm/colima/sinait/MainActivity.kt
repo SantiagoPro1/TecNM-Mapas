@@ -18,6 +18,11 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
+                "getInstalledBuildNumber" -> {
+                    val info = packageManager.getPackageInfo(packageName, 0)
+                    val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else info.versionCode.toLong()
+                    result.success(code)
+                }
                 "installApk" -> {
                     val filePath = call.argument<String>("filePath")
                     if (filePath == null) {
@@ -30,6 +35,14 @@ class MainActivity : FlutterActivity() {
                         if (!file.exists()) {
                             result.error("FILE_NOT_FOUND", "File does not exist: $filePath", null)
                             return@setMethodCallHandler
+                        }
+
+                        val archive = packageManager.getPackageArchiveInfo(filePath, 0)
+                            ?: throw IllegalArgumentException("El archivo descargado no es un APK valido")
+                        val archiveBuild = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) archive.longVersionCode else archive.versionCode.toLong()
+                        val expectedBuild = call.argument<Number>("expectedBuild")?.toLong()
+                        require(archive.packageName == packageName && archiveBuild == expectedBuild) {
+                            "El APK no coincide con la actualizacion anunciada. Intenta mas tarde."
                         }
 
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

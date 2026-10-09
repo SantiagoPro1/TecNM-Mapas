@@ -25,14 +25,19 @@ import 'package:navia/presentation/screens/map/providers/map_providers.dart';
 import 'package:navia/core/constants/campus_locations.dart';
 import 'package:navia/core/constants/venue_registry.dart';
 import 'package:navia/core/constants/app_routes.dart';
+import 'package:navia/core/navigation/app_navigation.dart';
 import 'package:navia/data/providers/navigation_provider.dart';
-import 'package:navia/data/models/nav_route.dart';
 import 'package:navia/data/models/announcement.dart';
+import 'package:navia/presentation/widgets/announcement_notice.dart';
 import 'package:navia/data/providers/feed_provider.dart';
 import 'package:navia/data/providers/settings_provider.dart';
 import 'package:navia/presentation/widgets/bottom_nav.dart';
 import 'package:navia/core/theme/app_theme.dart';
 import 'package:navia/presentation/screens/map/place_visuals.dart';
+import 'package:navia/presentation/screens/map/map_notice_scope.dart';
+import 'package:navia/presentation/screens/map/map_action_buttons.dart';
+import 'package:navia/presentation/screens/map/map_overlay_panel.dart';
+import 'package:navia/presentation/screens/map/map_navigation_panels.dart';
 import 'package:navia/services/navigation/route_geometry_smoother.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
@@ -65,7 +70,14 @@ class MapScreen extends ConsumerStatefulWidget {
 /// pero ya sobre Inicio, no sobre el mapa. Por eso ahora estos avisos viven
 /// DENTRO de este mismo cuadro, como parte del árbol de widgets del mapa:
 /// si te vas de esta pantalla, el aviso se va con ella, en vez de perseguirte.
-enum _RouteBannerKind { calculating, active, alreadyThere, blocked, arrived, error }
+enum _RouteBannerKind {
+  calculating,
+  active,
+  alreadyThere,
+  blocked,
+  arrived,
+  error
+}
 
 /// Cuadro de estado de ruta — un solo widget para todos los avisos de
 /// ruteo (ver [_RouteBannerKind]), con el botón de cancelar SOLO visible
@@ -83,388 +95,77 @@ class _RouteStatusBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     late final IconData icon;
     late final String text;
-    Color accent = cs.primary;
+    Color accent = NoticeTone.info.background;
     bool showCancel = false;
 
     switch (kind) {
       case _RouteBannerKind.calculating:
         icon = Icons.hourglass_top_rounded;
         text = 'Calculando ruta...';
-        accent = cs.primary;
+        accent = NoticeTone.info.background;
       case _RouteBannerKind.active:
         icon = Icons.navigation_rounded;
         text = 'Ruta activa';
-        accent = cs.primary;
+        accent = NoticeTone.info.background;
         showCancel = true;
       case _RouteBannerKind.alreadyThere:
         icon = Icons.check_circle_rounded;
         text = 'Ya estás en ${label ?? "tu destino"}';
-        accent = cs.tertiary;
+        accent = NoticeTone.success.background;
       case _RouteBannerKind.blocked:
         icon = Icons.info_rounded;
         text = 'Ya tienes una ruta activa. Cancélala antes de trazar otra.';
-        accent = isDark ? AppWarning.dark : AppWarning.light;
+        accent = NoticeTone.warning.background;
       case _RouteBannerKind.arrived:
         icon = Icons.check_circle_rounded;
         text = 'Has llegado a tu destino';
-        accent = cs.tertiary;
+        accent = NoticeTone.success.background;
       case _RouteBannerKind.error:
         icon = Icons.error_outline_rounded;
         text = 'No se pudo calcular la ruta. Intenta de nuevo.';
-        accent = cs.error;
+        accent = NoticeTone.error.background;
     }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: cs.surface,
+        color: accent,
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: accent.withValues(alpha: 0.4)),
       ),
       child: Row(
         children: [
           if (kind == _RouteBannerKind.calculating)
-            SizedBox(
+            const SizedBox(
               width: 18,
               height: 18,
               child: CircularProgressIndicator(
                   strokeWidth: 2.2,
-                  valueColor: AlwaysStoppedAnimation(accent)),
+                  valueColor: AlwaysStoppedAnimation(Colors.white)),
             )
           else
-            Icon(icon, color: accent, size: 20),
+            Icon(icon, color: Colors.white, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(text,
-                style: TextStyle(
-                    color: cs.onSurface, fontWeight: FontWeight.w700, fontSize: 14)),
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14)),
           ),
           if (showCancel)
             IconButton(
               onPressed: onCancel,
               tooltip: 'Cancelar ruta',
               icon: Icon(Icons.close_rounded,
-                  color: cs.onSurface.withValues(alpha: 0.6)),
+                  color: Colors.white.withValues(alpha: 0.8)),
               iconSize: 20,
               constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
               padding: EdgeInsets.zero,
               splashRadius: 22,
             ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Encabezado superior de navegación activa giro a giro estilo Google Maps.
-class _ActiveNavTurnByTurnHeader extends StatelessWidget {
-  final RouteStep step;
-  final VoidCallback onRepeatVoice;
-  final VoidCallback onCancel;
-
-  const _ActiveNavTurnByTurnHeader({
-    required this.step,
-    required this.onRepeatVoice,
-    required this.onCancel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final distMeters = step.distanceMeters.round();
-    final distLabel = distMeters > 0 ? 'En $distMeters m' : 'Ahora';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : cs.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: cs.primary.withValues(alpha: 0.35),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: cs.primary,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(step.maneuverIcon, color: cs.onPrimary, size: 28),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      distLabel,
-                      style: TextStyle(
-                        color: cs.primary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        step.displayTitle,
-                        style: TextStyle(
-                          color: cs.onSurface,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  step.voiceInstruction,
-                  style: TextStyle(
-                    color: cs.onSurface.withValues(alpha: 0.8),
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w500,
-                    height: 1.25,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            onPressed: onRepeatVoice,
-            tooltip: 'Repetir indicación',
-            icon: Icon(Icons.volume_up_rounded, color: cs.primary),
-            iconSize: 22,
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-            padding: EdgeInsets.zero,
-          ),
-          IconButton(
-            onPressed: onCancel,
-            tooltip: 'Detener navegación',
-            icon: Icon(Icons.close_rounded,
-                color: cs.onSurface.withValues(alpha: 0.6)),
-            iconSize: 22,
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-            padding: EdgeInsets.zero,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Panel inferior de control y progreso de ruta activa estilo Google Maps.
-class _ActiveNavBottomHUD extends StatelessWidget {
-  final NavigationState navState;
-  final NavRoute route;
-  final VoidCallback? onPrevious;
-  final VoidCallback? onNext;
-  final VoidCallback onCancel;
-
-  const _ActiveNavBottomHUD({
-    required this.navState,
-    required this.route,
-    required this.onPrevious,
-    required this.onNext,
-    required this.onCancel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isArrived = navState.status == NavStatus.arrived;
-
-    final distanceMeters =
-        navState.routeDistanceMeters ?? route.totalDistance.round();
-    final etaMinutes = navState.routeDistanceMeters != null
-        ? (navState.routeDistanceMeters! / 72).round()
-        : route.estimatedMinutes.round();
-    final distanceLabel = distanceMeters >= 1000
-        ? '${(distanceMeters / 1000).toStringAsFixed(1)} km'
-        : '$distanceMeters m';
-    final etaLabel = etaMinutes < 1 ? '<1 min' : '$etaMinutes min';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : cs.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: isArrived
-              ? cs.tertiary.withValues(alpha: 0.6)
-              : cs.outline.withValues(alpha: 0.35),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 18,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Fila 1: Tiempo estimado, distancia y progreso
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isArrived
-                      ? cs.tertiary.withValues(alpha: 0.15)
-                      : cs.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isArrived ? Icons.check_circle_rounded : Icons.schedule_rounded,
-                      color: isArrived ? cs.tertiary : cs.primary,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isArrived ? 'Llegaste' : etaLabel,
-                      style: TextStyle(
-                        color: isArrived ? cs.tertiary : cs.primary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                distanceLabel,
-                style: TextStyle(
-                  color: cs.onSurface.withValues(alpha: 0.65),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                'Paso ${navState.currentStepIndex + 1} de ${route.steps.length}',
-                style: TextStyle(
-                  color: cs.onSurface.withValues(alpha: 0.5),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Nombre del destino
-          Row(
-            children: [
-              Icon(Icons.place_rounded, color: cs.primary, size: 18),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  route.destination.name,
-                  style: TextStyle(
-                    color: cs.onSurface,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Barra de progreso
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            child: LinearProgressIndicator(
-              value: navState.progress,
-              minHeight: 5,
-              backgroundColor: cs.onSurface.withValues(alpha: 0.08),
-              valueColor: AlwaysStoppedAnimation(
-                isArrived ? cs.tertiary : cs.primary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Fila de acciones: Paso Anterior, Siguiente y Finalizar
-          Row(
-            children: [
-              if (!isArrived) ...[
-                IconButton.outlined(
-                  onPressed: onPrevious,
-                  icon: const Icon(Icons.chevron_left_rounded),
-                  tooltip: 'Paso anterior',
-                  constraints: const BoxConstraints(minWidth: 42, minHeight: 42),
-                ),
-                const SizedBox(width: 8),
-                IconButton.outlined(
-                  onPressed: onNext,
-                  icon: const Icon(Icons.chevron_right_rounded),
-                  tooltip: 'Siguiente paso',
-                  constraints: const BoxConstraints(minWidth: 42, minHeight: 42),
-                ),
-                const SizedBox(width: 10),
-              ],
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: onCancel,
-                  icon: Icon(
-                    isArrived
-                        ? Icons.check_circle_outline_rounded
-                        : Icons.close_rounded,
-                    size: 18,
-                  ),
-                  label: Text(
-                    isArrived ? 'FINALIZAR' : 'DETENER RUTA',
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isArrived
-                        ? cs.tertiary
-                        : const Color(0xFFEF4444),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -485,33 +186,33 @@ class _ManualPositionBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accent = isDark ? AppWarning.dark : AppWarning.light;
+    final accent = NoticeTone.warning.background;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: cs.surface,
+        color: accent,
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: accent.withValues(alpha: 0.4)),
       ),
       child: Row(
         children: [
-          Icon(Icons.push_pin_rounded, color: accent, size: 20),
+          const Icon(Icons.push_pin_rounded, color: Colors.white, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               'Ubicación fijada en ${label ?? "un punto"} — el GPS no se actualiza',
-              style: TextStyle(
-                  color: cs.onSurface, fontWeight: FontWeight.w700, fontSize: 13),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13),
             ),
           ),
           TextButton(
             onPressed: onClear,
             style: TextButton.styleFrom(
               minimumSize: const Size(44, 44),
-              foregroundColor: accent,
+              foregroundColor: Colors.white,
             ),
             child: const Text('QUITAR',
                 style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
@@ -524,6 +225,18 @@ class _ManualPositionBanner extends StatelessWidget {
 
 class _MapScreenState extends ConsumerState<MapScreen>
     with SingleTickerProviderStateMixin {
+  final _mapMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
+  bool get _isMapVisible =>
+      mounted && (ModalRoute.of(context)?.isCurrent ?? false);
+
+  void _showMapNotice(SnackBar notice) {
+    if (!_isMapVisible) return;
+    final messenger = _mapMessengerKey.currentState;
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(notice);
+  }
+
   GoogleMapController? _googleMapController;
   Set<Marker> _googleMarkers = {};
   Set<Polyline> _googlePolylines = {};
@@ -647,8 +360,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         final stillNavigating =
             ref.read(navigationProvider).status == NavStatus.navigating;
         setState(() {
-          _routeBanner =
-              stillNavigating ? _RouteBannerKind.active : null;
+          _routeBanner = stillNavigating ? _RouteBannerKind.active : null;
           _routeBannerLabel = null;
         });
       });
@@ -689,8 +401,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// la vista, y forzar el encuadre era justo lo que impedía moverse.
   bool _puedeSeguirAlUsuario(LatLng p) =>
       widget.openMap ||
-      Geolocator.distanceBetween(p.latitude, p.longitude,
-              _venueCenter.latitude, _venueCenter.longitude) <
+      Geolocator.distanceBetween(p.latitude, p.longitude, _venueCenter.latitude,
+              _venueCenter.longitude) <
           _venueRadiusMeters;
 
   /// Distancia (metros) para considerar que el usuario "ya llegó" a un
@@ -751,7 +463,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
           await rootBundle.loadString('assets/map_styles/light_style.json');
       final isDark = ref.read(mapThemeProvider) == 'dark';
       if (mounted) {
-        setState(() => _currentMapStyle = isDark ? _darkMapStyle : _lightMapStyle);
+        setState(
+            () => _currentMapStyle = isDark ? _darkMapStyle : _lightMapStyle);
       }
     } catch (_) {}
   }
@@ -863,6 +576,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   void _speak(String text) {
+    if (!_isMapVisible) return;
     ref.read(voiceProvider.notifier).speakAnnouncement(text);
   }
 
@@ -907,8 +621,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     final pin = Path()
       ..moveTo(cx - r, cy)
-      ..arcTo(
-          Rect.fromCircle(center: const Offset(cx, cy), radius: r), math.pi,
+      ..arcTo(Rect.fromCircle(center: const Offset(cx, cy), radius: r), math.pi,
           math.pi, false)
       ..quadraticBezierTo(cx + r * 0.72, cy + r * 1.05, cx, tipY)
       ..quadraticBezierTo(cx - r * 0.72, cy + r * 1.05, cx - r, cy)
@@ -946,11 +659,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    iconPainter.paint(
-        canvas, Offset(cx - iconPainter.width / 2, cy - iconPainter.height / 2));
+    iconPainter.paint(canvas,
+        Offset(cx - iconPainter.width / 2, cy - iconPainter.height / 2));
 
-    final img =
-        await recorder.endRecording().toImage(w.toInt(), h.toInt());
+    final img = await recorder.endRecording().toImage(w.toInt(), h.toInt());
     final data = await img.toByteData(format: ui.ImageByteFormat.png);
     final descriptor = BitmapDescriptor.bytes(
       data!.buffer.asUint8List(),
@@ -996,9 +708,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     canvas.drawCircle(center, 17, Paint()..color = Colors.white);
     canvas.drawCircle(center, 12, Paint()..color = AppMapColors.userLocation);
 
-    final img = await recorder
-        .endRecording()
-        .toImage(size.toInt(), size.toInt());
+    final img =
+        await recorder.endRecording().toImage(size.toInt(), size.toInt());
     final data = await img.toByteData(format: ui.ImageByteFormat.png);
     final descriptor = BitmapDescriptor.bytes(
       data!.buffer.asUint8List(),
@@ -1087,34 +798,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
   // ──────────────────────────────────────────────────────────
 
   Future<bool> _requestLocationPermission() async {
+    if (!mounted || !_isMapVisible) return false;
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      if (mounted) await _showGpsDisabledDialog();
+      if (mounted && _isMapVisible) await _showGpsDisabledDialog();
       return false;
     }
 
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
+      if (!mounted || !_isMapVisible) return false;
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        if (mounted) {
-          final warningColor = Theme.of(context).brightness == Brightness.dark
-              ? AppWarning.dark
-              : AppWarning.light;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.location_off_rounded, color: warningColor, size: 22),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Text(
-                      'Permiso de ubicación denegado. Algunas funciones estarán limitadas.',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ],
-              ),
+        if (mounted && _isMapVisible) {
+          _showMapNotice(
+            MapNotice(
+              tone: NoticeTone.warning,
+              content: const Text(
+                  'Permiso de ubicación denegado. Algunas funciones estarán limitadas.'),
               duration: const Duration(seconds: 4),
             ),
           );
@@ -1124,12 +825,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
 
     if (permission == LocationPermission.deniedForever) {
-      if (mounted) {
+      if (mounted && _isMapVisible) {
         final cs = Theme.of(context).colorScheme;
         await showDialog<void>(
           context: context,
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
+            scrollable: true,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.lg)),
             icon: Container(
@@ -1180,11 +882,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   Future<void> _showGpsDisabledDialog() async {
+    if (!_isMapVisible) return;
     final cs = Theme.of(context).colorScheme;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.lg)),
         icon: Container(
@@ -1259,21 +963,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   void _showOutsideVenueSnackBar() {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.info_outline_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Estás lejos de ${_venue.label}. Centrando la vista en la sede.',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ),
+    _mapMessengerKey.currentState?.hideCurrentSnackBar();
+    _showMapNotice(
+      MapNotice(
+        tone: NoticeTone.warning,
+        content: Text(
+            'Estás lejos de ${_venue.label}. Centrando la vista en la sede.'),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -1444,8 +1139,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   void _scheduleRouteRecalc(LatLng rawPos) {
     _routeRecalcTimer?.cancel();
-    _routeRecalcTimer =
-        Timer(const Duration(milliseconds: 1500), () async {
+    _routeRecalcTimer = Timer(const Duration(milliseconds: 1500), () async {
       if (!mounted || !_isNavigating || _destinationLatLng == null) return;
 
       final snapPos = _displayPosition ?? rawPos;
@@ -1455,7 +1149,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
       // Verificar si el usuario sigue cerca de los pasos restantes de la ruta activa
       bool onRoute = false;
-      for (int i = navState.currentStepIndex; i < activeRoute.steps.length; i++) {
+      for (int i = navState.currentStepIndex;
+          i < activeRoute.steps.length;
+          i++) {
         final stepNode = activeRoute.steps[i].node;
         final d = Geolocator.distanceBetween(
           snapPos.latitude,
@@ -1509,8 +1205,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
     if (origin != null) {
       final distance = Geolocator.distanceBetween(
-        origin.latitude, origin.longitude,
-        destination.latitude, destination.longitude,
+        origin.latitude,
+        origin.longitude,
+        destination.latitude,
+        destination.longitude,
       );
       if (distance <= _arrivalRadiusMeters) {
         _announceAlreadyThere(destinationName);
@@ -1577,8 +1275,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       final navState = ref.read(navigationProvider);
       LatLng? origin;
       if (navState.isManualPosition && navState.currentNode != null) {
-        origin =
-            LatLng(navState.currentNode!.lat, navState.currentNode!.lng);
+        origin = LatLng(navState.currentNode!.lat, navState.currentNode!.lng);
       } else {
         origin = _displayPosition ?? _currentPosition;
       }
@@ -1589,26 +1286,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
         if (fromId == null || graph == null) {
           if (mounted) {
-            final cs = Theme.of(context).colorScheme;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    Icon(Icons.gps_off_rounded,
-                        color: cs.onPrimary, size: 22),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Activa el GPS para trazar tu ruta.',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: cs.onPrimary),
-                      ),
-                    ),
-                  ],
-                ),
-                backgroundColor: cs.primary,
-                behavior: SnackBarBehavior.fixed,
+            _showMapNotice(
+              MapNotice(
+                tone: NoticeTone.warning,
+                content: const Text('Activa el GPS para trazar tu ruta.'),
+                behavior: SnackBarBehavior.floating,
                 duration: const Duration(seconds: 4),
               ),
             );
@@ -1640,7 +1322,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
             destinationName: destinationName,
           );
       if (!local) {
-        debugPrint('Ruta: el grafo local no cubre el trayecto; se muestra el diálogo.');
+        debugPrint(
+            'Ruta: el grafo local no cubre el trayecto; se muestra el diálogo.');
         _showFarAwayDialog(destination, destinationName);
       }
     } finally {
@@ -1649,6 +1332,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   void _showFarAwayDialog(LatLng destination, [String? destinationName]) {
+    if (!_isMapVisible) return;
     // Cancelar el estado "Calculando..." para que no se quede bloqueado
     ref.read(navigationProvider.notifier).cancelNavigation();
     _hideRouteBanner();
@@ -1657,7 +1341,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+        scrollable: true,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg)),
         icon: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1683,13 +1369,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar', style: TextStyle(fontWeight: FontWeight.w600)),
+            child: const Text('Cancelar',
+                style: TextStyle(fontWeight: FontWeight.w600)),
           ),
           OutlinedButton.icon(
             icon: const Icon(Icons.route_rounded, size: 18),
-            label: const Text('Ruta desde acceso', style: TextStyle(fontWeight: FontWeight.w700)),
+            label: const Text('Ruta desde acceso',
+                style: TextStyle(fontWeight: FontWeight.w700)),
             style: OutlinedButton.styleFrom(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () {
               Navigator.of(ctx).pop();
@@ -1698,10 +1387,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
           ),
           ElevatedButton.icon(
             icon: Icon(Icons.directions_rounded, size: 18, color: cs.onPrimary),
-            label: Text('Google Maps', style: TextStyle(color: cs.onPrimary, fontWeight: FontWeight.w700)),
+            label: Text('Google Maps',
+                style: TextStyle(
+                    color: cs.onPrimary, fontWeight: FontWeight.w700)),
             style: ElevatedButton.styleFrom(
               backgroundColor: cs.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () {
               Navigator.of(ctx).pop();
@@ -1717,9 +1409,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final navService = ref.read(navigationServiceProvider);
     final graph = navService.graph;
     if (graph == null || graph.nodes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se pudo cargar el grafo de la sede.'),
+      _showMapNotice(
+        MapNotice(
+          tone: NoticeTone.error,
+          content: const Text('No se pudo cargar el grafo de la sede.'),
         ),
       );
       return;
@@ -1769,10 +1462,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
         );
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+      _showMapNotice(
+        MapNotice(
+          tone: NoticeTone.success,
           content: Text('Ruta interna trazada desde: ${entranceNode.name}'),
-          backgroundColor: Theme.of(context).colorScheme.primary,
         ),
       );
     }
@@ -1809,7 +1502,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
         Polyline(
           polylineId: const PolylineId('campus_route'),
           points: smoothed,
-          color: const Color(0xFF1A73E8), // Azul icónico de navegación Google Maps
+          color:
+              const Color(0xFF1A73E8), // Azul icónico de navegación Google Maps
           width: 6,
           startCap: Cap.roundCap,
           endCap: Cap.roundCap,
@@ -1862,13 +1556,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
   //  Bottom Sheet y helpers UI
   // ──────────────────────────────────────────────────────────
 
-  // El aviso de llegada por VOZ (y el SnackBar de respaldo si esta pantalla
-  // no está abierta) vive en `main.dart`, a nivel raíz de la app — para que
-  // suene sin importar en qué pantalla esté la persona en el momento exacto
-  // en que el GPS confirma la llegada. Pero si el mapa SÍ está abierto (que
-  // es el caso normal), además se muestra aquí mismo, dentro del cuadro de
-  // estado de ruta, para que quien está viendo el mapa lo vea justo ahí.
+  // Arrival feedback belongs to the map.
   void _handleArrival() {
+    if (_isMapVisible) {
+      ref.read(voiceProvider.notifier).speakAnnouncement(
+          'Has llegado a tu destino. TecNM Mapas te desea un excelente d\u00eda.');
+    }
     ref.read(navigationProvider.notifier).cancelNavigation();
     setState(() {
       _isNavigating = false;
@@ -1881,16 +1574,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   void _showAccessibleBottomSheet(PlaceNode place) {
+    if (!_isMapVisible) return;
     final cs = Theme.of(context).colorScheme;
     final placeAccent = PlaceVisuals.colorOf(place);
     showModalBottomSheet(
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 560),
+      clipBehavior: Clip.antiAlias,
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => Container(
         decoration: BoxDecoration(
           color: cs.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
           border: Border(top: BorderSide(color: cs.outline)),
         ),
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
@@ -1900,7 +1598,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
           children: [
             Center(
               child: Container(
-                width: 50, height: 5,
+                width: 50,
+                height: 5,
                 decoration: BoxDecoration(
                   color: cs.onSurface.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -1920,7 +1619,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   decoration: BoxDecoration(
                     color: placeAccent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(color: placeAccent.withValues(alpha: 0.3)),
+                    border:
+                        Border.all(color: placeAccent.withValues(alpha: 0.3)),
                   ),
                   child: Icon(
                     PlaceVisuals.iconOf(place),
@@ -1956,7 +1656,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
             const SizedBox(height: 24),
             Row(
               children: [
-                _buildInfoBadge(Icons.accessible_rounded,
+                _buildInfoBadge(
+                    Icons.accessible_rounded,
                     'Nivel: ${place.accessibilityLevel.toUpperCase()}',
                     place.accessibilityLevel.toLowerCase() == 'alto'
                         ? cs.tertiary
@@ -1964,7 +1665,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             ? AppWarning.dark
                             : AppWarning.light)),
                 const SizedBox(width: 12),
-                _buildInfoBadge(Icons.map_rounded, 'Piso: Planta Baja', cs.primary),
+                _buildInfoBadge(
+                    Icons.map_rounded, 'Piso: Planta Baja', cs.primary),
               ],
             ),
             const SizedBox(height: 32),
@@ -1974,12 +1676,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   child: SizedBox(
                     height: 54,
                     child: ElevatedButton.icon(
-                      icon: Icon(Icons.directions_walk_rounded, size: 22, color: cs.onPrimary),
+                      icon: Icon(Icons.directions_walk_rounded,
+                          size: 22, color: cs.onPrimary),
                       label: Text('Trazar Ruta',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: cs.onPrimary)),
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: cs.onPrimary)),
                       style: ElevatedButton.styleFrom(
                           backgroundColor: cs.primary,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md))),
+                          shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.md))),
                       onPressed: () {
                         Navigator.pop(ctx);
                         _handleTraceRouteTo(
@@ -1995,16 +1703,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   child: SizedBox(
                     height: 54,
                     child: ElevatedButton.icon(
-                      icon: Icon(Icons.location_on_rounded, size: 22, color: cs.primary),
+                      icon: Icon(Icons.location_on_rounded,
+                          size: 22, color: cs.primary),
                       label: Text('Estoy Aquí',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: cs.primary)),
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: cs.primary)),
                       style: ElevatedButton.styleFrom(
                           backgroundColor: cs.primary.withValues(alpha: 0.05),
-                          side: BorderSide(color: cs.primary.withValues(alpha: 0.4)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md))),
+                          side: BorderSide(
+                              color: cs.primary.withValues(alpha: 0.4)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.md))),
                       onPressed: () {
                         Navigator.pop(ctx);
-                        ref.read(navigationProvider.notifier)
+                        ref
+                            .read(navigationProvider.notifier)
                             .setPosition(place.id, label: place.name);
                       },
                     ),
@@ -2018,11 +1734,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      icon: Icon(Icons.open_with_rounded, size: 16, color: cs.primary),
-                      label: const Text('Mover', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                      icon: Icon(Icons.open_with_rounded,
+                          size: 16, color: cs.primary),
+                      label: const Text('Mover',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 13)),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                        side: BorderSide(
+                            color: cs.outline.withValues(alpha: 0.35)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.md)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       onPressed: () {
@@ -2031,10 +1752,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           _isEditMode = true;
                           _editMovingId = place.id;
                         });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Toca el mapa en la nueva ubicación para "${place.name}".'),
-                            backgroundColor: cs.primary,
+                        _showMapNotice(
+                          MapNotice(
+                            tone: NoticeTone.info,
+                            content: Text(
+                                'Toca el mapa en la nueva ubicación para "${place.name}".'),
                           ),
                         );
                       },
@@ -2043,29 +1765,37 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
-                      icon: Icon(Icons.edit_rounded, size: 16, color: cs.primary),
-                      label: const Text('Renombrar', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                      icon:
+                          Icon(Icons.edit_rounded, size: 16, color: cs.primary),
+                      label: const Text('Renombrar',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 13)),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                        side: BorderSide(
+                            color: cs.outline.withValues(alpha: 0.35)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.md)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       onPressed: () async {
                         Navigator.pop(ctx);
                         final newName = await _promptRename(place.name);
                         if (newName != null && newName.isNotEmpty) {
-                          _renameUnifiedPoint(id: place.id, name: newName, hasPlace: true);
+                          _renameUnifiedPoint(
+                              id: place.id, name: newName, hasPlace: true);
                         }
                       },
                     ),
                   ),
                   const SizedBox(width: 8),
                   IconButton.outlined(
-                    icon: Icon(Icons.delete_outline_rounded, color: cs.error, size: 20),
+                    icon: Icon(Icons.delete_outline_rounded,
+                        color: cs.error, size: 20),
                     tooltip: 'Eliminar punto',
                     style: IconButton.styleFrom(
                       side: BorderSide(color: cs.error.withValues(alpha: 0.45)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.md)),
                       padding: const EdgeInsets.all(12),
                     ),
                     onPressed: () async {
@@ -2098,7 +1828,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
         children: [
           Icon(icon, size: 16, color: color),
           const SizedBox(width: 8),
-          Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+          Text(text,
+              style: TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w600, color: color)),
         ],
       ),
     );
@@ -2111,7 +1843,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
       onPressed: () {
         final newTheme = isDark ? 'light' : 'dark';
         ref.read(mapThemeProvider.notifier).state = newTheme;
-        setState(() => _currentMapStyle = newTheme == 'dark' ? _darkMapStyle : _lightMapStyle);
+        setState(() => _currentMapStyle =
+            newTheme == 'dark' ? _darkMapStyle : _lightMapStyle);
       },
     );
   }
@@ -2157,6 +1890,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           onPressed();
         },
         tooltip: tooltip,
+        constraints: const BoxConstraints.tightFor(width: 48, height: 48),
       ),
     );
   }
@@ -2206,8 +1940,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   void _showVenueAnnouncementsSheet() {
+    if (!_isMapVisible) return;
     final cs = Theme.of(context).colorScheme;
     showModalBottomSheet(
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 560),
+      clipBehavior: Clip.antiAlias,
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -2215,7 +1953,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         decoration: BoxDecoration(
           color: cs.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -2256,36 +1995,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, i) {
                   final a = _venueAnnouncements[i];
-                  return Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          a.title,
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w800,
-                            color: cs.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          a.body,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: cs.onSurface.withValues(alpha: 0.8),
-                            height: 1.3,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
+                  return AnnouncementNotice(announcement: a);
                 },
               ),
             ),
@@ -2296,13 +2006,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   Widget _buildFABs() {
+    if (MediaQuery.viewInsetsOf(context).bottom > 0) {
+      return const SizedBox.shrink();
+    }
     final cs = Theme.of(context).colorScheme;
     final isAdmin = ref.watch(isAdminProvider).value ?? false;
 
     if (_isNavigating) {
       if (_isTrackingActive) return const SizedBox.shrink();
       return Padding(
-        padding: const EdgeInsets.only(bottom: 180),
+        padding: const EdgeInsets.only(bottom: 8),
         child: FloatingActionButton.extended(
           heroTag: 'nav_recenter_btn',
           onPressed: _centerOnUser,
@@ -2321,60 +2034,61 @@ class _MapScreenState extends ConsumerState<MapScreen>
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (isAdmin) ...[
-            FloatingActionButton(
-              heroTag: 'edit_btn',
-              tooltip: _isEditMode ? 'Salir del modo edición' : 'Modo editor (puntos y caminos)',
-              backgroundColor: _isEditMode ? cs.primary : cs.surface,
-              onPressed: () async {
-                final region = _isEditMode
-                    ? null
-                    : await _googleMapController?.getVisibleRegion();
-                if (!mounted) return;
-                final entering = !_isEditMode;
-                setState(() {
-                  _isEditMode = entering;
-                  _editVisibleRegion = region;
-                  _editMovingId = null;
-                  _editConnectFromId = null;
-                  _editConnectFromPos = null;
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(entering
-                        ? 'Modo editor activado: Toca un punto para editarlo/moverlo/borrarlo, o toca el mapa para crear uno nuevo.'
-                        : 'Modo editor desactivado.'),
-                    duration: const Duration(seconds: 3),
-                    backgroundColor: entering ? cs.primary : cs.surfaceContainerHighest,
-                  ),
-                );
-              },
-              child: Icon(
-                _isEditMode ? Icons.close_rounded : Icons.edit_location_alt_rounded,
-                color: _isEditMode ? cs.onPrimary : cs.primary,
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
+    return MapActionButtons(
+      children: [
+        if (isAdmin) ...[
           FloatingActionButton(
-            heroTag: 'center_btn',
-            onPressed: _centerOnUser,
-            backgroundColor: _isTrackingActive ? cs.primary : cs.surface,
-            elevation: _isTrackingActive ? 8 : 4,
+            heroTag: 'edit_btn',
+            tooltip: _isEditMode
+                ? 'Salir del modo edición'
+                : 'Modo editor (puntos y caminos)',
+            backgroundColor: _isEditMode ? cs.primary : cs.surface,
+            onPressed: () async {
+              final region = _isEditMode
+                  ? null
+                  : await _googleMapController?.getVisibleRegion();
+              if (!mounted) return;
+              final entering = !_isEditMode;
+              setState(() {
+                _isEditMode = entering;
+                _editVisibleRegion = region;
+                _editMovingId = null;
+                _editConnectFromId = null;
+                _editConnectFromPos = null;
+              });
+              _showMapNotice(
+                MapNotice(
+                  tone: NoticeTone.info,
+                  content: Text(entering
+                      ? 'Modo editor activado: Toca un punto para editarlo/moverlo/borrarlo, o toca el mapa para crear uno nuevo.'
+                      : 'Modo editor desactivado.'),
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            },
             child: Icon(
-              _isTrackingActive ? Icons.gps_fixed_rounded : Icons.my_location_rounded,
-              color: _isTrackingActive ? cs.onPrimary : cs.primary,
-              size: 26,
+              _isEditMode
+                  ? Icons.close_rounded
+                  : Icons.edit_location_alt_rounded,
+              color: _isEditMode ? cs.onPrimary : cs.primary,
             ),
           ),
+          const SizedBox(height: 12),
         ],
-      ),
+        FloatingActionButton(
+          heroTag: 'center_btn',
+          onPressed: _centerOnUser,
+          backgroundColor: _isTrackingActive ? cs.primary : cs.surface,
+          elevation: _isTrackingActive ? 8 : 4,
+          child: Icon(
+            _isTrackingActive
+                ? Icons.gps_fixed_rounded
+                : Icons.my_location_rounded,
+            color: _isTrackingActive ? cs.onPrimary : cs.primary,
+            size: 26,
+          ),
+        ),
+      ],
     );
   }
 
@@ -2432,15 +2146,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
       );
       return;
     }
-    _showEditPointSheet(id: id, name: name, lat: lat, lng: lng, hasPlace: hasPlace);
+    _showEditPointSheet(
+        id: id, name: name, lat: lat, lng: lng, hasPlace: hasPlace);
   }
 
   void _showAddPointSheet(LatLng at) {
+    if (!_isMapVisible) return;
     final cs = Theme.of(context).colorScheme;
     final nameController = TextEditingController();
     var selectedType = _editPointTypes.first;
     setState(() => _isEditSheetOpen = true);
     showModalBottomSheet(
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 560),
+      clipBehavior: Clip.antiAlias,
       context: context,
       isScrollControlled: true,
       backgroundColor: cs.surface,
@@ -2459,69 +2178,72 @@ class _MapScreenState extends ConsumerState<MapScreen>
           // desbordar.
           child: SingleChildScrollView(
             child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Nuevo punto',
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      color: cs.onSurface)),
-              const SizedBox(height: 4),
-              Text('Sede: ${_venue.label}',
-                  style: TextStyle(
-                      fontSize: 12, color: cs.onSurface.withValues(alpha: 0.5))),
-              const SizedBox(height: 16),
-              TextField(
-                controller: nameController,
-                autofocus: true,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre',
-                  hintText: 'Ej. Cancha 3, Entrada Norte...',
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Nuevo punto',
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: cs.onSurface)),
+                const SizedBox(height: 4),
+                Text('Sede: ${_venue.label}',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurface.withValues(alpha: 0.5))),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nameController,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre',
+                    hintText: 'Ej. Cancha 3, Entrada Norte...',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Text('TIPO',
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1,
-                      color: cs.onSurface.withValues(alpha: 0.5))),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _editPointTypes.map((t) {
-                  final selected = identical(t, selectedType);
-                  return ChoiceChip(
-                    label: Text(t.label, style: const TextStyle(fontSize: 12)),
-                    avatar: Icon(t.icon,
-                        size: 16, color: selected ? cs.onPrimary : cs.primary),
-                    selected: selected,
-                    selectedColor: cs.primary,
-                    onSelected: (_) => setSheetState(() => selectedType = t),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final name = nameController.text.trim();
-                    if (name.isEmpty) return;
-                    Navigator.pop(ctx);
-                    await _createUnifiedPoint(
-                        name: name, position: at, typeInfo: selectedType);
-                  },
-                  style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16)),
-                  child: const Text('Guardar',
-                      style: TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 20),
+                Text('TIPO',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1,
+                        color: cs.onSurface.withValues(alpha: 0.5))),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _editPointTypes.map((t) {
+                    final selected = identical(t, selectedType);
+                    return ChoiceChip(
+                      label:
+                          Text(t.label, style: const TextStyle(fontSize: 12)),
+                      avatar: Icon(t.icon,
+                          size: 16,
+                          color: selected ? cs.onPrimary : cs.primary),
+                      selected: selected,
+                      selectedColor: cs.primary,
+                      onSelected: (_) => setSheetState(() => selectedType = t),
+                    );
+                  }).toList(),
                 ),
-              ),
-            ],
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final name = nameController.text.trim();
+                      if (name.isEmpty) return;
+                      Navigator.pop(ctx);
+                      await _createUnifiedPoint(
+                          name: name, position: at, typeInfo: selectedType);
+                    },
+                    style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16)),
+                    child: const Text('Guardar',
+                        style: TextStyle(fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -2538,9 +2260,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
     required double lng,
     required bool hasPlace,
   }) {
+    if (!_isMapVisible) return;
     final cs = Theme.of(context).colorScheme;
     setState(() => _isEditSheetOpen = true);
     showModalBottomSheet(
+      useSafeArea: true,
+      constraints: const BoxConstraints(maxWidth: 560),
+      clipBehavior: Clip.antiAlias,
       context: context,
       backgroundColor: cs.surface,
       shape: const RoundedRectangleBorder(
@@ -2566,7 +2292,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   Navigator.pop(ctx);
                   final newName = await _promptRename(name);
                   if (newName != null && newName.isNotEmpty) {
-                    _renameUnifiedPoint(id: id, name: newName, hasPlace: hasPlace);
+                    _renameUnifiedPoint(
+                        id: id, name: newName, hasPlace: hasPlace);
                   }
                 },
               ),
@@ -2584,7 +2311,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.timeline_rounded, color: cs.primary),
                 title: const Text('Conectar a otro punto'),
-                subtitle: const Text('Traza un camino caminable hasta otro punto'),
+                subtitle:
+                    const Text('Traza un camino caminable hasta otro punto'),
                 onTap: () {
                   Navigator.pop(ctx);
                   setState(() {
@@ -2598,11 +2326,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 leading: Icon(Icons.delete_outline_rounded,
                     color: Theme.of(context).colorScheme.error),
                 title: Text('Eliminar',
-                    style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error)),
                 onTap: () async {
                   Navigator.pop(ctx);
                   final confirmed = await _confirmDelete(name);
-                  if (confirmed) _deleteUnifiedPoint(id: id, hasPlace: hasPlace);
+                  if (confirmed) {
+                    _deleteUnifiedPoint(id: id, hasPlace: hasPlace);
+                  }
                 },
               ),
             ],
@@ -2615,6 +2346,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   Future<String?> _promptRename(String currentName) async {
+    if (!_isMapVisible) return null;
     final cs = Theme.of(context).colorScheme;
     final controller = TextEditingController(text: currentName);
     setState(() => _isEditSheetOpen = true);
@@ -2622,8 +2354,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
       return await showDialog<String>(
         context: context,
         builder: (ctx) => AlertDialog(
+          scrollable: true,
           backgroundColor: cs.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.lg)),
           title: const Text('Cambiar nombre'),
           content: TextField(
             controller: controller,
@@ -2670,19 +2404,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
       }
       await ref.read(venueGraphRepositoryProvider).renameNode(zoneId, id, name);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+        _showMapNotice(
+          MapNotice(
+            tone: NoticeTone.success,
             content: Text('Nombre cambiado a "$name".'),
-            backgroundColor: Theme.of(context).colorScheme.tertiary,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+        _showMapNotice(
+          MapNotice(
+            tone: NoticeTone.error,
             content: Text('Error al renombrar: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -2690,16 +2424,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   Future<bool> _confirmDelete(String name) async {
+    if (!_isMapVisible) return false;
     final cs = Theme.of(context).colorScheme;
     setState(() => _isEditSheetOpen = true);
     try {
       final result = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
+          scrollable: true,
           backgroundColor: cs.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.lg)),
           title: const Text('¿Eliminar punto?'),
-          content: Text('Se eliminará "$name" permanentemente, junto con sus conexiones.'),
+          content: Text(
+              'Se eliminará "$name" permanentemente, junto con sus conexiones.'),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
@@ -2755,18 +2493,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
         await ref.read(placeRepositoryProvider).createPlace(place);
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('"$name" agregado.'),
-              backgroundColor: Theme.of(context).colorScheme.tertiary),
+        _showMapNotice(
+          MapNotice(
+            tone: NoticeTone.success,
+            content: Text('"$name" agregado.'),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Error al guardar: $e'),
-              backgroundColor: Theme.of(context).colorScheme.error),
+        _showMapNotice(
+          MapNotice(
+            tone: NoticeTone.error,
+            content: Text('Error al guardar: $e'),
+          ),
         );
       }
     } finally {
@@ -2802,19 +2542,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
             lng: newPos.longitude,
           );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+        _showMapNotice(
+          MapNotice(
+            tone: NoticeTone.success,
             content: const Text('Punto reubicado correctamente.'),
-            backgroundColor: Theme.of(context).colorScheme.tertiary,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+        _showMapNotice(
+          MapNotice(
+            tone: NoticeTone.error,
             content: Text('Error al mover punto: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -2839,19 +2579,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
       }
       await ref.read(venueGraphRepositoryProvider).deleteNode(zoneId, id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+        _showMapNotice(
+          MapNotice(
+            tone: NoticeTone.deletion,
             content: const Text('Punto eliminado.'),
-            backgroundColor: Theme.of(context).colorScheme.tertiary,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+        _showMapNotice(
+          MapNotice(
+            tone: NoticeTone.error,
             content: Text('Error al eliminar: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -2881,18 +2621,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
     try {
       await ref.read(venueGraphRepositoryProvider).createEdge(edge);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: const Text('Conexión creada.'),
-              backgroundColor: Theme.of(context).colorScheme.tertiary),
+        _showMapNotice(
+          MapNotice(
+            tone: NoticeTone.success,
+            content: const Text('Conexión creada.'),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Error al conectar: $e'),
-              backgroundColor: Theme.of(context).colorScheme.error),
+        _showMapNotice(
+          MapNotice(
+            tone: NoticeTone.error,
+            content: Text('Error al conectar: $e'),
+          ),
         );
       }
     }
@@ -2947,8 +2689,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
         if (_isNavigating && _destinationLatLng != null) {
           final dist = Geolocator.distanceBetween(
-            latLng.latitude, latLng.longitude,
-            _destinationLatLng!.latitude, _destinationLatLng!.longitude,
+            latLng.latitude,
+            latLng.longitude,
+            _destinationLatLng!.latitude,
+            _destinationLatLng!.longitude,
           );
           if (dist <= _arrivalRadiusMeters) _handleArrival();
         }
@@ -2985,7 +2729,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
         _hideRouteBanner();
       }
 
-      if (next.currentNode != previous?.currentNode && next.currentNode != null) {
+      if (next.currentNode != previous?.currentNode &&
+          next.currentNode != null) {
         _panCamera(LatLng(next.currentNode!.lat, next.currentNode!.lng));
       }
 
@@ -2993,9 +2738,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
           next.routePolylinePoints != previous?.routePolylinePoints) {
         final wasNavigating = _isNavigating;
         if (next.routePolylinePoints != null) {
-          final points = next.routePolylinePoints!
-              .map((p) => LatLng(p[0], p[1]))
-              .toList();
+          final points =
+              next.routePolylinePoints!.map((p) => LatLng(p[0], p[1])).toList();
           _setRoutePolyline(points);
           setState(() => _isNavigating = true);
           _showRouteBanner(_RouteBannerKind.active);
@@ -3003,7 +2747,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
             _fitBounds(points);
           }
         } else if (next.activeRoute != null) {
-          final points = next.activeRoute!.getPolylinePoints()
+          final points = next.activeRoute!
+              .getPolylinePoints()
               .map((p) => LatLng(p[0], p[1]))
               .toList();
           _setRoutePolyline(points);
@@ -3013,7 +2758,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
             _fitBounds(points);
           }
         } else {
-          setState(() { _googlePolylines = {}; _isNavigating = false; });
+          setState(() {
+            _googlePolylines = {};
+            _isNavigating = false;
+          });
         }
       }
     });
@@ -3031,10 +2779,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // señal en la UI de que el GPS se había "congelado" ahí a propósito ni
     // una forma obvia de quitarlo. Ahora se ve como un aviso persistente
     // con botón para soltarlo (ver [_ManualPositionBanner] más abajo).
-    final isManualPosition = ref.watch(
-        navigationProvider.select((s) => s.isManualPosition));
-    final manualPositionLabel = ref.watch(
-        navigationProvider.select((s) => s.manualPositionLabel));
+    final isManualPosition =
+        ref.watch(navigationProvider.select((s) => s.isManualPosition));
+    final manualPositionLabel =
+        ref.watch(navigationProvider.select((s) => s.manualPositionLabel));
 
     // Grafo en línea (Firestore) de la sede actual — solo se suscribe
     // mientras el admin está en modo edición, para no gastar lecturas/
@@ -3042,13 +2790,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Grafo en línea (Firestore) de la sede actual combinado con el grafo offline
     // para que el admin pueda ver y editar los puntos que vienen del JSON.
     final firestoreNodes = _isEditMode
-        ? (ref.watch(nodesStreamProvider(_venue.id)).value ?? const <CampusNode>[])
+        ? (ref.watch(nodesStreamProvider(_venue.id)).value ??
+            const <CampusNode>[])
         : const <CampusNode>[];
     final firestoreEdges = _isEditMode
-        ? (ref.watch(edgesStreamProvider(_venue.id)).value ?? const <CampusEdge>[])
+        ? (ref.watch(edgesStreamProvider(_venue.id)).value ??
+            const <CampusEdge>[])
         : const <CampusEdge>[];
     final deletedNodeIds = _isEditMode
-        ? (ref.watch(deletedNodeIdsStreamProvider(_venue.id)).value ?? const <String>{})
+        ? (ref.watch(deletedNodeIdsStreamProvider(_venue.id)).value ??
+            const <String>{})
         : const <String>{};
 
     final editNodesMap = <String, CampusNode>{};
@@ -3063,7 +2814,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
           }
         }
         for (final e in navService.graph!.edges) {
-          if (!deletedNodeIds.contains(e.from) && !deletedNodeIds.contains(e.to)) {
+          if (!deletedNodeIds.contains(e.from) &&
+              !deletedNodeIds.contains(e.to)) {
             editEdgesMap[e.docId] = e;
           }
         }
@@ -3074,7 +2826,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
         }
       }
       for (final e in firestoreEdges) {
-        if (!deletedNodeIds.contains(e.from) && !deletedNodeIds.contains(e.to)) {
+        if (!deletedNodeIds.contains(e.from) &&
+            !deletedNodeIds.contains(e.to)) {
           editEdgesMap[e.docId] = e;
         }
       }
@@ -3096,287 +2849,36 @@ class _MapScreenState extends ConsumerState<MapScreen>
         .take(_maxEditEdges)
         .toList();
 
-    final cs = Theme.of(context).colorScheme;
     final navState = ref.watch(navigationProvider);
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      floatingActionButton: _buildFABs(),
-      bottomNavigationBar: _isNavigating ? null : BottomNav(currentIndex: widget.openMap ? 3 : -1),
-      body: Stack(
-        children: [
-          // ── Mapa (Google Maps en Android/iOS/Web, flutter_map en desktop) ──
-          // El punto azul del usuario se mueve vía _userPosNotifier dentro de
-          // este ValueListenableBuilder para que solo el mapa se redibuje en
-          // cada frame de GPS — el resto de la pantalla (botones, banners)
-          // vive fuera y no se ve afectado.
-          RepaintBoundary(
-            child: _isDesktop
-                ? _buildDesktopMap(isDark, editNodes, editEdges, editNodesById)
-                : ValueListenableBuilder<LatLng?>(
-                    valueListenable: _userPosNotifier,
-                    builder: (context, userPos, _) {
-                      final markers = {
-                        // En modo edición solo se muestran los puntos
-                        // importantes (_googleMarkers): los puntos de ruta
-                        // morados y sus líneas hacían que el mapa se trabara.
-                        ..._googleMarkers,
-                        if (userPos != null && _userIconCache != null)
-                          Marker(
-                            markerId: const MarkerId('user_location'),
-                            position: userPos,
-                            icon: _userIconCache!,
-                            zIndexInt: 10,
-                            anchor: const Offset(0.5, 0.5),
-                          ),
-                      };
-                      final polylines = {
-                        ..._googlePolylines,
-                      };
-                      return GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: _mapInitialCenter,
-                          zoom: _mapInitialZoom,
-                        ),
-                        onMapCreated: (controller) {
-                          _googleMapController = controller;
-                          _initializeGpsAndCenter();
-                          _rebuildMarkers(ref.read(filteredPlacesProvider));
-                        },
-                        onTap: _handleMapBackgroundTap,
-                        onCameraMove: (pos) {
-                          _currentZoom = pos.zoom;
-                          if (_isTrackingActive && !_isProgrammaticCameraMove) {
-                            setState(() => _isTrackingActive = false);
-                          }
-                        },
-                        onCameraIdle: () async {
-                          _isProgrammaticCameraMove = false;
-                          if (!_isEditMode) return;
-                          final region =
-                              await _googleMapController?.getVisibleRegion();
-                          if (region != null && mounted) {
-                            setState(() => _editVisibleRegion = region);
-                          }
-                        },
-                        markers: markers,
-                        polylines: polylines,
-                        style: _mapType == MapType.normal
-                            ? _currentMapStyle
-                            : null,
-                        myLocationEnabled: false,
-                        myLocationButtonEnabled: false,
-                        zoomControlsEnabled: false,
-                        mapToolbarEnabled: false,
-                        compassEnabled: false,
-                        rotateGesturesEnabled: false,
-                        // En modo abierto la cámara no se encierra en la caja
-                        // de ninguna sede, y se permite alejar más para poder
-                        // ver las 9 sedes de Colima de un vistazo.
-                        cameraTargetBounds: widget.openMap
-                            ? CameraTargetBounds.unbounded
-                            : CameraTargetBounds(_cameraBounds),
-                        minMaxZoomPreference: widget.openMap
-                            ? const MinMaxZoomPreference(9, 20)
-                            : const MinMaxZoomPreference(13, 20),
-                        mapType: _mapType,
-                      );
-                    },
-                  ),
-          ),
-          // ── Botón para volver a Inicio (solo cuando no navega) ────
-          if (!_isNavigating)
-            Positioned(
-              top: 0, left: 0,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: _buildRoundIconButton(
-                    icon: Icons.arrow_back_rounded,
-                    tooltip: 'Volver a Inicio',
-                    onPressed: () =>
-                        Navigator.pushReplacementNamed(context, AppRoutes.home),
-                  ),
-                ),
-              ),
-            ),
-          // ── Botones superiores derechos: Avisos + Satélite + Tema ──
-          if (!_isNavigating)
-            Positioned(
-              top: 0, right: 0,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_venueAnnouncements.isNotEmpty) ...[
-                        _buildVenueAnnouncementsButton(),
-                        const SizedBox(width: 8),
-                      ],
-                      _buildMapTypeToggle(),
-                      const SizedBox(width: 8),
-                      _buildThemeToggle(isDark),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          // ── Banner de modo edición (admin, Fase 2) ─────────────
-          if (_isEditMode)
-            Positioned(
-              top: 0, left: 16, right: 16,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 76),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: cs.primary,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.edit_location_alt_rounded,
-                            color: cs.onPrimary, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _editConnectFromId != null
-                                ? 'Toca el segundo punto para conectar'
-                                : _editMovingId != null
-                                    ? 'Toca el mapa donde quieres mover el punto'
-                                    : 'MODO EDICIÓN — toca el mapa para agregar un punto',
-                            style: TextStyle(
-                                color: cs.onPrimary,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 12.5),
-                          ),
-                        ),
-                        if (_editConnectFromId != null || _editMovingId != null)
-                          GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => setState(() {
-                              _editConnectFromId = null;
-                              _editConnectFromPos = null;
-                              _editMovingId = null;
-                            }),
-                            child: Icon(Icons.close_rounded,
-                                color: cs.onPrimary, size: 20),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          // ── Avisos superiores: posición manual + estado de ruta (cuando no navega) ────
-          // Van en una sola columna (no dos Positioned independientes) para
-          // que si algún día coinciden los dos a la vez, se acomoden uno
-          // debajo del otro en vez de encimarse.
-          if (!_isNavigating && (isManualPosition || _routeBanner != null))
-            Positioned(
-              top: 0, left: 16, right: 16,
-              child: SafeArea(
-                child: Padding(
-                  // El botón de volver y el de tema (arriba, top:0 + padding
-                  // 16 + ~48 de alto) terminan alrededor de los 64px — este
-                  // cuadro debe empezar claramente después de eso, no a los
-                  // 60px de antes (prácticamente encimados).
-                  padding: const EdgeInsets.only(top: 84),
-                  child: Column(
-                    children: [
-                      if (isManualPosition) ...[
-                        _ManualPositionBanner(
-                          label: manualPositionLabel,
-                          onClear: () {
-                            final notifier =
-                                ref.read(navigationProvider.notifier);
-                            notifier.clearManualPosition();
-                            // Sin esto, la posición real no se actualizaba
-                            // hasta la SIGUIENTE lectura de GPS — y si la
-                            // persona está parada quieta (`distanceFilter:
-                            // 2` no dispara nada hasta moverse 2m), eso
-                            // podía tardar o no llegar nunca, dejando la
-                            // sensación de que "Quitar" no hizo nada. Se
-                            // fuerza el resync YA con la última posición de
-                            // GPS que ya se tenía, en vez de esperar.
-                            final lastKnown =
-                                _displayPosition ?? _currentPosition;
-                            if (lastKnown != null) {
-                              notifier.setPositionByCoordinates(
-                                lastKnown.latitude,
-                                lastKnown.longitude,
-                              );
-                            }
-                            // Igual que el botón de centrar ubicación:
-                            // volver a seguir el GPS de inmediato en vez de
-                            // esperar a que alguien toque algo más.
-                            setState(() => _isTrackingActive = true);
-                          },
-                        ),
-                        if (_routeBanner != null)
-                          const SizedBox(height: 8),
-                      ],
-                      if (_routeBanner != null)
-                        _RouteStatusBanner(
-                          kind: _routeBanner!,
-                          label: _routeBannerLabel,
-                          onCancel: () {
-                            ref
-                                .read(navigationProvider.notifier)
-                                .cancelNavigation();
-                            setState(() {
-                              _isNavigating = false;
-                              _googlePolylines = {};
-                              _destinationLatLng = null;
-                              _isTrackingActive = false;
-                              _routeBanner = null;
-                            });
-                          },
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-          // ── Header de navegación activa estilo Google Maps (Maneuver / Turn-by-turn) ──
-          if (_isNavigating &&
-              navState.activeRoute != null &&
-              (navState.currentStep != null ||
-                  navState.activeRoute!.steps.isNotEmpty))
-            Positioned(
-              top: 0,
-              left: 14,
-              right: 14,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: _ActiveNavTurnByTurnHeader(
-                    step: navState.currentStep ??
-                        navState.activeRoute!.steps.first,
-                    onRepeatVoice: () {
-                      final step = navState.currentStep ??
-                          navState.activeRoute!.steps.first;
-                      SemanticsService.sendAnnouncement(
-                        View.of(context),
-                        step.voiceInstruction,
-                        TextDirection.ltr,
-                      );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(step.voiceInstruction),
-                          duration: const Duration(seconds: 3),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
+    return MapNoticeScope(
+      messengerKey: _mapMessengerKey,
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        floatingActionButton: _buildFABs(),
+        floatingActionButtonLocation: MediaQuery.sizeOf(context).height < 480
+            ? FloatingActionButtonLocation.startTop
+            : FloatingActionButtonLocation.endFloat,
+        bottomNavigationBar: MediaQuery.viewInsetsOf(context).bottom > 0
+            ? null
+            : _isNavigating && navState.activeRoute != null
+                ? MapBottomPanel(
+                    child: MapNavigationSummary(
+                    navState: navState,
+                    route: navState.activeRoute!,
+                    onPrevious: navState.currentStepIndex > 0
+                        ? () => ref
+                            .read(navigationProvider.notifier)
+                            .goToStep(navState.currentStepIndex - 1)
+                        : null,
+                    onNext: navState.currentStepIndex <
+                            navState.activeRoute!.steps.length - 1
+                        ? () => ref
+                            .read(navigationProvider.notifier)
+                            .goToStep(navState.currentStepIndex + 1)
+                        : null,
                     onCancel: () {
-                      ref
-                          .read(navigationProvider.notifier)
-                          .cancelNavigation();
+                      ref.read(navigationProvider.notifier).cancelNavigation();
                       setState(() {
                         _isNavigating = false;
                         _googlePolylines = {};
@@ -3385,48 +2887,253 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         _routeBanner = null;
                       });
                     },
-                  ),
+                  ))
+                : BottomNav(currentIndex: widget.openMap ? 3 : -1),
+        body: Stack(
+          children: [
+            // ── Mapa (Google Maps en Android/iOS/Web, flutter_map en desktop) ──
+            // El punto azul del usuario se mueve vía _userPosNotifier dentro de
+            // este ValueListenableBuilder para que solo el mapa se redibuje en
+            // cada frame de GPS — el resto de la pantalla (botones, banners)
+            // vive fuera y no se ve afectado.
+            RepaintBoundary(
+              child: _isDesktop
+                  ? _buildDesktopMap(
+                      isDark, editNodes, editEdges, editNodesById)
+                  : ValueListenableBuilder<LatLng?>(
+                      valueListenable: _userPosNotifier,
+                      builder: (context, userPos, _) {
+                        final markers = {
+                          // En modo edición solo se muestran los puntos
+                          // importantes (_googleMarkers): los puntos de ruta
+                          // morados y sus líneas hacían que el mapa se trabara.
+                          ..._googleMarkers,
+                          if (userPos != null && _userIconCache != null)
+                            Marker(
+                              markerId: const MarkerId('user_location'),
+                              position: userPos,
+                              icon: _userIconCache!,
+                              zIndexInt: 10,
+                              anchor: const Offset(0.5, 0.5),
+                            ),
+                        };
+                        final polylines = {
+                          ..._googlePolylines,
+                        };
+                        return GoogleMap(
+                          initialCameraPosition: CameraPosition(
+                            target: _mapInitialCenter,
+                            zoom: _mapInitialZoom,
+                          ),
+                          onMapCreated: (controller) {
+                            _googleMapController = controller;
+                            _initializeGpsAndCenter();
+                            _rebuildMarkers(ref.read(filteredPlacesProvider));
+                          },
+                          onTap: _handleMapBackgroundTap,
+                          onCameraMove: (pos) {
+                            _currentZoom = pos.zoom;
+                            if (_isTrackingActive &&
+                                !_isProgrammaticCameraMove) {
+                              setState(() => _isTrackingActive = false);
+                            }
+                          },
+                          onCameraIdle: () async {
+                            _isProgrammaticCameraMove = false;
+                            if (!_isEditMode) return;
+                            final region =
+                                await _googleMapController?.getVisibleRegion();
+                            if (region != null && mounted) {
+                              setState(() => _editVisibleRegion = region);
+                            }
+                          },
+                          markers: markers,
+                          polylines: polylines,
+                          style: _mapType == MapType.normal
+                              ? _currentMapStyle
+                              : null,
+                          myLocationEnabled: false,
+                          myLocationButtonEnabled: false,
+                          zoomControlsEnabled: false,
+                          mapToolbarEnabled: false,
+                          compassEnabled: false,
+                          rotateGesturesEnabled: false,
+                          // En modo abierto la cámara no se encierra en la caja
+                          // de ninguna sede, y se permite alejar más para poder
+                          // ver las 9 sedes de Colima de un vistazo.
+                          cameraTargetBounds: widget.openMap
+                              ? CameraTargetBounds.unbounded
+                              : CameraTargetBounds(_cameraBounds),
+                          minMaxZoomPreference: widget.openMap
+                              ? const MinMaxZoomPreference(9, 20)
+                              : const MinMaxZoomPreference(13, 20),
+                          mapType: _mapType,
+                        );
+                      },
+                    ),
+            ),
+            Positioned.fill(
+              child: MapOverlayPanel(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (!_isNavigating) ...[
+                      Row(
+                        children: [
+                          _buildRoundIconButton(
+                            icon: Icons.arrow_back_rounded,
+                            tooltip: 'Volver a Inicio',
+                            onPressed: () =>
+                                AppNavigation.open(context, AppRoutes.home),
+                          ),
+                          const Spacer(),
+                          if (_venueAnnouncements.isNotEmpty) ...[
+                            _buildVenueAnnouncementsButton(),
+                            const SizedBox(width: 8),
+                          ],
+                          _buildMapTypeToggle(),
+                          const SizedBox(width: 8),
+                          _buildThemeToggle(isDark),
+                        ],
+                      ),
+                    ],
+                    if (_isEditMode) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: NoticeTone.info.background,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.edit_location_alt_rounded,
+                                color: Colors.white, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _editConnectFromId != null
+                                    ? 'Toca el segundo punto para conectar'
+                                    : _editMovingId != null
+                                        ? 'Toca el mapa donde quieres mover el punto'
+                                        : 'MODO EDICIÓN — toca el mapa para agregar un punto',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 12.5),
+                              ),
+                            ),
+                            if (_editConnectFromId != null ||
+                                _editMovingId != null)
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () => setState(() {
+                                  _editConnectFromId = null;
+                                  _editConnectFromPos = null;
+                                  _editMovingId = null;
+                                }),
+                                child: const Icon(Icons.close_rounded,
+                                    color: Colors.white, size: 20),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (isManualPosition && !_isNavigating) ...[
+                      const SizedBox(height: 12),
+                      _ManualPositionBanner(
+                        label: manualPositionLabel,
+                        onClear: () {
+                          final notifier =
+                              ref.read(navigationProvider.notifier);
+                          notifier.clearManualPosition();
+                          // Sin esto, la posición real no se actualizaba
+                          // hasta la SIGUIENTE lectura de GPS — y si la
+                          // persona está parada quieta (`distanceFilter:
+                          // 2` no dispara nada hasta moverse 2m), eso
+                          // podía tardar o no llegar nunca, dejando la
+                          // sensación de que "Quitar" no hizo nada. Se
+                          // fuerza el resync YA con la última posición de
+                          // GPS que ya se tenía, en vez de esperar.
+                          final lastKnown =
+                              _displayPosition ?? _currentPosition;
+                          if (lastKnown != null) {
+                            notifier.setPositionByCoordinates(
+                              lastKnown.latitude,
+                              lastKnown.longitude,
+                            );
+                          }
+                          // Igual que el botón de centrar ubicación:
+                          // volver a seguir el GPS de inmediato en vez de
+                          // esperar a que alguien toque algo más.
+                          setState(() => _isTrackingActive = true);
+                        },
+                      ),
+                    ],
+                    if (_routeBanner != null && !_isNavigating) ...[
+                      const SizedBox(height: 12),
+                      _RouteStatusBanner(
+                        kind: _routeBanner!,
+                        label: _routeBannerLabel,
+                        onCancel: () {
+                          ref
+                              .read(navigationProvider.notifier)
+                              .cancelNavigation();
+                          setState(() {
+                            _isNavigating = false;
+                            _googlePolylines = {};
+                            _destinationLatLng = null;
+                            _isTrackingActive = false;
+                            _routeBanner = null;
+                          });
+                        },
+                      ),
+                    ],
+                    if (_isNavigating &&
+                        navState.activeRoute != null &&
+                        (navState.currentStep != null ||
+                            navState.activeRoute!.steps.isNotEmpty))
+                      MapNavigationHeader(
+                        step: navState.currentStep ??
+                            navState.activeRoute!.steps.first,
+                        onRepeatVoice: () {
+                          final step = navState.currentStep ??
+                              navState.activeRoute!.steps.first;
+                          SemanticsService.sendAnnouncement(
+                            View.of(context),
+                            step.voiceInstruction,
+                            TextDirection.ltr,
+                          );
+                          _showMapNotice(
+                            MapNotice(
+                              tone: NoticeTone.info,
+                              content: Text(step.voiceInstruction),
+                              duration: const Duration(seconds: 3),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        onCancel: () {
+                          ref
+                              .read(navigationProvider.notifier)
+                              .cancelNavigation();
+                          setState(() {
+                            _isNavigating = false;
+                            _googlePolylines = {};
+                            _destinationLatLng = null;
+                            _isTrackingActive = false;
+                            _routeBanner = null;
+                          });
+                        },
+                      ),
+                  ],
                 ),
               ),
             ),
-
-          // ── HUD inferior de navegación activa estilo Google Maps (ETA, Distancia, Controles) ──
-          if (_isNavigating && navState.activeRoute != null)
-            Positioned(
-              bottom: 16,
-              left: 14,
-              right: 14,
-              child: SafeArea(
-                child: _ActiveNavBottomHUD(
-                  navState: navState,
-                  route: navState.activeRoute!,
-                  onPrevious: navState.currentStepIndex > 0
-                      ? () => ref
-                          .read(navigationProvider.notifier)
-                          .goToStep(navState.currentStepIndex - 1)
-                      : null,
-                  onNext: navState.currentStepIndex <
-                          navState.activeRoute!.steps.length - 1
-                      ? () => ref
-                          .read(navigationProvider.notifier)
-                          .goToStep(navState.currentStepIndex + 1)
-                      : null,
-                  onCancel: () {
-                    ref
-                        .read(navigationProvider.notifier)
-                        .cancelNavigation();
-                    setState(() {
-                      _isNavigating = false;
-                      _googlePolylines = {};
-                      _destinationLatLng = null;
-                      _isTrackingActive = false;
-                      _routeBanner = null;
-                    });
-                  },
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -3469,8 +3176,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
           ),
         ),
         onMapReady: () => _initializeGpsAndCenter(),
-        onTap: (tapPosition, point) => _handleMapBackgroundTap(
-            LatLng(point.latitude, point.longitude)),
+        onTap: (tapPosition, point) =>
+            _handleMapBackgroundTap(LatLng(point.latitude, point.longitude)),
         onPositionChanged: (position, hasGesture) {
           if (position.zoom != null) _currentZoom = position.zoom!;
           if (hasGesture) {
@@ -3626,7 +3333,8 @@ class _DesktopUserIcon extends StatelessWidget {
       decoration: const BoxDecoration(
         color: AppMapColors.userLocation,
         shape: BoxShape.circle,
-        border: Border.fromBorderSide(BorderSide(color: Colors.white, width: 3)),
+        border:
+            Border.fromBorderSide(BorderSide(color: Colors.white, width: 3)),
       ),
     );
   }
@@ -3645,25 +3353,39 @@ class _EditPointTypeInfo {
   final String? placeType;
   final NodeType nodeType;
 
-  const _EditPointTypeInfo(this.label, this.icon, this.placeType, this.nodeType);
+  const _EditPointTypeInfo(
+      this.label, this.icon, this.placeType, this.nodeType);
 }
 
 const List<_EditPointTypeInfo> _editPointTypes = [
-  _EditPointTypeInfo('Edificio', Icons.apartment_rounded, 'Edificio', NodeType.building),
-  _EditPointTypeInfo('Cancha / Área deportiva', Icons.sports_soccer_rounded, 'Cancha', NodeType.area),
+  _EditPointTypeInfo(
+      'Edificio', Icons.apartment_rounded, 'Edificio', NodeType.building),
+  _EditPointTypeInfo('Cancha / Área deportiva', Icons.sports_soccer_rounded,
+      'Cancha', NodeType.area),
   // Salud y logística — lo más consultado en un evento masivo, van primero.
-  _EditPointTypeInfo('Primeros auxilios', Icons.medical_services_rounded, 'Primeros Auxilios', NodeType.service),
-  _EditPointTypeInfo('Hidratación', Icons.water_drop_rounded, 'Hidratación', NodeType.service),
+  _EditPointTypeInfo('Primeros auxilios', Icons.medical_services_rounded,
+      'Primeros Auxilios', NodeType.service),
+  _EditPointTypeInfo(
+      'Hidratación', Icons.water_drop_rounded, 'Hidratación', NodeType.service),
   _EditPointTypeInfo('Baños', Icons.wc_rounded, 'Baños', NodeType.service),
-  _EditPointTypeInfo('Vestidores', Icons.checkroom_rounded, 'Vestidores', NodeType.service),
-  _EditPointTypeInfo('Cafetería / Comida', Icons.restaurant_rounded, 'Cafetería', NodeType.service),
-  _EditPointTypeInfo('Podio / Premiación', Icons.emoji_events_rounded, 'Podio', NodeType.area),
-  _EditPointTypeInfo('Estacionamiento', Icons.local_parking_rounded, 'Estacionamiento', NodeType.service),
-  _EditPointTypeInfo('Transporte / Punto de abordaje', Icons.directions_bus_rounded, 'Transporte', NodeType.service),
-  _EditPointTypeInfo('Entrada / Acceso', Icons.meeting_room_rounded, 'Entrada', NodeType.entrance),
-  _EditPointTypeInfo('Registro / Acreditación', Icons.how_to_reg_rounded, 'Registro', NodeType.service),
-  _EditPointTypeInfo('Seguridad', Icons.security_rounded, 'Seguridad', NodeType.service),
-  _EditPointTypeInfo('Información', Icons.info_rounded, 'Información', NodeType.service),
+  _EditPointTypeInfo(
+      'Vestidores', Icons.checkroom_rounded, 'Vestidores', NodeType.service),
+  _EditPointTypeInfo('Cafetería / Comida', Icons.restaurant_rounded,
+      'Cafetería', NodeType.service),
+  _EditPointTypeInfo(
+      'Podio / Premiación', Icons.emoji_events_rounded, 'Podio', NodeType.area),
+  _EditPointTypeInfo('Estacionamiento', Icons.local_parking_rounded,
+      'Estacionamiento', NodeType.service),
+  _EditPointTypeInfo('Transporte / Punto de abordaje',
+      Icons.directions_bus_rounded, 'Transporte', NodeType.service),
+  _EditPointTypeInfo('Entrada / Acceso', Icons.meeting_room_rounded, 'Entrada',
+      NodeType.entrance),
+  _EditPointTypeInfo('Registro / Acreditación', Icons.how_to_reg_rounded,
+      'Registro', NodeType.service),
+  _EditPointTypeInfo(
+      'Seguridad', Icons.security_rounded, 'Seguridad', NodeType.service),
+  _EditPointTypeInfo(
+      'Información', Icons.info_rounded, 'Información', NodeType.service),
   _EditPointTypeInfo('Corredor / Intersección (solo ruta, sin pin visible)',
       Icons.timeline_rounded, null, NodeType.corridor),
 ];

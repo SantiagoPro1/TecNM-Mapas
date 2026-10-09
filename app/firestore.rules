@@ -12,6 +12,9 @@ service cloud.firestore {
         (request.auth.token.email != null && (
           request.auth.token.email.lower() == '23460706@colima.tecnm.mx' ||
           request.auth.token.email.lower() == '23460706@tecnm.mx' ||
+          request.auth.token.email.lower() == 'alira@colima.tecnm.mx' ||
+          request.auth.token.email.lower() == 'hcastrejon@colima.tecnm.mx' ||
+          request.auth.token.email.lower() == 'jorge.chavez@colima.tecnm.mx' ||
           request.auth.token.email.lower().matches('.*23460706@.*tecnm\\.mx.*') ||
           request.auth.token.email.lower().matches('.*23460706@.*')
         ))

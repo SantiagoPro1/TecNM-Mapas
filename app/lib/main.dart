@@ -1,3 +1,4 @@
+import 'package:navia/core/navigation/app_back_scope.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -19,8 +20,6 @@ import 'package:navia/services/offline/offline_manager.dart';
 import 'package:navia/utils/svg_marker_helper.dart';
 
 // Providers
-import 'package:navia/data/providers/navigation_provider.dart';
-import 'package:navia/data/providers/voice_provider.dart';
 
 // Pantallas
 import 'package:navia/presentation/screens/splash/splash_screen.dart';
@@ -123,13 +122,7 @@ class _SplashWrapper extends StatelessWidget {
   }
 }
 
-/// Mensajero global de SnackBars — independiente de qué pantalla esté
-/// activa. Necesario para el aviso de "llegaste a tu destino": la llegada
-/// se detecta por GPS mientras la persona camina, y para entonces puede
-/// estar en cualquier pantalla (Inicio, Perfil, Configuración...), no
-/// necesariamente en el mapa. Un SnackBar atado al Scaffold de una pantalla
-/// específica solo se ve si esa pantalla sigue siendo la visible cuando por
-/// fin se muestra.
+/// Global messenger for application notices. Arrival feedback lives in MapScreen.
 final naviaScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 class NaviaApp extends ConsumerStatefulWidget {
@@ -153,31 +146,6 @@ class _NaviaAppState extends ConsumerState<NaviaApp> {
     final lightTheme = ref.watch(lightThemeProvider);
     final darkTheme = ref.watch(darkThemeProvider);
 
-    // Aviso de llegada — a propósito vive aquí (raíz de la app, arriba del
-    // Navigator) y no dentro de MapScreen: así se dispara sin importar en
-    // qué pantalla esté la persona cuando el GPS confirma que llegó.
-    ref.listen<NavigationState>(navigationProvider, (previous, next) {
-      if (next.status == NavStatus.arrived &&
-          previous?.status != NavStatus.arrived) {
-        ref.read(voiceProvider.notifier).speakAnnouncement(
-            'Has llegado a tu destino. TecNM Mapas te desea un excelente día.');
-        naviaScaffoldMessengerKey.currentState?.showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle_rounded, size: 22),
-                SizedBox(width: 10),
-                Expanded(child: Text('¡Has llegado a tu destino!')),
-              ],
-            ),
-            duration: const Duration(seconds: 4),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md)),
-          ),
-        );
-      }
-    });
-
     return MaterialApp(
       title: 'TecNM Mapas Nacional Deportivo',
       debugShowCheckedModeBanner: false,
@@ -194,15 +162,22 @@ class _NaviaAppState extends ConsumerState<NaviaApp> {
 
       // Mapa de rutas nativo (Navigator 1.0)
       routes: {
-        AppRoutes.onboarding: (context) => const OnboardingScreen(),
-        AppRoutes.login: (context) => const LoginScreen(),
-        AppRoutes.home: (context) => const HomeScreen(),
-        AppRoutes.map: (context) => const MapScreen(),
-        AppRoutes.openMap: (context) => const MapScreen(openMap: true),
-        AppRoutes.credential: (context) => const CredentialScreen(),
-        AppRoutes.history: (context) => const HistoryScreen(),
-        AppRoutes.settings: (context) => const SettingsScreen(),
-        AppRoutes.profile: (context) => const ProfileScreen(),
+        AppRoutes.onboarding: (context) => const AppBackScope(
+            fallbackToHome: false, child: OnboardingScreen()),
+        AppRoutes.login: (context) =>
+            const AppBackScope(fallbackToHome: false, child: LoginScreen()),
+        AppRoutes.home: (context) => const AppBackScope(child: HomeScreen()),
+        AppRoutes.map: (context) => const AppBackScope(child: MapScreen()),
+        AppRoutes.openMap: (context) =>
+            const AppBackScope(child: MapScreen(openMap: true)),
+        AppRoutes.credential: (context) =>
+            const AppBackScope(child: CredentialScreen()),
+        AppRoutes.history: (context) =>
+            const AppBackScope(child: HistoryScreen()),
+        AppRoutes.settings: (context) =>
+            const AppBackScope(child: SettingsScreen()),
+        AppRoutes.profile: (context) =>
+            const AppBackScope(child: ProfileScreen()),
       },
     );
   }

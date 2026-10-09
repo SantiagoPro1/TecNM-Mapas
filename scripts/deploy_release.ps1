@@ -45,7 +45,7 @@ Write-Host ""
 # ------------------------------------------------------------------------------
 Write-Host "[1/8] Verificando version actual..." -ForegroundColor Yellow
 
-$pubspecContent = Get-Content $PubspecPath -Raw
+$pubspecContent = Get-Content $PubspecPath -Raw -Encoding UTF8
 if ($pubspecContent -match 'version:\s*([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)') {
     $currentVersion = $Matches[1]
     $currentBuild = [int]$Matches[2]
@@ -70,13 +70,13 @@ Write-Host "  -> Nueva version    : v$Version+$BuildNumber" -ForegroundColor Gre
 
 # Actualizar pubspec.yaml
 $updatedPubspec = [regex]::Replace($pubspecContent, 'version:\s*[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+', "version: $Version+$BuildNumber")
-Set-Content -Path $PubspecPath -Value $updatedPubspec -NoNewline
+Set-Content -Path $PubspecPath -Value $updatedPubspec -NoNewline -Encoding UTF8
 
 # Actualizar lib/core/constants/app_version.dart
-$appVersionContent = Get-Content $AppVersionDart -Raw
+$appVersionContent = Get-Content $AppVersionDart -Raw -Encoding UTF8
 $appVersionContent = [regex]::Replace($appVersionContent, "static const String version = '[^']+';", "static const String version = '$Version';")
 $appVersionContent = [regex]::Replace($appVersionContent, "static const int buildNumber = [0-9]+;", "static const int buildNumber = $BuildNumber;")
-Set-Content -Path $AppVersionDart -Value $appVersionContent -NoNewline
+Set-Content -Path $AppVersionDart -Value $appVersionContent -NoNewline -Encoding UTF8
 Write-Host "  [OK] Archivos de version sincronizados (pubspec.yaml y app_version.dart)" -ForegroundColor Green
 
 # ------------------------------------------------------------------------------
@@ -132,6 +132,23 @@ if (-not $SkipBuild) {
     Write-Host "[3/8] Omitiendo compilacion (-SkipBuild activado, usando APK existente)" -ForegroundColor DarkGray
 }
 
+# Verify the real APK before copying or publishing metadata (also with -SkipBuild).
+$adbExecutable = (Get-Command adb -ErrorAction Stop).Source
+$sdkDir = Split-Path (Split-Path $adbExecutable -Parent) -Parent
+$aapt = Get-ChildItem (Join-Path $sdkDir "build-tools") -Filter aapt.exe -Recurse |
+    Sort-Object FullName -Descending | Select-Object -First 1
+if (-not $aapt) { throw "No se encontro aapt para verificar el APK" }
+$badging = & $aapt.FullName dump badging $ApkPath
+if ($LASTEXITCODE -ne 0) { throw "No se pudo inspeccionar el APK" }
+$packageLine = $badging | Select-Object -First 1
+if ($packageLine -notmatch "name='mx.edu.tecnm.colima.sinait'" -or
+    $packageLine -notmatch "versionCode='$BuildNumber'" -or
+    $packageLine -notmatch "versionName='$Version'") {
+    throw "El APK no coincide con la version anunciada: $packageLine"
+}
+$versionedApkName = "TecNM_Mapas_v${Version}_b${BuildNumber}.apk"
+$versionedApkUrl = "https://storage.googleapis.com/tecnm-mapas-updates/$versionedApkName"
+
 # ------------------------------------------------------------------------------
 # 4. DISTRIBUCION LOCAL (ESCRITORIO Y DIST/)
 # ------------------------------------------------------------------------------
@@ -156,10 +173,14 @@ if (-not $SkipUpload) {
     Write-Host "[5/8] Subiendo a Google Cloud Storage (CDN publico)..." -ForegroundColor Yellow
 
     Write-Host "  -> Subiendo a gs://tecnm-mapas-updates/TecNM_Mapas.apk..." -ForegroundColor DarkCyan
-    & gcloud storage cp $DistApk gs://tecnm-mapas-updates/TecNM_Mapas.apk
+    & gcloud storage cp $DistApk "gs://tecnm-mapas-updates/$versionedApkName"
+    if ($LASTEXITCODE -ne 0) { throw "Fallo la subida del APK versionado" }
+    & gcloud storage cp "gs://tecnm-mapas-updates/$versionedApkName" gs://tecnm-mapas-updates/TecNM_Mapas.apk --cache-control=no-store
+    if ($LASTEXITCODE -ne 0) { throw "Fallo la subida del APK" }
 
     Write-Host "  -> Subiendo a gs://navia-updates-tecnm/TecNM_Mapas.apk..." -ForegroundColor DarkCyan
-    & gcloud storage cp $DistApk gs://navia-updates-tecnm/TecNM_Mapas.apk
+    & gcloud storage cp "gs://tecnm-mapas-updates/$versionedApkName" gs://navia-updates-tecnm/TecNM_Mapas.apk --cache-control=no-store
+    if ($LASTEXITCODE -ne 0) { throw "Fallo la subida del APK secundario" }
 
     Write-Host "  [OK] APK disponible publicamente en la nube:" -ForegroundColor Green
     Write-Host "       https://storage.googleapis.com/tecnm-mapas-updates/TecNM_Mapas.apk" -ForegroundColor Cyan
@@ -178,10 +199,11 @@ if (-not $SkipUpload) {
     $syncScript = Join-Path $ScriptDir "sync_cloud_update.js"
     Push-Location $ProjectRoot
     try {
-        & node $syncScript --version $Version --build $BuildNumber --notes $ReleaseNotes --mandatory
+        & node $syncScript --version $Version --build $BuildNumber --notes $ReleaseNotes --apkUrl $versionedApkUrl --mandatory
+        if ($LASTEXITCODE -ne 0) { throw "Fallo la sincronizacion de Firestore" }
         Write-Host "  [OK] Metadatos sincronizados en app_meta/app_update. In-App Updater activado (Obligatorio)." -ForegroundColor Green
     } catch {
-        Write-Warning "No se pudo actualizar Firestore: $_"
+        throw "No se pudo actualizar Firestore: $_"
     }
     Pop-Location
 } else {

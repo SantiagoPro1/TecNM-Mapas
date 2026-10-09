@@ -57,3 +57,9 @@ app/assets/models/*.tflite
 # Binarios APK (se distribuyen vía GitHub Releases)
 *.apk
 dist/
+
+# Local restore points and temporary device captures
+backups/
+app/*.tmp.xml
+app/*.tmp.png
+update_firestore.js

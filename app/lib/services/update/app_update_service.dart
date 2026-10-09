@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:navia/presentation/widgets/app_notice.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:navia/core/constants/app_version.dart';
 import 'package:navia/core/theme/app_theme.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Información de versión remota obtenida desde Firestore (`app_meta/app_update`).
 class AppUpdateInfo {
@@ -14,6 +14,7 @@ class AppUpdateInfo {
   final String apkUrl;
   final String releaseNotes;
   final bool mandatory;
+  final int installedBuildNumber;
 
   const AppUpdateInfo({
     required this.latestVersion,
@@ -21,10 +22,11 @@ class AppUpdateInfo {
     required this.apkUrl,
     required this.releaseNotes,
     this.mandatory = false,
+    this.installedBuildNumber = AppVersion.buildNumber,
   });
 
   /// `true` si el build en Firestore es mayor que el que corre localmente en el APK.
-  bool get hasUpdate => latestBuildNumber > AppVersion.buildNumber;
+  bool get hasUpdate => latestBuildNumber > installedBuildNumber;
 }
 
 /// Servicio que comprueba si existe una versión más reciente del APK en la nube
@@ -48,10 +50,15 @@ class AppUpdateService {
       if (!doc.exists || doc.data() == null) return null;
       final data = doc.data()!;
 
+      final installedBuild = await const MethodChannel(
+        'mx.edu.tecnm.colima.sinait/installer',
+      ).invokeMethod<int>('getInstalledBuildNumber');
+
       return AppUpdateInfo(
+        installedBuildNumber: installedBuild ?? AppVersion.buildNumber,
         latestVersion: (data['latestVersion'] as String?) ?? AppVersion.version,
-        latestBuildNumber:
-            (data['latestBuildNumber'] as num?)?.toInt() ?? AppVersion.buildNumber,
+        latestBuildNumber: (data['latestBuildNumber'] as num?)?.toInt() ??
+            AppVersion.buildNumber,
         apkUrl: (data['apkUrl'] as String?) ?? '',
         releaseNotes: (data['releaseNotes'] as String?) ??
             'Mejoras de rendimiento y actualización de sedes deportivas.',
@@ -79,12 +86,12 @@ class AppUpdateService {
       _mostrarDialogo(context, info);
     } else if (manualCheck) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
+        AppNotice(
+          content: const Text(
             '¡Tu app está al día! Tienes la versión más reciente (v${AppVersion.version}).',
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
-          backgroundColor: Color(0xFF1E7A46),
+          tone: NoticeTone.success,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -120,6 +127,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
   bool _isReadyToInstall = false;
   String? _downloadedFilePath;
   String? _errorMessage;
+  NoticeTone _messageTone = NoticeTone.error;
   CancelToken? _cancelToken;
 
   @override
@@ -129,9 +137,11 @@ class _UpdateDialogState extends State<_UpdateDialog> {
   }
 
   Future<void> _startDownloadAndInstall() async {
+    if (_isDownloading || _isReadyToInstall) return;
     setState(() {
       _isDownloading = true;
       _errorMessage = null;
+      _messageTone = NoticeTone.error;
       _progress = 0.0;
       _receivedMb = 0.0;
       _totalMb = 0.0;
@@ -172,9 +182,12 @@ class _UpdateDialogState extends State<_UpdateDialog> {
       await _triggerInstall(targetPath);
     } catch (e) {
       if (!mounted) return;
+      final cancelled = e is DioException && CancelToken.isCancel(e);
       setState(() {
         _isDownloading = false;
-        _errorMessage = 'Error durante la descarga: $e';
+        _messageTone = cancelled ? NoticeTone.warning : NoticeTone.error;
+        _errorMessage =
+            cancelled ? 'Descarga cancelada' : 'Error durante la descarga: $e';
       });
     }
   }
@@ -183,28 +196,33 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     try {
       final result = await _installerChannel.invokeMethod<String>(
         'installApk',
-        {'filePath': filePath},
+        {'filePath': filePath, 'expectedBuild': widget.info.latestBuildNumber},
       );
 
       if (result == 'PERMISSION_REQUESTED' && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
+          AppNotice(
+            content: const Text(
               'Por favor activa "Permitir desde esta fuente" y regresa a la app para continuar la instalación.',
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
-            backgroundColor: Color(0xFFC05621),
+            tone: NoticeTone.warning,
             behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 6),
+            duration: const Duration(seconds: 6),
           ),
         );
       }
     } catch (e) {
       debugPrint('AppUpdate: error invocando instalador nativo: $e');
-      final uri = Uri.parse(widget.info.apkUrl);
-      try {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } catch (_) {}
+      if (mounted) {
+        setState(() {
+          _isReadyToInstall = false;
+          _messageTone = NoticeTone.error;
+          _errorMessage = e is PlatformException
+              ? e.message
+              : 'No se pudo abrir el instalador: $e';
+        });
+      }
     }
   }
 
@@ -318,16 +336,16 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E7A46).withValues(alpha: 0.08),
+                  color: NoticeTone.success.background,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                   border: Border.all(
-                    color: const Color(0xFF1E7A46).withValues(alpha: 0.3),
+                    color: NoticeTone.success.background,
                   ),
                 ),
                 child: const Text(
                   'El instalador del sistema abrirá la actualización. Si te pide permitir instalar apps desconocidas, activa el permiso para TecNM Mapas.',
                   style: TextStyle(
-                    color: Color(0xFF1E7A46),
+                    color: Colors.white,
                     fontWeight: FontWeight.w600,
                     fontSize: 12.5,
                     height: 1.4,
@@ -366,13 +384,23 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             ],
             if (_errorMessage != null) ...[
               const SizedBox(height: 12),
-              Text(
-                _errorMessage!,
-                style: TextStyle(
-                  color: cs.error,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                    color: _messageTone.background,
+                    borderRadius: BorderRadius.circular(AppRadius.md)),
+                child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(_messageTone.icon, color: Colors.white, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                          child: Text(_errorMessage!,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600))),
+                    ]),
               ),
             ],
           ],
@@ -397,6 +425,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                 setState(() {
                   _isDownloading = false;
                   _errorMessage = 'Descarga cancelada';
+                  _messageTone = NoticeTone.warning;
                 });
               },
               child: Text(

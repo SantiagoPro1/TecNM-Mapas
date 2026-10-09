@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:navia/presentation/widgets/app_notice.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:navia/core/constants/app_routes.dart';
 import 'package:navia/core/theme/app_theme.dart';
@@ -62,12 +63,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         _completeOnboarding();
       } else {
         if (!mounted) return;
-        final cs = Theme.of(context).colorScheme;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          AppNotice(
             content: const Text('Debes aceptar los términos para continuar',
                 style: TextStyle(fontWeight: FontWeight.bold)),
-            backgroundColor: cs.error,
+            tone: NoticeTone.warning,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.md)),
@@ -126,8 +126,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: ElevatedButton(
-                onPressed:
-                    (isLastPage && !_termsAccepted) ? null : _handleNext,
+                onPressed: (isLastPage && !_termsAccepted) ? null : _handleNext,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 60),
                   shape: RoundedRectangleBorder(

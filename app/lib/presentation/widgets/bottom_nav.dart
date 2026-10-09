@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:navia/core/constants/app_routes.dart';
+import 'package:navia/core/navigation/app_navigation.dart';
 
 class BottomNav extends StatelessWidget {
   final int currentIndex;
 
   const BottomNav({super.key, required this.currentIndex});
+
+  void _navigate(BuildContext context, int index, String route) {
+    if (index == currentIndex) return;
+    AppNavigation.open(context, route);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,29 +44,25 @@ class BottomNav extends StatelessWidget {
                   icon: Icons.home_rounded,
                   label: 'Inicio',
                   isActive: currentIndex == 0,
-                  onTap: () =>
-                      Navigator.pushReplacementNamed(context, AppRoutes.home),
+                  onTap: () => _navigate(context, 0, AppRoutes.home),
                 ).expandido,
                 _NavItem(
                   icon: Icons.badge_rounded,
                   label: 'ID',
                   isActive: currentIndex == 1,
-                  onTap: () => Navigator.pushReplacementNamed(
-                      context, AppRoutes.credential),
+                  onTap: () => _navigate(context, 1, AppRoutes.credential),
                 ).expandido,
                 _NavItem(
                   icon: Icons.public_rounded,
                   label: 'Mapa abierto',
                   isActive: currentIndex == 3,
-                  onTap: () => Navigator.pushReplacementNamed(
-                      context, AppRoutes.openMap),
+                  onTap: () => _navigate(context, 3, AppRoutes.openMap),
                 ).expandido,
                 _NavItem(
                   icon: Icons.person_rounded,
                   label: 'Perfil',
                   isActive: currentIndex == 2,
-                  onTap: () => Navigator.pushReplacementNamed(
-                      context, AppRoutes.profile),
+                  onTap: () => _navigate(context, 2, AppRoutes.profile),
                 ).expandido,
               ],
             ),
@@ -87,7 +89,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final inactiveColor = cs.onSurface.withValues(alpha: 0.42);
+    final inactiveColor = cs.onSurface.withValues(alpha: 0.72);
     return Semantics(
       button: true,
       label: label,
@@ -153,6 +155,5 @@ extension on _NavItem {
   /// estiraba la barra hasta ocupar la pantalla completa y tapaba el
   /// contenido de la pantalla, dejando los botones flotando a media altura.
   /// Con el factor, el alto lo manda el botón, como debe ser.
-  Widget get expandido =>
-      Expanded(child: Center(heightFactor: 1, child: this));
+  Widget get expandido => Expanded(child: Center(heightFactor: 1, child: this));
 }

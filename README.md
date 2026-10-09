@@ -1,169 +1,90 @@
-# 🗺️ TecNM Mapas Nacional Deportivo
+﻿# TecNM Mapas · Nacional Deportivo Colima
 
-> **Plataforma Integral de Movilidad, Geolocalización y Navegación Accesible para las Sedes Deportivas y Campus del TecNM**  
-> _Diseñado para guiar a atletas, delegaciones, comités organizadores y visitantes con mapas detallados, rutas accesibles y soporte offline._
+Aplicación Android para orientar a jugadores, delegaciones y visitantes en el campus y las sedes deportivas de Colima. Identidad azul TecNM, fichas de lugares y navegación peatonal.
 
-[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
-[![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)](https://dart.dev)
-[![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20Storage-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com)
-[![Google Maps](https://img.shields.io/badge/Google%20Maps-Platform-4285F4?logo=googlemaps&logoColor=white)](https://developers.google.com/maps)
-[![Tests](https://img.shields.io/badge/Tests-101%20Passed-brightgreen)](https://github.com/SantiagoPro1/TecNM-Mapas)
-[![License](https://img.shields.io/badge/License-TecNM-blue)]()
+![Android](https://img.shields.io/badge/Android-8%2B-002E6D?logo=android&logoColor=white)
+![Versión](https://img.shields.io/badge/APK-1.1.10%20%2827%29-002E6D)
+![Pruebas](https://img.shields.io/badge/Pruebas-174%20aprobadas-187447)
 
----
+**[Descargar APK para Android](https://storage.googleapis.com/tecnm-mapas-updates/TecNM_Mapas_v1.1.10_b27.apk)** · [Galería de capturas](docs/screenshots/README.md)
 
-## 📌 Descripción General
+## La app en un Xiaomi real
 
-**TecNM Mapas Nacional Deportivo** es la aplicación móvil oficial de navegación y asistencia en tiempo real desarrollada para el **Evento Nacional Deportivo del TecNM**. La aplicación soluciona el desafío de movilidad en recintos deportivos de gran escala y campus universitarios, ofreciendo posicionamiento en tiempo real, mapas satelitales con trazado de canchas, ruteo peatonal inteligente y credencialización digital.
+| Inicio | Mapa del campus | Ficha de un lugar |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/inicio.png" width="240" alt="Inicio y sedes"> | <img src="docs/screenshots/mapa-campus.png" width="240" alt="Mapa del campus"> | <img src="docs/screenshots/ficha-lugar.png" width="240" alt="Ficha de la cafetería"> |
 
-La plataforma está diseñada con un enfoque prioritario en **accesibilidad universal**, permitiendo trazar rutas adaptadas que evitan escaleras y desniveles para personas con movilidad reducida, además de integrar asistencia por voz paso a paso.
+| Navegación | Vista satelital | Avisos por color |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/ruta-campus.png" width="240" alt="Ruta peatonal e indicaciones"> | <img src="docs/screenshots/mapa-satelital.png" width="240" alt="Vista satelital del campus"> | <img src="docs/screenshots/aviso-ubicacion.png" width="240" alt="Aviso ámbar de ubicación manual"> |
 
----
+| Edición del mapa | Ajustes | Acceso institucional |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/modo-edicion.png" width="240" alt="Modo edición con aviso completo"> | <img src="docs/screenshots/ajustes.png" width="240" alt="Ajustes y versión instalada"> | <img src="docs/screenshots/perfil-institucional.png" width="240" alt="Perfil sin sesión con acceso Google"> |
 
-## ✨ Características Principales
+## Funciones
 
-### 🏟️ Cobertura Multi-Sede (9 Sedes Oficiales en Colima)
-- **Visualización completa de todas las sedes del evento:**
-  1. **TecNM Campus Colima** (Campus sede central y áreas académicas/deportivas).
-  2. **Unidad Deportiva Morelos** (Colima).
-  3. **Unidad Deportiva Sur "Las Moras"** (Coquimatlán - Estadio de Béisbol, canchas de fútbol, básquetbol, frontón y skatepark).
-  4. **Unidad Deportiva Infantil (UDIF)** (Colima).
-  5. **Unidad Deportiva de Villa de Álvarez** (Canchas de fútbol y atletismo).
-  6. **Unidad Deportiva Gil Cabrera** (Villa de Álvarez).
-  7. **Unidad Deportiva Gustavo Alberto Vázquez Montes**.
-  8. **Complejo Deportivo SNTE Sección 6**.
-  9. **Complejo Deportivo IMSS**.
-- Cada sede cuenta con caja delimitadora de cámara, puntos de interés (POIs) georreferenciados y trazado de andadores peatonales.
+- Nueve sedes, puntos de interés y fotografías de instalaciones.
+- Mapas de Google con capas y modo claro u oscuro.
+- Rutas peatonales sobre los grafos incluidos, filtros de accesibilidad e indicaciones por voz.
+- Acceso institucional con Google, perfil y credencial digital.
+- Edición de puntos y avisos para administradores.
+- Actualizaciones con descarga del APK, progreso y validación del paquete y su versión.
 
-### 🧭 Motor Híbrido de Navegación y Ruteo Inteligente
-- **Algoritmo Dijkstra sobre Grafo Topológico:** Permite calcular rutas óptimas a pie sin depender de conexión a internet.
-- **Rutas Accesibles:** Filtro especializado para personas en silla de ruedas o con movilidad asistida que prioriza rampas y andadores accesibles.
-- **Google Directions API con Respaldo Automático:** Consulta rutas en tiempo real y realiza *fallback* transparente al grafo local si se pierde la conectividad.
-- **Detección Dinámica de Llegada:** Monitoreo por proximidad GPS y aviso visual/auditivo al arribar al destino.
+Los grafos incluidos permiten calcular rutas localmente. Las imágenes del mapa, la autenticación, las actualizaciones y la sincronización con la nube requieren conexión. La información disponible depende de cada sede.
 
-### 🛰️ Visualización Satelital e Ilustraciones de Sedes
-- **Conmutador Satélite / Híbrido:** Botón de capas en tiempo real para alternar entre el mapa vectorial y la fotografía aérea satelital de alta resolución, permitiendo apreciar canchas de pasto, diamantes de béisbol, arcilla y pista sintética.
-- **Ilustraciones por Deporte:** Cada disciplina deportiva (béisbol, fútbol, básquetbol, voleibol, tenis/frontón, natación, atletismo, etc.) cuenta con su propia ficha gráfica ilustrada e ícono distintivo.
-- **Modo Claro / Oscuro Institucional:** Paleta de colores de alto contraste con tipografía *Manrope* adaptada a condiciones de luz exterior en canchas abiertas.
+## Sedes
 
-### 🪪 Credencial Digital con Código QR Dinámico
-- Identificación oficial de participantes, delegaciones y alumnos.
-- Autenticación institucional vía **Google Sign-In** (`@colima.tecnm.mx`).
-- Generación de código QR firmado criptográficamente para validación instantánea en accesos.
-- Respaldo de fotografía de perfil institucional en caché local persistente.
+TecNM Colima · Unidad Morelos · Gil Cabrera · IMSS · Coquimatlán · Gustavo Vázquez · Sur · UDIF · UD Las Moras.
 
-### 📲 Actualizador Integrado (In-App OTA Updates)
-- Detección automática de nuevas versiones mediante metadatos en Cloud Firestore.
-- Descarga directa dentro de la app con barra de progreso interactiva (porcentaje y MB/MB).
-- Invocación nativa del instalador de paquetes de Android (`PackageInstaller` vía `FileProvider`) sin redirigir al navegador externo.
+## Cambios de esta entrega
 
-### 🗣️ Asistencia por Voz No Bloqueante
-- Indicaciones auditivas integradas mediante el motor TTS nativo del dispositivo para guiar al usuario mientras camina sin necesidad de mirar la pantalla permanentemente.
+Los avisos del mapa permanecen en el mapa: verde para éxito, rojo para errores o eliminación, ámbar para advertencias y azul para información. Se ajustaron los controles flotantes y paneles para distintos tamaños de pantalla y texto.
 
----
+La navegación evita abrir repetidamente la misma pantalla al pulsar un botón. Atrás de Android recorre las pantallas de la app y el inicio cuenta con protección frente a salidas accidentales. Se conserva el diseño azul institucional.
 
-## 🏛️ Arquitectura del Software
+El actualizador consulta la versión instalada de Android y verifica el APK descargado. El despliegue valida paquete, versión y compilación antes de publicar una URL específica para cada entrega.
 
-El proyecto sigue los principios de **Clean Architecture** estructurada en 4 capas desacopladas, utilizando **Riverpod** para la gestión reactiva del estado y la inyección de dependencias:
+## Desarrollo
 
-```
-TecNM-Mapas/
-├── 📱 app/                          
-│   ├── assets/
-│   │   ├── categories/              # Ilustraciones de canchas y deportes (PNG)
-│   │   ├── maps/                    # Paquete JSON de sedes, nodos y caminos
-│   │   ├── map_styles/              # Estilos JSON para Google Maps (dark/light)
-│   │   └── places/                  # Fotografías reales de instalaciones
-│   ├── lib/
-│   │   ├── core/                    # Constantes, rutas, tema institucional y versión
-│   │   ├── data/                    # Modelos, repositorios y StateProviders (Riverpod)
-│   │   ├── domain/                  # Entidades y contratos de negocio
-│   │   ├── presentation/            # Vistas (MapScreen, HomeScreen, CredentialScreen, etc.)
-│   │   ├── services/                # Servicios nativos (Navegación Dijkstra, Auth, Update, Voz)
-│   │   └── utils/                   # Filtros GPS y utilidades matemáticas
-│   ├── test/                        # Suite de 101 pruebas unitarias automatizadas
-│   └── pubspec.yaml                 
-├── 🔧 backend/                      # API complementaria en Node.js / Express
-└── 📜 scripts/                      # Generadores de grafos topológicos y optimización de datos
-```
+Se necesitan Flutter compatible con las dependencias de `app/pubspec.yaml`, Android SDK y la configuración de Firebase y Google Maps del entorno. Las claves privadas de firma y credenciales de servidor se mantienen fuera del repositorio.
 
----
-
-## 🧪 Pruebas Unitarias y Calidad de Código
-
-El repositorio cuenta con una rigurosa suite de pruebas unitarias que validan la lógica central:
-
-```bash
-flutter test
-```
-
-- **Cobertura de pruebas:**
-  - `walk_graph_test.dart`: Conectividad y consistencia de grafos Dijkstra en las 9 sedes.
-  - `venue_bundle_test.dart` & `venue_registry_test.dart`: Validación de coordenadas, cajas de cámara y nombres de todas las sedes.
-  - `place_visuals_test.dart`: Clasificación taxonómica de nombres de canchas hacia deportes e imágenes.
-  - `navigation_test.dart`: Algoritmo de camino más corto y filtros de accesibilidad.
-  - `student_data_test.dart`: Validación de matrícula, NSS y datos del participante.
-  - `gps_filter_test.dart`: Filtrado Kalman / velocidad para detección de marcha.
-- **Resultado:** `101/101 tests passed (100% OK)`.
-
----
-
-## 🛠️ Tecnologías y Librerías
-
-| Componente | Tecnología | Uso |
-|---|---|---|
-| **Lenguaje** | Dart 3.x | Lógica central y compilación nativa AOT |
-| **Framework** | Flutter 3.x | Interfaz gráfica fluida a 60/120 FPS |
-| **Mapas** | `google_maps_flutter` | Renderizado nativo vectorial y satelital |
-| **Estado** | `flutter_riverpod` | Inyección de dependencias y estado reactivo |
-| **Autenticación** | `firebase_auth`, `google_sign_in` | Acceso seguro institucional |
-| **Base de Datos** | `cloud_firestore` | Sincronización remota y persistencia offline |
-| **Almacenamiento** | `firebase_storage` / GCS | Servidor de paquetes de actualización y fotos |
-| **Red & Descargas**| `dio` | Descarga de APKs con reporte de progreso en tiempo real |
-| **Canal Nativo** | Kotlin + Android MethodChannel | Invocación de `PackageInstaller` y `FileProvider` |
-
----
-
-## 🚀 Instalación y Ejecución
-
-### Prerrequisitos
-- [Flutter SDK](https://flutter.dev/docs/get-started/install) (versión >= 3.0.0)
-- [Android Studio / SDK](https://developer.android.com/studio) (API 34 recomendada)
-- [Git](https://git-scm.com/)
-
-### Clonar el Repositorio
-```bash
+```sh
 git clone https://github.com/SantiagoPro1/TecNM-Mapas.git
 cd TecNM-Mapas/app
-```
-
-### Instalar Dependencias
-```bash
 flutter pub get
-```
-
-### Ejecutar en Dispositivo
-```bash
+flutter analyze
+flutter test
 flutter run
 ```
 
-### Generar APK de Producción
-```bash
+Para generar un APK con la configuración de firma local:
+
+```sh
 flutter build apk --release
 ```
-El archivo resultante se encontrará en `build/app/outputs/flutter-apk/app-release.apk`.
 
----
+El resultado aparece en `app/build/app/outputs/flutter-apk/app-release.apk`. El proceso de publicación está en [scripts/deploy_release.ps1](scripts/deploy_release.ps1); modifica recursos de la nube y necesita la configuración del proyecto de destino.
 
-## 👥 Equipo de Desarrollo
+## Organización y verificación
 
-Desarrollado con dedicación por estudiantes del **TecNM Campus Colima** para la comunidad deportiva nacional.
+| Carpeta | Contenido |
+|---|---|
+| `app/lib/core` | Tema, constantes y navegación |
+| `app/lib/data` | Modelos, repositorios y estado |
+| `app/lib/presentation` | Pantallas, avisos y controles |
+| `app/lib/services` | Rutas, voz y actualizaciones |
+| `app/assets` | Grafos, fotografías y recursos del mapa |
+| `app/test` | Pruebas de lógica y componentes |
+| `backend` | API complementaria |
+| `scripts` | Herramientas y despliegue |
 
-- **Santiago G. García** — Arquitectura de software, motor geoespacial Dijkstra, optimizaciones de mapa e infraestructura de despliegue.
-- **Colaboradores técnicos y de diseño** — UI/UX accesible, credencialización digital y catalogación de sedes deportivas.
+La revisión local pasó `flutter analyze` y **174 pruebas**. Se comprueban rutas, datos de sedes, navegación, avisos, diseño adaptable y validación de actualizaciones. Las capturas muestran la app instalada; las pruebas automáticas no garantizan ausencia de errores en todos los dispositivos o condiciones de red.
 
----
+## Créditos y licencia
 
-## 📄 Licencia
+Desarrollado por estudiantes del **TecNM Campus Colima** para la comunidad deportiva nacional.
+
+**Santiago G. García** — desarrollo, navegación e infraestructura; colaboradores técnicos y de diseño — interfaz, credencialización y catalogación de sedes.
 
 Este software es propiedad del equipo de desarrollo institucional del **Instituto Tecnológico de Colima (TecNM)**. Todos los derechos reservados.

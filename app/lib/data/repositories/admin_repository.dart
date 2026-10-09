@@ -17,6 +17,9 @@ class AdminRepository {
   static const List<String> authorizedAdminEmails = [
     '23460706@colima.tecnm.mx',
     '23460706@tecnm.mx',
+    'alira@colima.tecnm.mx',
+    'hcastrejon@colima.tecnm.mx',
+    'jorge.chavez@colima.tecnm.mx',
   ];
 
   /// Valida si un correo electrónico pertenece a la lista de administradores autorizados.
@@ -38,7 +41,8 @@ class AdminRepository {
       return;
     }
     try {
-      await for (final doc in _firestore.collection('admins').doc(uid).snapshots()) {
+      await for (final doc
+          in _firestore.collection('admins').doc(uid).snapshots()) {
         yield doc.exists;
       }
     } catch (_) {

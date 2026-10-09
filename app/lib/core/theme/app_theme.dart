@@ -196,7 +196,7 @@ ThemeData _buildLight() {
   const textSecondary = _Navy.light; // Textos secundarios en azul claro
   const outline = _Navy.mid; // Bordes en azul medio
 
-  const colorScheme = ColorScheme.light(
+  const colorScheme = ColorScheme.dark(
     primary: primary,
     onPrimary: _Navy.base,
     secondary: _Navy.pale,

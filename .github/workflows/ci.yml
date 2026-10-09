@@ -16,6 +16,9 @@ jobs:
         with:
           flutter-version: '3.x'
           channel: 'stable'
+      - name: Preparar configuración de pruebas sin credenciales
+        working-directory: app
+        run: touch .env
       - name: Instalar dependencias
         working-directory: app
         run: flutter pub get

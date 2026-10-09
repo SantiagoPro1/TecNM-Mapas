@@ -14,5 +14,8 @@ Capturas reales de la versión Android **1.1.10 (compilación 27)** en el Xiaomi
 | Ajustes y versión instalada | [ajustes.png](ajustes.png) |
 | Perfil y acceso institucional sin sesión | [perfil-institucional.png](perfil-institucional.png) |
 | Credencial protegida sin sesión | [credencial-acceso.png](credencial-acceso.png) |
+| Credencial con sesión, vista frontal | [credencial-sesion.png](credencial-sesion.png) |
+| Mapa abierto y sedes de Colima | [mapa-abierto.png](mapa-abierto.png) |
+| Perfil con sesión | [perfil-sesion.png](perfil-sesion.png) |
 
 [Volver al proyecto](../../README.md)

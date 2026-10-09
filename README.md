@@ -22,6 +22,10 @@ Aplicación Android para orientar a jugadores, delegaciones y visitantes en el c
 |:---:|:---:|:---:|
 | <img src="docs/screenshots/modo-edicion.png" width="240" alt="Modo edición con aviso completo"> | <img src="docs/screenshots/ajustes.png" width="240" alt="Ajustes y versión instalada"> | <img src="docs/screenshots/perfil-institucional.png" width="240" alt="Perfil sin sesión con acceso Google"> |
 
+| Credencial con sesión | Mapa abierto de Colima | Perfil con sesión |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/credencial-sesion.png" width="240" alt="Credencial estudiantil con sesión"> | <img src="docs/screenshots/mapa-abierto.png" width="240" alt="Mapa abierto con sedes de Colima"> | <img src="docs/screenshots/perfil-sesion.png" width="240" alt="Perfil estudiantil con sesión"> |
+
 ## Funciones
 
 - Nueve sedes, puntos de interés y fotografías de instalaciones.
